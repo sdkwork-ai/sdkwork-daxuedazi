@@ -84,7 +84,7 @@ describe('sdkwork-oem plugin', () => {
     const directory = await mkdtemp(join(tmpdir(), 'dsh-oem-plugin-'))
     directories.push(directory)
     const ctx = await mount(join(directory, 'missing.json'))
-    expect(ctx.oem.brand.name).toBe('BirdCoder')
+    expect(ctx.oem.brand.name).toBe('学伴AI')
     expect(ctx.oem.sdkwork.iamBaseUrl).toBe('https://api.birdcoder.com')
     expect(ctx.oem.sdkwork.iamAuthorizeBaseUrl).toBe('https://platform.birdcoder.com')
     expect(ctx.oem.deepseek.platformOrigin).toBe('https://platform.birdcoder.com')

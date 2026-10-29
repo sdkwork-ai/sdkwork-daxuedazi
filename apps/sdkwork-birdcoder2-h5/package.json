@@ -3,7 +3,7 @@
   "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
-  "description": "BirdCoder2 H5 mobile web application root with Capacitor native host support.",
+  "description": "学伴AI H5 mobile web application root with Capacitor native host support.",
   "scripts": {
     "dev": "pnpm dev:standalone",
     "dev:standalone": "node ../../../sdkwork-specs/tools/build-browser-client.mjs --app-root . --architecture h5 --deployment-profile standalone --environment development --dry-run",

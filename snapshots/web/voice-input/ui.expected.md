@@ -1,6 +1,6 @@
 - banner:
   - button "Open right sidebar"
-- text: You are the AI expert Preview
+- text: The knowledge platform for university students Preview
 - button "Choose workspace": workspace
 - button "Standard mode"
 - textbox "Describe what you want to build, / commands, @ files or sessions":

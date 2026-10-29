@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork_birdcoder2_flutter_mobile_core",
-    "displayName": "BirdCoder2 Flutter core",
+    "displayName": "学伴AI Flutter core",
     "version": "0.1.0",
     "type": "flutter-package",
     "root": ".",

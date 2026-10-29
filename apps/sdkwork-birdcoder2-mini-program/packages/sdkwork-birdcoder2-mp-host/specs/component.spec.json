@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-mp-host",
-    "displayName": "BirdCoder2 Mini Program host",
+    "displayName": "学伴AI Mini Program host",
     "version": "0.1.0",
     "type": "typescript-package",
     "root": ".",

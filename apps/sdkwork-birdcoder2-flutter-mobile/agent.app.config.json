@@ -4,9 +4,9 @@
   "kind": "agent.app",
   "app": {
     "key": "sdkwork-birdcoder2-flutter-mobile",
-    "name": "BirdCoder2 Flutter Mobile",
-    "displayName": "BirdCoder2 Flutter Mobile",
-    "description": "BirdCoder2 Flutter mobile application for iOS and Android.",
+    "name": "学伴AI",
+    "displayName": "学伴AI",
+    "description": "学伴AI Flutter mobile application for iOS and Android.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder2",
     "supportUrl": "https://sdkwork.com/support",
@@ -116,7 +116,7 @@
       "packages": [
         {
           "id": "android-universal-standalone-mobile-aab",
-          "name": "BirdCoder2 Android Bundle",
+          "name": "学伴AI Android Bundle",
           "sourceType": "APP_STORE",
           "packageFormat": "AAB",
           "platform": "APP_ANDROID",
@@ -137,7 +137,7 @@
         },
         {
           "id": "ios-universal-standalone-mobile-ipa",
-          "name": "BirdCoder2 iOS Bundle",
+          "name": "学伴AI iOS Bundle",
           "sourceType": "APP_STORE",
           "packageFormat": "IPA",
           "platform": "APP_IOS",
@@ -158,7 +158,7 @@
         },
         {
           "id": "android-universal-cloud-mobile-aab",
-          "name": "BirdCoder2 Android Cloud Bundle",
+          "name": "学伴AI Android Cloud Bundle",
           "sourceType": "APP_STORE",
           "packageFormat": "AAB",
           "platform": "APP_ANDROID",
@@ -196,9 +196,9 @@
       {
         "version": "0.1.0",
         "releaseChannel": "INTERNAL",
-        "title": "BirdCoder2 Flutter Mobile 0.1.0 pre-launch",
+        "title": "学伴AI Flutter Mobile 0.1.0 pre-launch",
         "summary": "Standard-layout scaffold; iOS and Android packages remain disabled pending governed artifacts.",
-        "content": "The Flutter surface is an additive mobile client for the BirdCoder2 application. It consumes the same generated app SDKs and the same IAM runtime model as the other client architectures.",
+        "content": "The Flutter surface is an additive mobile client for the 学伴AI application. It consumes the same generated app SDKs and the same IAM runtime model as the other client architectures.",
         "highlights": [
           "Lower snake case Dart package family with a dedicated host adapter package",
           "standalone and cloud build inputs materialized from the repository authority",

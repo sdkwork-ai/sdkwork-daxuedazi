@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-birdcoder2-pc",
-    "displayName": "BirdCoder2 PC",
+    "displayName": "学伴AI PC",
     "version": "0.1.0",
     "type": "app-root",
     "root": ".",

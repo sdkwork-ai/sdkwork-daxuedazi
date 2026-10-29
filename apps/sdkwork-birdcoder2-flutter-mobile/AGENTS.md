@@ -1,6 +1,6 @@
 # AGENTS.md — sdkwork-birdcoder2-flutter-mobile
 
-Flutter mobile application root of BirdCoder2.
+Flutter mobile application root of 学伴AI.
 
 - Follow `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` and `APP_FLUTTER_UI_SPEC.md` before creating files.
 - Dart package names use lower snake case and include `flutter_mobile`:

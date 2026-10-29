@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-birdcoder2-common",
-    "displayName": "BirdCoder2 Common",
+    "displayName": "学伴AI Common",
     "version": "0.1.0",
     "type": "shared-package-family",
     "root": ".",

@@ -1,5 +1,5 @@
 {
-  "productName": "BirdCoder2",
+  "productName": "学伴AI",
   "identifier": "com.sdkwork.birdcoder2.desktop",
   "bundle": {
     "targets": "all",
@@ -13,7 +13,7 @@
   "app": {
     "windows": [
       {
-        "title": "BirdCoder2",
+        "title": "学伴AI",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

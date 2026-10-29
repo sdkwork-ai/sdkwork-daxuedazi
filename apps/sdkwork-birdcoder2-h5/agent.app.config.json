@@ -4,9 +4,9 @@
   "kind": "agent.app",
   "app": {
     "key": "sdkwork-birdcoder2-h5",
-    "name": "BirdCoder2 H5",
-    "displayName": "BirdCoder2 H5",
-    "description": "BirdCoder2 H5 mobile web application with Capacitor native support.",
+    "name": "学伴AI",
+    "displayName": "学伴AI",
+    "description": "学伴AI H5 mobile web application with Capacitor native support.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder2",
     "supportUrl": "https://sdkwork.com/support",
@@ -120,7 +120,7 @@
       "packages": [
         {
           "id": "h5-universal-cloud-mobile-zip",
-          "name": "BirdCoder2 H5 Bundle",
+          "name": "学伴AI H5 Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "H5",
@@ -141,7 +141,7 @@
         },
         {
           "id": "ios-universal-standalone-capacitor-ipa",
-          "name": "BirdCoder2 iOS Capacitor Bundle",
+          "name": "学伴AI iOS Capacitor Bundle",
           "sourceType": "APP_STORE",
           "packageFormat": "IPA",
           "platform": "APP_IOS",
@@ -162,7 +162,7 @@
         },
         {
           "id": "android-universal-standalone-capacitor-aab",
-          "name": "BirdCoder2 Android Capacitor Bundle",
+          "name": "学伴AI Android Capacitor Bundle",
           "sourceType": "APP_STORE",
           "packageFormat": "AAB",
           "platform": "APP_ANDROID",
@@ -183,7 +183,7 @@
         },
         {
           "id": "h5-universal-standalone-mobile-zip",
-          "name": "BirdCoder2 H5 Standalone Bundle",
+          "name": "学伴AI H5 Standalone Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
           "platform": "H5",
@@ -221,9 +221,9 @@
       {
         "version": "0.1.0",
         "releaseChannel": "INTERNAL",
-        "title": "BirdCoder2 H5 0.1.0 pre-launch",
+        "title": "学伴AI H5 0.1.0 pre-launch",
         "summary": "Standard-layout scaffold; browser and Capacitor packages remain disabled pending governed artifacts.",
-        "content": "The H5 surface is the mobile half of the Adaptive Web pair for the BirdCoder2 application and shares one renderer with the Capacitor host.",
+        "content": "The H5 surface is the mobile half of the Adaptive Web pair for the 学伴AI application and shares one renderer with the Capacitor host.",
         "highlights": [
           "Mobile renderer shared by H5, WebView, and Capacitor targets",
           "Capacitor host isolated in a single package",

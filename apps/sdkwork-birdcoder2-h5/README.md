@@ -1,6 +1,6 @@
 # sdkwork-birdcoder2-h5
 
-H5 mobile web application root for BirdCoder2, with Capacitor as the native host/release shape.
+H5 mobile web application root for 学伴AI, with Capacitor as the native host/release shape.
 
 Authority: `APP_H5_ARCHITECTURE_SPEC.md` §2, `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` §2,
 `APPLICATION_SPEC.md`. Package UI rules: `APP_MOBILE_REACT_UI_SPEC.md`.

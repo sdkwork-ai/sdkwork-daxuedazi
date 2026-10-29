@@ -1,6 +1,6 @@
 # AGENTS.md — sdkwork-birdcoder2-common
 
-Cross-architecture shared package-family root of the BirdCoder2 application
+Cross-architecture shared package-family root of the 学伴AI application
 (`apps/sdkwork-birdcoder2-common`). It is **not** a runnable client surface.
 
 - Follow `APPLICATION_SPEC.md`, `MODULE_SPEC.md`, and `SDKWORK_WORKSPACE_SPEC.md`.

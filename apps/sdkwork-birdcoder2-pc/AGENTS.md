@@ -1,6 +1,6 @@
 # AGENTS.md — sdkwork-birdcoder2-pc
 
-PC browser/desktop/tablet application root of BirdCoder2.
+PC browser/desktop/tablet application root of 学伴AI.
 
 - Follow `APP_PC_ARCHITECTURE_SPEC.md` before creating or moving files here.
 - Root `src/` stays thin: bootstrap, providers, route assembly, shell registration, AuthGate,

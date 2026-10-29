@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-h5-commons",
-    "displayName": "BirdCoder2 H5 commons",
+    "displayName": "学伴AI H5 commons",
     "version": "0.1.0",
     "type": "typescript-package",
     "root": ".",

@@ -16,7 +16,7 @@
 - button "账号菜单": 更多
 - banner:
   - button "打开右侧边栏"
-- text: 你就是人工智能专家 预览版
+- text: 大学生专用知识平台 预览版
 - button "选择工作区": workspace
 - button "标准模式"
 - textbox "描述你想要构建的内容, / 调用指令, @ 文件或对话"

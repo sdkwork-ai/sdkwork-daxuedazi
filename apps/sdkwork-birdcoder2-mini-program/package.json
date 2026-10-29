@@ -3,7 +3,7 @@
   "version": "0.2.0-rc.2",
   "private": true,
   "type": "module",
-  "description": "BirdCoder2 native WeChat mini program application root.",
+  "description": "学伴AI native WeChat mini program application root.",
   "scripts": {
     "dev": "pnpm dev:standalone",
     "dev:standalone": "node scripts/build-mini-program.mjs --deployment-profile standalone --environment development --watch",

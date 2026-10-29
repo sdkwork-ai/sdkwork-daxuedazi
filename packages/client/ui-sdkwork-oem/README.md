@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The browser half of the OEM profile. At boot it reads the `__DSH_OEM__` page projection published by [`@deepseek-ai/dsh-sdkwork-oem`](../../host/sdkwork-oem/README.md), hands the display name to the locale registry, titles the document with it, and records the resolved lifecycle on `documentElement.dataset.dshEnvironment` for diagnostics. Every client dictionary string that spells `BirdCoder` then renders the deployment's name; the shipped `BirdCoder` remains the fallback when no profile exists.
+The browser half of the OEM profile. At boot it reads the `__DSH_OEM__` page projection published by [`@deepseek-ai/dsh-sdkwork-oem`](../../host/sdkwork-oem/README.md), hands the display name to the locale registry, titles the document with it, and records the resolved lifecycle on `documentElement.dataset.dshEnvironment` for diagnostics. Every client dictionary string that spells `BirdCoder` then renders the deployment's name (the shipped default is 学伴AI); the `BirdCoder` spelling stays the fallback in a composition that does not mount the OEM profile.
 
 The sidebar wordmark reads the same page projection directly through `readOemBrandName()` in [`ui-primitives`](../ui-primitives/README.md); the name is live SVG text, so a longer OEM name steps down inside the upstream wordmark's box rather than reflowing the slot.
 

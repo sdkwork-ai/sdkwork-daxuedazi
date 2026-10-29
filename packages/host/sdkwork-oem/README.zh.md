@@ -13,7 +13,7 @@ OEM 部署保留 DeepSeek 官方登录验证流程，只替换其运行的域名
 
 ## 品牌标识
 
-本仓库交付的应用名称是 **BirdCoder**，Logo 是 BirdCoder 小鸟（`apps/web/public/favicon.png`，桌面、欢迎页与安装器图标均由它派生）。OEM profile 的默认 `brand.name` 同样是 **BirdCoder**，因此没有 OEM 配置的构建仍然呈现 BirdCoder。
+本仓库交付的应用显示品牌是 **学伴AI**；Logo 仍是 BirdCoder 小鸟（`apps/web/public/favicon.png`，桌面、欢迎页与安装器图标均由它派生），包名、app id、`birdcoder` 命令与服务域名保留 BirdCoder 拼写。OEM profile 的默认 `brand.name` 是 **学伴AI**，因此没有 OEM 配置的构建仍然呈现学伴AI。
 
 部署方可以把 `brand.name` 设为其他名称，客户端与 Desktop 的显示文案会在渲染时跟随。但这只改变显示名称：今后若 OEM 采用其他品牌，必须在同一次构建中同时替换构建期 Logo 位图——应用图标、安装器品牌图，以及 `apps/desktop/renderer/assets/welcome-bird.png`。`oem.json` 不会替换图片资源。
 
@@ -58,7 +58,7 @@ SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数�
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `brand.name` | `BirdCoder` | 客户端文案、侧栏字标、文档标题与 Desktop 原生文案使用的显示名 |
+| `brand.name` | `学伴AI` | 客户端文案、侧栏字标、文档标题与 Desktop 原生文案使用的显示名 |
 | `brand.companyName` | `SDKWork` | 需要厂商名的界面 |
 | `application.origins` | `["https://birdcoder.com"]` | 本部署对外提供 Web 应用的源；浏览器登录回调必须命中其中之一。回环地址仍供 Desktop 与本地使用 |
 | `sdkwork.iamBaseUrl` | `https://api.birdcoder.com` | SDKWork IAM PC 登录客户端的 app-api 源。生成的路径（`/app/v3/api/auth/...`）与 `X-Platform: pc` 请求头保持不变，只替换域名。非默认值会在所有环境层级替换 `ui-sdkwork-env` profile 的源；默认值则让环境 profile 继续生效 |

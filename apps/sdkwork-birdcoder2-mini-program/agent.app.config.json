@@ -4,9 +4,9 @@
   "kind": "agent.app",
   "app": {
     "key": "sdkwork-birdcoder2-mini-program",
-    "name": "BirdCoder2 Mini Program",
-    "displayName": "BirdCoder2 WeChat Mini Program",
-    "description": "BirdCoder2 native WeChat mini program application.",
+    "name": "学伴AI",
+    "displayName": "学伴AI",
+    "description": "学伴AI native WeChat mini program application.",
     "vendor": "SDKWork",
     "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder2",
     "supportUrl": "https://sdkwork.com/support",
@@ -111,7 +111,7 @@
       "packages": [
         {
           "id": "mp-weixin-universal-cloud-mini-program-package",
-          "name": "BirdCoder2 WeChat Mini Program (cloud)",
+          "name": "学伴AI WeChat Mini Program (cloud)",
           "sourceType": "MINI_PROGRAM",
           "packageFormat": "MINI_PROGRAM_PACKAGE",
           "platform": "MP_WEIXIN",
@@ -132,7 +132,7 @@
         },
         {
           "id": "mp-weixin-universal-standalone-mini-program-package",
-          "name": "BirdCoder2 WeChat Mini Program (standalone)",
+          "name": "学伴AI WeChat Mini Program (standalone)",
           "sourceType": "MINI_PROGRAM",
           "packageFormat": "MINI_PROGRAM_PACKAGE",
           "platform": "MP_WEIXIN",
@@ -170,9 +170,9 @@
       {
         "version": "0.1.0",
         "releaseChannel": "INTERNAL",
-        "title": "BirdCoder2 Mini Program 0.1.0 pre-launch",
+        "title": "学伴AI Mini Program 0.1.0 pre-launch",
         "summary": "Standard-layout scaffold; the platform package remains disabled pending governed artifacts and an app id.",
-        "content": "The mini program surface is an additive client for the BirdCoder2 application. SDKWork packages define the source architecture and platform pages are deterministic projections.",
+        "content": "The mini program surface is an additive client for the 学伴AI application. SDKWork packages define the source architecture and platform pages are deterministic projections.",
         "highlights": [
           "SDKWork mp package family; pages and subpackages are projection targets",
           "Platform access isolated behind a typed host adapter package",

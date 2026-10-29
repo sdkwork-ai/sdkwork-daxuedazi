@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-pc-shell",
-    "displayName": "BirdCoder2 PC shell",
+    "displayName": "学伴AI PC shell",
     "version": "0.1.0",
     "type": "typescript-package",
     "root": ".",

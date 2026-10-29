@@ -183,9 +183,11 @@ export const en = {
 export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 
 // FORK DIVERGENCE (AGENTS.md, "OEM profile"): the dictionaries below spell the
-// shipped product name; an OEM profile's `brand.name` replaces it in every
-// native string at resolution time, so no downstream consumer needs a brand
-// prop. Keep the literal here in step with the other OEM defaults.
+// product as `BirdCoder` — that spelling is the substitution token, not the
+// shipped display name. An OEM profile's `brand.name` (shipped default:
+// 学伴AI) replaces it in every native string at resolution time, so no
+// downstream consumer needs a brand prop. Changing this literal without
+// respelling every dictionary entry would silently render the token instead.
 /** Product name the Desktop dictionaries spell. */
 export const DESKTOP_DEFAULT_BRAND = 'BirdCoder'
 

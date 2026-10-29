@@ -46,8 +46,8 @@ const SIDEBAR = { width: 164, height: 314, fill: '#F3F4F6', markSize: 96, fontSi
  * build host without it still renders words rather than empty boxes.
  */
 const WORDMARK_FONT = "'Segoe UI', 'Segoe UI Semibold', Arial, 'Microsoft YaHei UI', sans-serif"
-/** The product name as it appears in the wordmark (matches `productName`). */
-const WORDMARK_TEXT = 'BirdCoder'
+/** The product name as it appears in the wordmark (matches the shipped display brand). */
+const WORDMARK_TEXT = '学伴AI'
 
 /**
  * Render the canonical product mark as a trimmed, transparent square PNG.

@@ -18,7 +18,7 @@ export const OEM_CONFIG_FILENAME = 'oem.json'
 /** Page global carrying the browser-visible OEM projection. */
 export const OEM_BOOT_GLOBAL = '__DSH_OEM__'
 /** Brand shipped without an OEM profile. */
-export const DEFAULT_BRAND_NAME = 'BirdCoder'
+export const DEFAULT_BRAND_NAME = '学伴AI'
 /** Company shipped without an OEM profile. */
 export const DEFAULT_COMPANY_NAME = 'SDKWork'
 /** Official browser login origin a deployment can explicitly restore; the shipped profile uses BirdCoder. */

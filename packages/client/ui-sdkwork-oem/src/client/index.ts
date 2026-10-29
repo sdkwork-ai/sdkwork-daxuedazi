@@ -3,7 +3,8 @@
  * profile published, hands the display name to the locale registry (every
  * shipped dictionary string that spells `BirdCoder` renders the deployment's
  * name from then on), and titles the document with it. Without an OEM profile
- * the projection is absent and both stay on the shipped `BirdCoder` brand.
+ * the projection is absent and both stay on the dictionary's `BirdCoder`
+ * spelling.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import { readOemBrandName, readOemEnvironment } from '@deepseek-ai/dsh-client-ui-primitives'

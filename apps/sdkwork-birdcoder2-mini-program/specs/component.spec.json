@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-birdcoder2-mini-program",
-    "displayName": "BirdCoder2 Mini Program",
+    "displayName": "学伴AI Mini Program",
     "version": "0.1.0",
     "type": "app-root",
     "root": ".",

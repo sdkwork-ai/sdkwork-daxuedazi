@@ -1,6 +1,6 @@
 # sdkwork-birdcoder2-pc
 
-PC browser / desktop / large-screen tablet application root for BirdCoder2.
+PC browser / desktop / large-screen tablet application root for 学伴AI.
 
 Authority: `APP_PC_ARCHITECTURE_SPEC.md` §2, `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` §2,
 `APPLICATION_SPEC.md`. Package UI rules: `APP_PC_REACT_UI_SPEC.md`.

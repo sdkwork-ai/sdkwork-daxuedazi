@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-pc-commons",
-    "displayName": "BirdCoder2 PC commons",
+    "displayName": "学伴AI PC commons",
     "version": "0.1.0",
     "type": "typescript-package",
     "root": ".",

@@ -1,6 +1,6 @@
 # AGENTS.md — sdkwork-birdcoder2-h5
 
-H5/Capacitor application root of BirdCoder2.
+H5/Capacitor application root of 学伴AI.
 
 - Follow `APP_H5_ARCHITECTURE_SPEC.md` before creating or moving files here.
 - H5 is the baseline runtime; Capacitor is a host/release shape. One mobile renderer, one SDK/IAM

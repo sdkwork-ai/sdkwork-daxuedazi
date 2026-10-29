@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-mp-commons",
-    "displayName": "BirdCoder2 Mini Program commons",
+    "displayName": "学伴AI Mini Program commons",
     "version": "0.1.0",
     "type": "typescript-package",
     "root": ".",

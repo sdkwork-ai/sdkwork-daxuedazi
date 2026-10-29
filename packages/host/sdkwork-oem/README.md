@@ -13,7 +13,7 @@ An OEM deployment keeps the official DeepSeek verification flow and moves only t
 
 ## Brand identity
 
-The application shipped by this repository is **BirdCoder**, and its logo is the BirdCoder bird (`apps/web/public/favicon.png`, from which the desktop, welcome, and installer marks derive). The OEM profile's default `brand.name` is also **BirdCoder**, so an OEM build with no profile still presents BirdCoder.
+The application shipped by this repository presents the display brand **学伴AI**; the logo is still the BirdCoder bird (`apps/web/public/favicon.png`, from which the desktop, welcome, and installer marks derive), and package names, app ids, the `birdcoder` command, and service origins keep their BirdCoder spelling. The OEM profile's default `brand.name` is **学伴AI**, so an OEM build with no profile still presents 学伴AI.
 
 A deployment may set another `brand.name`; every client and Desktop display string then follows at render time. That is a display-name change only: a future OEM that adopts another brand must also replace the build-time logo rasters — app icons, installer brand images, and `apps/desktop/renderer/assets/welcome-bird.png` — in the same build. `oem.json` never swaps image assets.
 
@@ -58,7 +58,7 @@ The profile path is `DSH_OEM_CONFIG`, then `$DSH_HOME/oem.json`. A missing file 
 
 | Field | Default | Meaning |
 |---|---|---|
-| `brand.name` | `BirdCoder` | Display name substituted into the client locale copy, the sidebar wordmark, the document title, and every Desktop native string |
+| `brand.name` | `学伴AI` | Display name substituted into the client locale copy, the sidebar wordmark, the document title, and every Desktop native string |
 | `brand.companyName` | `SDKWork` | Vendor name for surfaces that need one |
 | `application.origins` | `["https://birdcoder.com"]` | Public origins this deployment serves the Web app from; a browser sign-in callback must match one of them. Loopback stays accepted for Desktop and local use |
 | `sdkwork.iamBaseUrl` | `https://api.birdcoder.com` | SDKWork IAM app-api origin for the PC login client. The generated paths (`/app/v3/api/auth/...`) and the `X-Platform: pc` header are unchanged; only this domain moves. A value different from the shipped default replaces the `ui-sdkwork-env` profile origin in every tier, while the default leaves the environment profile in control |

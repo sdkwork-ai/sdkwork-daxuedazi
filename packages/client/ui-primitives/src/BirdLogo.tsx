@@ -1,12 +1,12 @@
-// BirdCoder logo mark: the product icon raster served at the web root
+// Product logo mark: the icon raster served at the web root
 // (apps/web/public/favicon.png — the same source the desktop shell derives
 // its platform icons from). Rendered square from its native ratio.
 //
 // FORK-OWNED FILE: this package only exists in the SDKWork fork; upstream
-// merges never touch it, so the BirdCoder brand cannot be reverted by a
+// merges never touch it, so the 学伴AI brand cannot be reverted by a
 // sync. Upstream's fish `FishLogo` stays in place for upstream consumers —
 // fork surfaces must render `BirdLogo` instead (see AGENTS.md,
-// "BirdCoder brand assets").
+// "BirdCoder brand assets", the section that owns the mark's merge rules).
 
 import type { IconProps } from './icons/props.ts'
 

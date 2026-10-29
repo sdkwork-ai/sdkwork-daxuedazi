@@ -1,4 +1,4 @@
-# Cross-architecture shared package family for BirdCoder2 (not a runnable client surface)
+# Cross-architecture shared package family for 学伴AI (not a runnable client surface)
 
 Authority: `APPLICATION_SPEC.md`, `MODULE_SPEC.md`, `SDKWORK_WORKSPACE_SPEC.md`,
 `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` §2.

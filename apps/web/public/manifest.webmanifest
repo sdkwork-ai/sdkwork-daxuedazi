@@ -1,6 +1,6 @@
 {
-  "name": "BirdCoder",
-  "short_name": "BirdCoder",
+  "name": "学伴AI",
+  "short_name": "学伴AI",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -9,7 +9,7 @@
   "icons": [
     {
       "src": "./favicon.png",
-      "sizes": "1312x1199",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
     }

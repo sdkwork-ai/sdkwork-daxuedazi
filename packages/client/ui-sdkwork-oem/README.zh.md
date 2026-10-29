@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 摘要
 
-OEM 配置的浏览器半边。启动时读取 [`@deepseek-ai/dsh-sdkwork-oem`](../../host/sdkwork-oem/README.zh.md) 发布的 `__DSH_OEM__` 页面投影，把显示名交给 locale 注册表，用它设置文档标题，并把解析出的生命周期记录到 `documentElement.dataset.dshEnvironment` 以便诊断。所有拼写 `BirdCoder` 的客户端字典文案随后渲染为部署品牌；没有配置时仍回落到出厂 `BirdCoder`。
+OEM 配置的浏览器半边。启动时读取 [`@deepseek-ai/dsh-sdkwork-oem`](../../host/sdkwork-oem/README.zh.md) 发布的 `__DSH_OEM__` 页面投影，把显示名交给 locale 注册表，用它设置文档标题，并把解析出的生命周期记录到 `documentElement.dataset.dshEnvironment` 以便诊断。所有拼写 `BirdCoder` 的客户端字典文案随后渲染为部署品牌（出厂默认为学伴AI）；未挂载 OEM 配置的组合仍回落到字典里的 `BirdCoder` 拼写。
 
 侧栏字标通过 [`ui-primitives`](../ui-primitives/README.zh.md) 的 `readOemBrandName()` 直接读取同一投影；名称是实时 SVG 文本，较长的 OEM 名称会在上游字标框内缩小字号，而不是撑开槽位。
 

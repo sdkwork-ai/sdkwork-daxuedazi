@@ -39,7 +39,7 @@ describe('resolveOemEnvironment', () => {
 })
 
 describe('resolveOemConfig', () => {
-  it('ships the BirdCoder service origins, brand, and application origin without a profile', () => {
+  it('ships the 学伴AI brand, BirdCoder service origins, and application origin without a profile', () => {
     expect(resolveOemConfig(undefined)).toEqual(defaultOemConfig())
     expect(defaultOemConfig()).toEqual({
       environment: 'production',

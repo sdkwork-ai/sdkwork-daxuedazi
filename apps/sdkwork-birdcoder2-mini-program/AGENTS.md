@@ -1,6 +1,6 @@
 # AGENTS.md — sdkwork-birdcoder2-mini-program
 
-Native mini program application root of BirdCoder2.
+Native mini program application root of 学伴AI.
 
 - Follow `MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md` and `APP_MINI_PROGRAM_UI_SPEC.md` before creating files.
 - Business code lives in `packages/sdkwork-birdcoder2-mp-*` (directory) / `@sdkwork/birdcoder2-mp-*` (package name). Platform `pages`/`subpackages` are

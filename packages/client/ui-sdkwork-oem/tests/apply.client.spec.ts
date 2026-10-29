@@ -51,9 +51,9 @@ describe('ui-sdkwork-oem client plugin', () => {
 
   it('keeps the shipped brand without a page projection', async () => {
     const { ctx, t } = await bench()
-    expect(t('brand')).toBe('BirdCoder')
-    expect(t('welcome')).toBe('Welcome to BirdCoder')
-    expect(document.title).toBe('BirdCoder')
+    expect(t('brand')).toBe('学伴AI')
+    expect(t('welcome')).toBe('Welcome to 学伴AI')
+    expect(document.title).toBe('学伴AI')
     await ctx.fiber.dispose()
   })
 

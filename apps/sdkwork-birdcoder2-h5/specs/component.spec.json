@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-birdcoder2-h5",
-    "displayName": "BirdCoder2 H5",
+    "displayName": "学伴AI H5",
     "version": "0.1.0",
     "type": "app-root",
     "root": ".",

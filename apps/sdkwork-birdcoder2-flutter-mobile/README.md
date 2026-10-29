@@ -1,6 +1,6 @@
 # sdkwork-birdcoder2-flutter-mobile
 
-Flutter mobile application root for BirdCoder2 (iOS and Android).
+Flutter mobile application root for 学伴AI (iOS and Android).
 
 Authority: `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` §2, `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` §2,
 `APPLICATION_SPEC.md`. Package UI rules: `APP_FLUTTER_UI_SPEC.md`.

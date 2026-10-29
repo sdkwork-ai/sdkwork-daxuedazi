@@ -1,6 +1,6 @@
 # sdkwork-birdcoder2-mini-program
 
-Native mini program application root for BirdCoder2.
+Native mini program application root for 学伴AI.
 
 Authority: `MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md` §2, `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` §2,
 `APPLICATION_SPEC.md`. Package UI rules: `APP_MINI_PROGRAM_UI_SPEC.md`.

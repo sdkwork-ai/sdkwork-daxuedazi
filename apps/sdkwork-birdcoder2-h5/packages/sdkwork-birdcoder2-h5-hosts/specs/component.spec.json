@@ -3,7 +3,7 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder2-h5-hosts",
-    "displayName": "SDKWork BirdCoder2 H5 Host Fleet",
+    "displayName": "SDKWork 学伴AI H5 Host Fleet",
     "version": "0.1.0",
     "type": "react-package",
     "root": "sdkwork-birdcoder2/apps/sdkwork-birdcoder2-h5/packages/sdkwork-birdcoder2-h5-hosts",
@@ -49,7 +49,7 @@
     "configKeys": []
   },
   "integration": {
-    "hostAuthority": "The host registry and pairing codes are owned by the sdkwork-birdcoder2 host runtime service; this package reads and writes them exclusively through the BirdCoder2 app API ports exposed by H5 core, never through a generated SDK.",
+    "hostAuthority": "The host registry and pairing codes are owned by the sdkwork-birdcoder2 host runtime service; this package reads and writes them exclusively through the 学伴AI app API ports exposed by H5 core, never through a generated SDK.",
     "platformBoundary": "Clipboard and secure storage come from the bound host adapters in H5 core, so the same screen runs in a browser, a WebView, and the Capacitor shell without importing a platform global."
   },
   "verification": { "commands": ["pnpm typecheck"] }

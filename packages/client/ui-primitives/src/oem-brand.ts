@@ -10,8 +10,8 @@
 
 /** Page global carrying the Host-published OEM display brand. */
 export const OEM_BOOT_GLOBAL = '__DSH_OEM__'
-/** Brand rendered when the page carries no OEM projection. */
-export const DEFAULT_BRAND_NAME = 'BirdCoder'
+/** Brand rendered when the page carries no OEM projection. Keep in step with the Host's `DEFAULT_BRAND_NAME`. */
+export const DEFAULT_BRAND_NAME = '学伴AI'
 /** SDKWork IAM app-api origin shipped when the page carries no OEM projection. */
 export const DEFAULT_IAM_BASE_URL = 'https://api.birdcoder.com'
 /** Hosted SDKWork IAM authorization origin shipped when the page carries no OEM projection. */
