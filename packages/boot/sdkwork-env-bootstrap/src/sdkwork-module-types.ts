@@ -21,21 +21,6 @@ export interface IamApplicationBootstrapModule {
   createIamApplicationBootstrapClientFromAppbaseBackendSdk: (config: { baseUrl: string }) => unknown
   /** Digest of a raw manifest, used to skip an unchanged re-registration. */
   hashManifestContent: (raw: string) => string
-  /**
-   * Write the registration output into the user-private credential store;
-   * `undefined` in an older sibling, which falls back to the local bundle path.
-   */
-  writeRegisteredBootstrapCredential:
-    | ((
-      repoRoot: string,
-      record: {
-        token: string
-        appId?: string
-        metadata?: Record<string, string | undefined>
-      },
-      options?: { environment?: string; deploymentProfile?: 'standalone' | 'cloud'; homeDir?: string },
-    ) => Promise<string[]>)
-    | undefined
   /** Read the operator's stored bootstrap credentials for one profile. */
   loadBootstrapAuthProfileFromHome: (options: Record<string, unknown>) => Promise<{
     profile: Record<string, unknown>
@@ -62,6 +47,6 @@ export interface CredentialEntryModule {
   readApplicationManifest(path: string): unknown
   /** Resolve the manifest path a repository root owns. */
   resolveRepoApplicationManifestPath(repoRoot: string, manifestPath?: string): string
-  /** Build the token record for a launch environment. */
+  /** Build the token env record written into the overlay. */
   buildBootstrapAccessTokenEnvRecord(existing: string, options: Record<string, unknown>): Record<string, string>
 }

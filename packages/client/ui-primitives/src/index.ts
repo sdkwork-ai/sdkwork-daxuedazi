@@ -33,7 +33,7 @@ export { Checkbox } from './Checkbox.tsx'
 export { Input } from './Input.tsx'
 export { InlineEditor } from './InlineEditor.tsx'
 export { Menu, MenuItemButton } from './Menu.tsx'
-export { MenuSurface } from './MenuSurface.tsx'
+export { MenuSurface, MENU_TRANSITION_MS } from './MenuSurface.tsx'
 export type { MenuSurfaceProps } from './MenuSurface.tsx'
 export { MenuGroup, observeStickyMenuGroups } from './MenuGroup.tsx'
 export type { MenuItemButtonProps, MenuEntry, MenuItem, MenuSeparator, MenuLabel } from './Menu.tsx'
@@ -68,8 +68,10 @@ export { BirdLogo } from './BirdLogo.tsx'
 export { BirdWordmark } from './BirdWordmark.tsx'
 export type { BirdWordmarkProps } from './BirdWordmark.tsx'
 export {
-  DEFAULT_BRAND_NAME, DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, OEM_BOOT_GLOBAL,
-  readOemBrandName, readOemEnvironment, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl,
+  DEFAULT_BRAND_NAME, DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, DEFAULT_IAM_CLIENT_ID,
+  DEFAULT_IAM_REDIRECT_URI, OEM_BOOT_GLOBAL,
+  readOemBrandName, readOemEnvironment, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl, readOemIamClientId,
+  readOemIamRedirectUri,
 } from './oem-brand.ts'
 export { BrandWordmark } from './BrandWordmark.tsx'
 export type { BrandWordmarkProps } from './BrandWordmark.tsx'
@@ -136,7 +138,7 @@ export type {
 export { CodeBlock } from './markdown/CodeBlock.tsx'
 export type { CodeBlockProps } from './markdown/CodeBlock.tsx'
 export { JsonBlock } from './markdown/JsonBlock.tsx'
-export { MarkdownDelegateProvider } from './markdown/MarkdownDelegate.tsx'
+export { MarkdownDelegateProvider, useMarkdownDelegate } from './markdown/MarkdownDelegate.tsx'
 export type { MarkdownDelegate, MarkdownDelegateProviderProps, MarkdownExternalLinkHandler } from './markdown/MarkdownDelegate.tsx'
 export { DetailDocument, detailDocumentState, useDetailDocumentLabels } from './DetailDocument.tsx'
 export type { DetailDocumentCopy, DetailDocumentLabels, DetailDocumentRead, DetailDocumentState } from './DetailDocument.tsx'
@@ -155,3 +157,5 @@ export type { ImageLightboxLabels } from './ImageLightbox.tsx'
 export { QuotePreview } from './QuotePreview.tsx'
 export type { QuotePreviewProps, QuotePreviewRemoval } from './QuotePreview.tsx'
 export { formatQuoteText } from './markdown/quote-text.ts'
+
+export type { MarkdownMenuTarget } from './markdown/MarkdownDelegate.tsx'

@@ -75,7 +75,7 @@ macOS 和 Windows 未签名安装包使用与本地 Web 构建相同的本地化
 
 两个手动打包工作流都接受 `test_release_id`。留空沿用机器 preset；非空值必须是 32 位小写十六进制字符串，且仅允许 test preset。加载器通过 `PACKAGE_TEST_RELEASE_ID` 应用覆盖值，不修改 preset 文件。同一平台连续升级测试需使用相同值。轮换默认值只影响后续构建：已安装客户端保留原更新地址，旧对象仍可访问，除非另行删除。随机前缀降低地址的可发现性，但不提供下载身份认证。
 
-不选择机器 preset 时，打包、上传以及手动 macOS 签名检查（本地 macOS 未签名构建除外）使用 `apps/desktop/packaging/windows.env` 或 `packaging/macos.env`，由目标平台选择。复制对应的 [Windows 模板](../packaging/windows.env.example) 或 [macOS 模板](../packaging/macos.env.example)，填写本机配置；Git 忽略这两个本地文件，安装产物也不包含它们。发布字段只从选定的配置文件读取，不回退到系统或 shell 中的同名变量；`PATH`、代理和构建工具环境仍保留。发布版本是命令参数而非发布字段，上传从打包写下的完成记录中读取它。文件使用 UTF-8，支持 BOM；相对证书、SignTool、Apple API Key 和钥匙串路径以 `apps/desktop` 为基准，变量值不做 shell 展开，包含 `#` 或空格的密码需要引号。Windows CI 读取相同的机器 preset。
+不选择机器 preset 时，打包、上传以及手动 macOS 签名检查（本地 macOS 未签名构建除外）使用 `apps/desktop/packaging/windows.env` 或 `apps/desktop/packaging/macos.env`，由目标平台选择。复制对应的 [Windows 模板](windows.env.example) 或 [macOS 模板](macos.env.example)，填写本机配置；Git 忽略这两个本地文件，安装产物也不包含它们。发布字段只从选定的配置文件读取，不回退到系统或 shell 中的同名变量；`PATH`、代理和构建工具环境仍保留。当网关或下载镜像使用自签名证书时，在平台文件或打包环境中设置 `DSH_DESKTOP_INSECURE_TLS=1`：打包下载与安装后的应用都会接受无法验证的证书。省略该设置则保持验证；安装包也可以在单次启动时传入 `--insecure-tls` 或设置同名变量。打包通过 `DSH_DESKTOP_DISTRIBUTION` 声明分发类别。`deployment` 是默认类别，会随包提供 `resources/sdkwork-release.env`，因此安装后的应用无需依赖安装用户的 shell 环境即可访问该部署的 SDKWork 网关：`prepare:sdkwork-env` 按 `DSH_DESKTOP_SDKWORK_ENVIRONMENT`（默认 `production`）从打包机的 `.env`、受跟踪的物化文件与用户私有凭据包（`~/.sdkwork/<application-code>/credentials/<profile-id>.json`，`IAM_APPLICATION_BOOTSTRAP_SPEC.md` 5.4.1）解析部署，把该部署及其引导令牌投影进产物。打包只投影已存在的凭据，绝不 provision 或重签，因此请先执行 `pnpm env:token:ensure --environment production` 物化令牌（`--refresh` 用于替换可复用的令牌）。没有可复用凭据的部署构建会在 electron-builder 之前失败——一个凭据表单无法派发请求的安装包，比一次失败的构建更糟；令牌之后过期或被吊销时，安装后的应用会报告同一情形。该产物包含引导令牌，因此公开发布或通用发布必须声明 `DSH_DESKTOP_DISTRIBUTION=public` 且不携带它——安装后的应用自行解析部署并退化为交互式 IAM 登录。应用自身的提供方密钥仍保存在安装用户的设置中，不写入此文件。发布版本是命令参数而非发布字段，上传从打包写下的完成记录中读取它。文件使用 UTF-8，支持 BOM；相对证书、SignTool、Apple API Key 和钥匙串路径以 `apps/desktop` 为基准，变量值不做 shell 展开，包含 `#` 或空格的密码需要引号。Windows CI 读取相同的机器 preset。
 
 每条打包命令在构建与下载前检查应用 ID 以及该模式需要的更新与签名配置，随后探测本次运行要用的外部工具：归档读取工具，以及 Windows 目标的安装器编译器。macOS 检查身份、Team ID、一套完整公证凭据、`CSC_LINK` 指定的可读本地 p12 文件、显式配置的 `CSC_KEY_PASSWORD`，以及引用的 API Key 和钥匙串文件；Windows 检查公开代码签名证书、SignTool 文件、容器名称和 PIN 格式。仅准备 Windows 资源以及两个平台上的显式未签名打包均不要求签名凭据。配置检查不验证 PIN 是否正确、Token 是否登录、钥匙串是否解锁或 Apple 是否接受凭据；实际签名与公证负责这些检查。未选择机器 preset 时，`--build-version auto` 会访问目标 bucket，`--check` 下同样如此。单独运行相同检查：
 
@@ -115,11 +115,9 @@ runner 的受监督启动和恢复见 [Windows runner 机器准备](../windows-s
 
 在 Actions 打开完成的运行并下载 Artifacts。`windows-x64-signed-<version>-<run_id>-<run_attempt>` 与 `windows-x64-unsigned-<version>-<run_id>-<run_attempt>` 包含对应 EXE；`windows-package-logs-<run_id>-<run_attempt>` 包含打包诊断。上传步骤名为 `Retain verified signed installer`、`Retain verified unsigned installer` 和 `Retain packaging diagnostics`；步骤耗时与带时间戳的日志显示上传用时。这些产物不等于发布 Release 或下载站内容。
 
-测量 Windows 构建路径对性能的影响时，可用 `build_root` 指定现有 Git checkout 之外的绝对目录。每轮任务将已验证的源码提交克隆到新的 `windows-package-<run-id>-<attempt>/source` 目录；不会复制忽略文件或此前的构建输出。仅打包进程通过 `TEMP` 和 `TMP` 使用同轮所属的同级 `temp` 目录；Actions 步骤及 Job 后置钩子保留原临时目录。依赖缓存和签名缓存沿用原有位置。成功任务在产物上传后仅删除本轮所属的 checkout，临时文件系统错误最多重试三次，等待时间按 100 ms 递增；持续清理失败会使 Job 失败，并可能留下部分删除的目录。构建失败时保留 checkout 供检查。输入留空时使用原 Actions checkout。完整 Job 耗时须包含 checkout 创建和清理。
-
 测量缓存时，`cache_namespace` 为两个依赖 store 和上游下载选择保留的子目录；留空使用正常共享缓存。新名称用于冷缓存采样，再次使用同名用于热缓存采样。名称由 1–64 个小写字母、数字或连字符组成，以字母或数字开头，且不能为 Windows 设备名。这不会重置独立的签名缓存或操作系统文件缓存；应将其状态、Job 开始至完成的总耗时与阶段耗时和产物体积一并报告。workflow 在依赖安装前记录 Node 版本、可用 CPU 并行数、逻辑 CPU 数及总内存和空闲内存。
 
-依赖安装和打包步骤在启动子进程前，将自身 shell 的 CPU、I/O 和内存优先级调整为普通值。优先级及独立构建目录辅助脚本从 workflow 的精确提交复制到本轮临时目录，与选中的产品源码分离。缺失辅助脚本会终止 CI 准备；无法调整优先级时明确告警并标记调度条件不适合性能对比，但继续打包。这不会修改 runner 任务或其他进程。版本、preset 和产物留存适配器仍跟随产品源码及其格式。
+依赖安装和打包步骤在启动子进程前，将自身 shell 的 CPU、I/O 和内存优先级调整为普通值。优先级辅助脚本从 workflow 的精确提交复制到本轮临时目录，与选中的产品源码分离。缺失辅助脚本会终止 CI 准备；无法调整优先级时明确告警并标记调度条件不适合性能对比，但继续打包。这不会修改 runner 任务或其他进程。版本、preset 和产物留存适配器仍跟随产品源码及其格式。
 
 安装器上传直接存储已经压缩的发布文件，不再进行 ZIP 二次压缩；安装器字节和签名保持不变。诊断日志上传保留通常的压缩方式。
 
@@ -129,12 +127,11 @@ runner 的受监督启动和恢复见 [Windows runner 机器准备](../windows-s
 
 [Apple Silicon 工作流](../../../.github/workflows/macos-package.yml)与 [Intel 工作流](../../../.github/workflows/macos-intel-package.yml)在带有 `dsh-mac-package-trial` 标签的 Apple Silicon runner 上分别生成 arm64 和 x64 安装包，两者共用一个并发组。Intel 工作流在安装依赖前检查 Rosetta 能否执行；所选源码必须包含按目标架构校验的 macOS CI 适配脚本。两者均选择 `test` 或 `production`，并复用现有签名、公证和打包运行时检查。成功的 DMG／ZIP 与诊断日志保留 14 天，不发布 release；安装包上传关闭重复 ZIP 压缩。操作人员须验收完整 Actions 运行及目标架构上的安装，才能确认可交付。`compression_level` 下拉选项默认为 `3`，也可选择 `7`；本次运行以该选项覆盖机器预设，只影响 ZIP 和自动升级下载，不影响 DMG。
 
-三个平台的表单均依次展示源码、环境、升级通道、版本模式、手动版本号、测试 release ID 和压缩等级，默认值一致。macOS 公证选项和 Windows 签名、缓存测量、独立构建目录选项位于公共字段之后。
+三个平台的表单均依次展示源码、环境、升级通道、版本模式、手动版本号、测试 release ID 和压缩等级，默认值一致。macOS 公证选项和 Windows 签名、缓存测量选项位于公共字段之后。
 
 运行 `node apps/desktop/scripts/setup-macos-packaging.mjs "$HOME/dsh-ci"` 创建私有 `runner/`、`packaging/{presets,secrets,certificates}` 和 `cache/macos-signatures` 目录，不覆盖已有文件；追加 `--check` 仅检查。在 checkout 外填写 [preset](../config/macos-packaging/test.env.example) 和[签名](../config/macos-packaging/macos-signing.env.example)模板，将秘密和证书文件权限设为 `0600`。`DSH_PACKAGING_CONFIG_DIR` 指定 `packaging` 的绝对目录，`DSH_PACKAGING_PRESET` 选择其中的 preset；缺少文件立即失败，不回退到 `packaging/macos.env`。Mac 签名和仅准备构建读取 `secrets/macos-signing.env`，相对凭据路径以该文件所在目录为基准。公开 preset 拒绝签名凭据，签名文件不能覆盖公开配置。本地未签名 Mac 构建保留无需配置的行为。
 
 运行 `bash apps/desktop/scripts/start-macos-packaging-runner.sh "$HOME/dsh-ci/runner" "$HOME/dsh-ci/packaging" <absolute-node-24-bin-directory> --check` 检查宿主工具和配置文件。脚本同时选择当前 Xcode 及其 macOS SDK，并编译小型链接探针。注册后省略 `--check`，清理继承环境并在前台启动 runner，存活期间阻止空闲睡眠。安装下方服务前，先用 Ctrl-C 停止。runner 拥有 `_work` 下的源码目录，与日常开发分开。该账户可读取签名文件，因此只执行可信代码。沿用现有公证代理恢复规则；强制终止后，先检查保留的恢复记录再构建。新建模板将 `DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR` 设为 checkout 外 `cache/macos-signatures` 的绝对路径。已有部署重新运行 setup 后，在各 preset 中补上该字段；已有文件保持不变。这样可跨干净检出保留签名；缓存验证和容量限制见 [macOS 签名](#macos-release-signing)。
-
 
 无论是否公证，ZIP 都使用同一压缩配置；App 只组装一次，再分别生成 DMG 和 ZIP，确保 ZIP 设置不改变 DMG 压缩。工作流选项 `skip_notarization` 默认为 `false`；对应 CLI 参数是 `--skip-notarization`。该模式保留 Developer ID 签名、DMG 签名验证和打包运行时验证，跳过 Apple 公证和 stapling，不要求 Apple 公证凭据。DMG／ZIP 文件名带 `-unnotarized`，存放于 `.desktop-build/targets/<target>/unnotarized-artifacts/`，上传产物标为 `unnotarized-debug`。这些产物仅供内部调试：Gatekeeper 可能阻止下载副本运行，不能视为可分发包或用于更新发布。该模式不写入发布完成记录，不能与未签名、Windows 或仅准备构建组合。
 
@@ -187,7 +184,7 @@ macOS 签名遍历真实文件，不跟随 Framework 的软链接别名。PAK �
 
 macOS 运行时准备将已验证的单架构 Mach-O 签名缓存在 `.desktop-build/targets/<target>/signature-cache`，除非通过 `DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR` 选择外置存储。显式路径必须是已存在的绝对目录，祖先路径不能包含链接，目录须归当前账户所有、权限为 `0700` 且可读写及遍历；非法或空配置在预检时失败，不回退。省略该字段保留目标本地缓存。缓存键包含输入字节与权限、签名探针实际使用的叶证书、签名标识、entitlement 字节、macOS 版本，以及签名工具与策略。复用不取决于 Git 提交：未提交的字节变更会使对应文件失效。每次命中都验证缓存字节、严格签名、证书、标识、entitlements、安全时间戳和 hardened runtime，再替换未被并发修改的输入。通用二进制每次重新签名。运行时完整性与 smoke 检查、App 签名和 Apple 公证仍会执行。缓存要求受信任的本地构建存储。缓存损坏或不安全链接会令构建失败；停止打包后删除对应缓存目录再重试。成功的签名阶段会将完整缓存条目的内容总量裁剪至一 GiB；中断留下的临时条目需手动清理。并发淘汰可能使读取方安全失败。日志记录命中、未命中及未缓存数量。
 
-Mac 打包命令通过 `DESKTOP_PACKAGING_RECORD` 输出 `apps/desktop/.desktop-build/packaging-runs/` 下的唯一目录。读取本地配置后，每次运行保留 `run.json`（发布版本、产品版本、Git 提交、工作区是否有改动、目标及 Node 版本）、`events.jsonl`（带时间戳的阶段、耗时、并行输出归属及代理恢复状态）、脱敏后的子进程 `stdout.log` / `stderr.log`，以及 `result.json`（整体结果、阶段结果和产物目录）。事件还记录打包并发数及各代理是否配置。失败和后续打包不会清除日志；没有自动删除流程。缺少 `result.json` 表示完成状态未经确认。已知凭据值会被遮盖；不记录环境变量全集或 notarytool 认证参数。运行时准备分别记录包暂存、安装、依赖树复制、签名、清单生成、smoke 检查、描述文件校验和清理。嵌套阶段的耗时存在重叠，不能直接相加。
+Mac 打包命令通过 `DESKTOP_PACKAGING_RECORD` 输出 `apps/desktop/.desktop-build/packaging-runs/` 下的唯一目录。读取本地配置后，每次运行保留 `run.json`（发布版本、产品版本、Git 提交、工作区是否有改动、目标、Node 版本，以及本次运行是否接受无法验证的 HTTPS 证书）、`events.jsonl`（带时间戳的阶段、耗时、并行输出归属及代理恢复状态）、脱敏后的子进程 `stdout.log` / `stderr.log`，以及 `result.json`（整体结果、阶段结果和产物目录）。事件还记录打包并发数及各代理是否配置。失败和后续打包不会清除日志；没有自动删除流程。缺少 `result.json` 表示完成状态未经确认。已知凭据值会被遮盖；不记录环境变量全集或 notarytool 认证参数。运行时准备分别记录包暂存、安装、依赖树复制、签名、清单生成、smoke 检查、描述文件校验和清理。嵌套阶段的耗时存在重叠，不能直接相加。
 
 App 和 DMG 公证分别记录 submission ID，以及独立的 `notarytool:upload:*` 和 `notarytool:wait:*` 耗时。上传使用 `submit --no-wait`，包含认证、本地校验、传输和服务端受理，并非纯传输时间。等待从该命令返回后开始，包含轮询及剩余的 Apple 处理时间；Apple 可能在上传提交命令返回前已开始处理。日志保留 Apple 状态与诊断信息，包括拒绝结果；签名检查、接受状态校验和 stapling 仍由 `@electron/notarize` 负责。仅生成目录的打包命令也使用同一条可计时的 App 公证路径。各子进程输出仍实时显示在终端，阶段失败及嵌套错误保留在事件日志中。两个平台均记录父进程打包失败，并在终端显示脱敏诊断，包括代理恢复操作指引。仅检查配置的 `check:package` 命令不创建运行日志。
 

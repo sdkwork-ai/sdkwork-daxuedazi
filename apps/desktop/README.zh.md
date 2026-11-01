@@ -55,7 +55,7 @@ Desktop Host 的 Platform API 请求与更新策略请求用相同的 Platform �
 
 桌面麦克风访问仅允许主 `dsh-app://app` 页面发起的音频请求。macOS 使用系统麦克风授权、随包用途说明，以及主应用与 Helper 签名中的 `com.apple.security.device.audio-input` 权限。
 
-按 F12（多媒体功能键键盘上为 Fn+F12）、macOS 的 Command+Option+I 或 Windows 的 Ctrl+Shift+I，可切换当前获得焦点的应用页面的 DevTools，打包版本同样支持。这些原生快捷键通过隐藏的应用菜单项注册。更新遮罩和打包版本的内嵌浏览器禁用 DevTools。
+按 F12（多媒体功能键键盘上为 Fn+F12）、macOS 的 Command+Option+I 或 Windows 的 Ctrl+Shift+I，可切换当前获得焦点的应用页面的 DevTools，打包版本同样支持。macOS 应用菜单在隐藏和退出命令之前的独立分组中显示本地化的“开发者工具”命令。Windows 和 Linux 在标题栏的应用弹出菜单中显示开关，通过隐藏的原生应用菜单注册快捷键（含隐藏的 F12 快捷键别名）。更新遮罩和打包版本的内嵌浏览器禁用 DevTools。
 
 <a id="terminal-command"></a>
 
@@ -154,11 +154,11 @@ Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 包含 pnpm �
 
 Electron 根据应用语言选择类型化的八种[内置 Client 语言](../../packages/client/locale/README.zh.md)的 shell 文案，并回退到英文。macOS 应用包通过 `CFBundleLocalizations` 声明支持全部八种语言，让 macOS 根据用户的首选语言匹配初始应用语言。主界面仍优先使用已保存的 Client UI 语言偏好。Windows NSIS 安装器在 `installer/locales/` 下按语言保存独立 JSON 资源；打包从这些文件生成 NSIS 文案和安装器语言清单。全部内置语言资源的键、格式占位符和命令示例必须一致，`pnpm run check:i18n` 负责检查。原生安装器测试逐个构建并验证配置中的语言。账户平台页面和引导插图对中文以外的语言使用英文。在 Windows 上，主文档的语言会更新桌面菜单、恢复与更新提示。仓库 Client UI i18n 检查覆盖桌面端源码。
 
-Windows 和 macOS 会在原生全屏切换及每次页面加载后向渲染器同步全屏状态，让浮层调整顶栏避让距离。
+Windows、macOS 和 Linux 会在原生全屏切换及每次页面加载后向渲染器同步全屏状态，让浮层调整顶栏避让距离。
 
-Windows 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色板同步。侧栏开关旁的本地化“应用”和“编辑”入口打开原生弹出菜单。仅当应用框架发布 shell overlay 席位后才挂载菜单，启动加载期间不显示。“应用”提供检查更新和退出；“编辑”向当前编辑器发送对应按键，提供撤销、重做、剪切、复制、粘贴、删除和全选，不受自定义快捷键绑定影响。插件管理使用主应用的“插件”页面。按 Alt 不会出现额外的原生菜单行。其他平台保留原生菜单。可编辑区域保留快捷键和不带快捷键标注的右键菜单；命令可用状态由 Chromium 提供，选中的只读文本提供“复制”命令。顶栏菜单保留鼠标和键盘操作，顶栏中的 Web 控件仍可触达。共享 DOM 只约束展示，不构成安全边界：产品脚本可以隐藏蒙层，但不能借此清除主进程策略或授权安装。更新操作与状态通过隔离预加载和壳 frame 之间的私有 MessageChannel 传递。
+Windows 和 Linux 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色板同步。侧栏开关旁的本地化“应用”和“编辑”入口打开原生弹出菜单。仅当应用框架发布 shell overlay 席位后才挂载菜单，启动加载期间不显示。“应用”提供检查更新和退出（Linux 上为“退出 BirdCoder”）；“编辑”向当前编辑器发送对应按键，提供撤销、重做、剪切、复制、粘贴、删除和全选，不受自定义快捷键绑定影响。插件管理使用主应用的“插件”页面。按 Alt 不会出现额外的原生菜单行。macOS 保留原生应用菜单。带系统边框的 Linux 欢迎窗口会移除菜单栏，因此任何窗口都不会出现第二条 header。可编辑区域保留快捷键和不带快捷键标注的右键菜单；命令可用状态由 Chromium 提供，选中的只读文本提供“复制”命令。顶栏菜单保留鼠标和键盘操作，顶栏中的 Web 控件仍可触达。共享 DOM 只约束展示，不构成安全边界：产品脚本可以隐藏蒙层，但不能借此清除主进程策略或授权安装。更新操作与状态通过隔离预加载和壳 frame 之间的私有 MessageChannel 传递。
 
-macOS 上自定义应用菜单还会声明标准的 File、Window 和应用菜单，因为替换 Electron 的默认菜单会丢掉 Close Window（⌘W）、Minimize（⌘M）和 Hide（⌘H）。Linux 保留应用菜单和 Edit 菜单。
+macOS 上自定义应用菜单还会声明标准的 File、Window 和应用菜单，因为替换 Electron 的默认菜单会丢掉 Close Window（⌘W）、Minimize（⌘M）和 Hide（⌘H）。Windows 和 Linux 改为在顶栏中画菜单，它们的隐藏应用菜单只注册快捷键。
 
 ### 运行时与插件激活
 
@@ -203,6 +203,17 @@ pnpm run dev:desktop --gateway 127.0.0.1:3900            # explicit host:port
 pnpm run dev:desktop --gateway https://api-test.birdcoder.com
 pnpm run dev:desktop --print-gateway --gateway domain    # print the resolved gateway and exit
 ```
+
+`desktop:prod` 是线上调试通道（也可以用 `dev:desktop:online` 运行同一条通道）：同样的构建与启动流程，指向部署中的生产环境而不是开发网关。按 sdkwork-specs ENVIRONMENT_SPEC 的 profile 矩阵，该模式保证 SDKWork profile：身份与网关键被强制设为规范的 `standalone.production` 值，因此无论 shell 继承了什么，所有 SDK 请求都发往 `https://api.birdcoder.com`；其余 SDKWork 值（访问令牌、提供方密钥、IM 嵌入地址）原样继承。由于目标固定，`--gateway` 与 `--gateway-port` 在该模式下会被拒绝。启动器会导出 `DSH_DESKTOP_SDKWORK_PROFILE=production`，Desktop Host 按该声明应用层级，而不是再做源码 checkout 测试——没有这个声明，Host 会把位于 checkout 内的线上 home 的 profile 目录重新解析回开发层级，渲染进程又会去调用开发网关。Harness 状态与浏览器数据存放在 `.desktop-build/online/` 下，与开发 home 分离，生产凭据和会话不会与开发状态混用；Host 在端口 `19389` 上提供 Web 应用，线上外壳因此可以与开发外壳并行运行。调试器与开发模式一样打开：渲染进程 DevTools 自动弹出，主进程、渲染进程与 Host 的 inspector 端口可通过 `chrome://inspect` 或 IDE 附加。出站请求日志默认开启：启动器通过 `NODE_OPTIONS` 向 Electron 外壳、dsh Host 及它们派生的每个 Node 子进程预加载一个日志器，每条出站 HTTP 请求都会向终端打印一行 `[online-request]`（时间、方法、URL、状态或错误、耗时）；日志从不读取请求头与请求体，凭据和载荷不会进入日志，渲染进程流量仍在 DevTools 网络面板查看。`DSH_ONLINE_REQUEST_LOG=0` 可以启动同一生产环境但关闭请求日志行。生产引导令牌从不在本地生成，因此需要走真实 IAM 登录流程。
+
+```sh
+pnpm run desktop:prod                                    # standalone.production + request log
+pnpm run desktop:prod --print-gateway                    # print the production gateway and exit
+pnpm run desktop:prod --skip-build                       # reuse the artifacts of a prior build
+pnpm run desktop:prod --insecure-tls                     # also accept a self-signed gateway certificate
+```
+
+证书为自签名的网关默认会被两侧拒绝：Node 侧的 Host 报 `DEPTH_ZERO_SELF_SIGNED_CERT`，渲染进程报 `net::ERR_CERT_AUTHORITY_INVALID`（`[online-request]` 日志行会显示这些错误码）。`--insecure-tls` 只在本次启动中接受该证书：以 `--ignore-certificate-errors` 启动 Electron，并为 Host 及其 Node 子进程设置 `NODE_TLS_REJECT_UNAUTHORIZED=0`，同时打印警告。当流量携带你在意的凭据时，优先使用安全方式：`NODE_EXTRA_CA_CERTS=<网关证书.pem>` 覆盖 Node 侧，把证书导入操作系统受信任根则覆盖 Chromium。发布包同样具备这一能力：在打包环境或平台 dotenv 中设置 `DSH_DESKTOP_INSECURE_TLS=1` 会写入 `dshDesktopInsecureTls`，安装后的应用每次启动都接受无法验证的证书，打包下载也能访问这类主机。单次启动安装包时也可以改为传入 `--insecure-tls`。部署构建还可以携带打包机本地解析出的 SDKWork 部署与引导令牌，安装后的应用无需依赖启动 shell 的环境即可访问同一网关。打包通过 `DSH_DESKTOP_DISTRIBUTION` 声明类别：`deployment`（默认）会随包提供该产物，打包机没有可复用凭据时直接失败；公开发布声明 `public` 且不携带它。两者均由[打包指南](packaging/README.zh.md#configuration-and-local-builds)负责说明。
 
 该网关必须按应用租户运行知识库表面。网关的开发 profile 会注入 `SDKWORK_KNOWLEDGEBASE_TENANT_ID=100001`（即 `agent.app.config.json` 中的 `backend.tenantId`）；其他网关需要同样的值，否则内嵌运行时回退到租户 `1`，并以 `40303 authenticated tenant does not match configured runtime tenant` 拒绝所有知识库调用。知识库 app-api 没有按用户的权限校验：该租户下所有已登录用户都可以创建和使用空间。
 
@@ -283,11 +294,11 @@ Windows 下载完成后的更新确认说明应用会在安装期间关闭、完
 
 macOS 在安装准备阶段等待产品主窗口退出全屏，再显示重启确认。取消确认后窗口保持普通模式；原生切换期间销毁窗口会在任务停止前取消安装。如果 macOS 未在五秒内报告切换完成，安装准备会报错且不停止 Host；本地化错误提示要求退出全屏后重试。安装失败后的恢复使用普通窗口。
 
-普通更新弹窗使用产品窗口内、隔离的壳静态源 WebContentsView，检查结果加载不会抬升独立的原生窗口。工作区 Host 尚未就绪时，该文档仍可使用。视图挂载期间拦截产品键盘输入，关闭时释放监听和视图。Windows 顶栏位于视图覆盖范围外，其中的原生及产品 Web 控件仍可操作。点击顶栏可切换侧栏、创建或复用空 Session，并改变底层页面。“关于”或 CLI 命令管理等应用菜单操作可替换并取消当前普通提示，但不代表批准安装，也不会清除强更策略。视图挂载期间仍阻断产品键盘快捷键和编辑按键转发。
+普通更新弹窗使用产品窗口内、隔离的壳静态源 WebContentsView，检查结果加载不会抬升独立的原生窗口。工作区 Host 尚未就绪时，该文档仍可使用。视图挂载期间拦截产品键盘输入，关闭时释放监听和视图。顶栏位于视图覆盖范围外，其中的原生及产品 Web 控件仍可操作。点击顶栏可切换侧栏、创建或复用空 Session，并改变底层页面。“关于”或 CLI 命令管理等应用菜单操作可替换并取消当前普通提示，但不代表批准安装，也不会清除强更策略。视图挂载期间仍阻断产品键盘快捷键和编辑按键转发。
 
 普通更新弹窗、Windows 首次关闭提示和强更文档共用随壳打包的 UI design token。各文档在显示卡片前通过 `prefers-color-scheme` 解析 Electron 的应用主题，配色变化时同步暗色主题属性。欢迎页与更新文档复用同一初始化脚本。明确选择浅色／暗色及跟随系统共用此路径，隔离文档保持透明背景，仅暗色模式以基于 token 的 1 CSS px 内描边区分卡片，不改变尺寸；浅色模式不描边。
 
-打包应用在启动后异步检查固定 Nightly。常规轮询以十分钟为基础间隔，每次独立采样 ±20% 的随机抖动。每次检查失败将基础延迟翻倍，上限为一小时；成功后重置。随机延迟不超过该上限，并从全部复用调用结算后开始计时。本地化的“检查更新…”菜单项（Windows 可从顶栏的“应用”菜单进入）立即执行，并复用正在进行的检查。回到前台和系统恢复时遵守相同的单调时钟截止时间。新收到的强更策略也会立即请求检查更新清单。自动检查从不弹窗或下载安装包。手动检查显示正在检查、失败或包含已安装版本号的无更新反馈。常规更新弹窗原位渐入渐出；连续弹窗替换卡片内容并重置其滚动位置，保留黑色半透明蒙层，不模糊父页面。
+打包应用在启动后异步检查固定 Nightly。常规轮询以十分钟为基础间隔，每次独立采样 ±20% 的随机抖动。每次检查失败将基础延迟翻倍，上限为一小时；成功后重置。随机延迟不超过该上限，并从全部复用调用结算后开始计时。本地化的“检查更新…”菜单项（可从顶栏的“应用”菜单进入）立即执行，并复用正在进行的检查。回到前台和系统恢复时遵守相同的单调时钟截止时间。新收到的强更策略也会立即请求检查更新清单。自动检查从不弹窗或下载安装包。手动检查显示正在检查、失败或包含已安装版本号的无更新反馈。常规更新弹窗原位渐入渐出；连续弹窗替换卡片内容并重置其滚动位置，保留黑色半透明蒙层，不模糊父页面。
 
 `DSH_DESKTOP_UPDATE_CHECK_INTERVAL_MS` 配置常规基础间隔，`DSH_DESKTOP_UPDATE_CHECK_MAX_BACKOFF_MS` 配置上限；两者均接受 1000 至 2147483647 的整数毫秒数，且上限不能小于间隔。省略上限时取一小时与间隔中的较大值。`DSH_DESKTOP_UPDATE_CHECK_JITTER` 配置 0 至 1 的抖动比例，默认 `0.2`；最终延迟至少一秒，且不超过上限。这些配置不改变强更策略轮询，也不授权下载重试。
 
@@ -365,6 +376,8 @@ node apps/desktop/node_modules/pnpm/bin/pnpm.mjs --dir apps/desktop run test:upd
 此命令构建 Desktop 壳，让其协调器通过真实 Electron HTTP 请求和 `NsisUpdater` 访问私有回环服务器。它验证用户授权的完整下载、SHA-512 拒绝、显式重试、并发请求合并、清单替换和安装交接。它还打开使用沙箱预加载的真实强更页面，检查按钮操作、关闭／Esc 拦截、纯文本内容、策略请求停滞和策略解除。成功时打印 `LOCAL_UPDATER_RESULT` 并以零退出码结束；功能失败时返回非零退出码。每次调用独占随机端口和临时用户数据／缓存目录，关闭监听器、等待 Electron 退出，并移除临时文件。报告和可用截图保存在唯一的 `.desktop-build/qualification/local-updater-*` 目录中。截图失败单独记录，绝不当作视觉验收通过。不需要 COS 或签名凭据。
 
 下载内容是不可执行的测试字节，安装调用仅记录而不执行。测试替换浏览器打开与剪贴板写入，避免外部导航和剪贴板修改。它不启动完整产品工作区，不验证真实安装器或重启，不验证发布者签名，也不覆盖差分更新或 macOS。停滞的策略请求、清单请求和负载传输会执行真实截止时间及恢复。真实常规弹窗验证隔离预加载、卡片尺寸、背景模糊、取消、任务警告选项与显式安装批准；账户行组件测试另行提供证据。[本地验证决策](../../.agents/notes/implemented/testing/2026-09-10-desktop-local-updater-qualification.zh.md)和[验证记录](tests/README.zh.md)保留这些限制；生产发布要求保持不变。
+
+原生原始文件操作仅接受可信应用页面。完成后向该页面返回目标路径；显示位置复用现有 Host 路径打开 API，不提供独立 reveal IPC，也不保留已保存文件历史。下载使用 Chromium URL 下载和原生保存对话框 API；`DSH_DESKTOP_FILE_DOWNLOAD_TIMEOUT_MS` 限定 Chromium 创建下载前的启动期限（300000 毫秒），不限制原生保存对话框的停留时间。仅剪贴板使用的远程图片读取不携带凭据，逐次校验重定向，拒绝应用 Host 及其回环别名，在主框架导航时终止，并使用 `DSH_DESKTOP_IMAGE_READ_TIMEOUT_MS`（30000 毫秒）与 `DSH_DESKTOP_IMAGE_READ_MAX_BYTES`（67108864 字节）。图片复制在转换为 PNG 后使用渲染进程的 Clipboard API。其他可达的 HTTP(S) 目标遵循部署侧网络隔离。[文件操作](../../packages/client/ui-file-actions/README.zh.md) 定义保存和剪贴板行为。
 
 <a id="low-level-development-overrides"></a>
 

@@ -37,7 +37,7 @@ kind: "package-reference"
 
 每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。
 
-有两条中转路由即使 pi-ai 已安装目录没有描述，也作为目录成员随包提供：`sdkwork`（`https://api.sdkwork.com/v1`，OpenAI Chat Completions）与 `birdcoder`（`https://api.birdcoder.com/v1`，默认 Anthropic Messages）——后者网关以 Claude Code 为先，因此默认使用 `/anthropic` 面，由 SDK 追加 `/v1/messages`。两者都从已安装的 OpenRouter 目录借用模型种子，因此无需任何配置就会出现在「模型」页的提供方列表中，并且在把密钥存入其派生引用（`SDKWORK_API_KEY` 或 `BIRDCODER_API_KEY`）后即可使用多种主流模型。profile 可以把同一批 BirdCoder 模型切到网关的 OpenAI 面——Codex 用 `api: openai-responses`，或用 `api: openai-completions`——端点会随协议切换，无需重写。种子只是精选子集；端点自身的 `GET /models`——即「模型」页的获取操作——会列出全量集合，profile 可以覆盖任何种子事实，包括自建同型服务的 `baseURL`。
+有两条中转路由即使 pi-ai 已安装目录没有描述，也作为目录成员随包提供：`sdkwork`（`https://api.sdkwork.com/v1`，OpenAI Chat Completions）与 `birdcoder`（`https://api.birdcoder.com/v1`，默认 Anthropic Messages）——后者网关以 Claude Code 为先，因此默认使用 `/anthropic` 面，由 SDK 追加 `/v1/messages`。两者都以 SDKWork 模型目录为种子：目录判定为现行的全部对话模型（弃用、退役、隐藏与已被替换的行不进入种子），按目录自身的顺序排列，DeepSeek 区块置顶；因此无需任何配置就会出现在「模型」页的提供方列表中，并且在把密钥存入其派生引用（`SDKWORK_API_KEY` 或 `BIRDCODER_API_KEY`）后即可使用各厂商当前的模型。种子模块由目录生成（`node scripts/generate-sdkwork-relay-models.mjs`；加 `--check` 可证明已提交的种子仍与目录一致），目录升版即可刷新选择器，而不是留下一份手工维护的清单；当 pi-ai 描述同一模型时，种子会借用已安装 OpenRouter 目录为该模型记录的线上事实与兼容块，否则只陈述 SDKWork 目录自己声明的内容。profile 可以把同一批 BirdCoder 模型切到网关的 OpenAI 面——Codex 用 `api: openai-responses`，或用 `api: openai-completions`——端点会随协议切换，无需重写。端点自身的 `GET /models`——即「模型」页的获取操作——仍然是该部署实际提供哪些模型的权威答案，profile 可以覆盖任何种子事实，包括自建同型服务的 `baseURL`。
 
 ```yaml
 - name: '@deepseek-ai/dsh-llm-pi-ai'
@@ -142,6 +142,13 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 
 初始提示词文本和可用工具分别使用 pi-ai 的 `Context.systemPrompt` 与 `Context.tools`；后续系统消息和工具更新保留在 `Context.messages` 中。pi-ai 负责规范化这些字段，并应用所选协议的序列化规则。
 
+<a id="request-headers"></a>
+### 请求头
+
+插件可通过同步的 `llm-pi-ai/request-headers` waterfall 贡献模型不可见的传输元数据。每次推理调用提供不可变的路由元数据（`PiAiRequestHeaderContext`）和从 profile 标头复制出的独立 `Headers`；配置名称仅大小写不同时，以最后一个条目为准。端点来自已准备的模型，因此并发调用与配置变更不会交换请求头状态。监听器修改该副本、调用 `next()`，并在返回时释放对它的引用；所属插件卸载时，`ctx.on()` 会移除注册。Harness 的应用标识在所有贡献器之后写入，pi-ai 接收独立的标头记录。
+
+该事件覆盖有无 Session id 的推理调用及辅助调用，不用于模型发现。贡献器异常或无效 HTTP 标头会在推理发送前以 `REQUEST_HEADERS` 使调用失败，不发送部分准备好的请求。失败信息包含 provider 和贡献器的顶层错误消息，该消息必须排除凭据与标头值。原生标头校验可能在 `TypeError` 中回显值，因此 TypeError 详情与非 Error 抛出值改用安全的排查提示；嵌套 cause 仍附在抛出的错误上，但不会复制到公开失败信息中。贡献不会改变消息、工具 schema 或 Session 日志。直接使用 `PiAiAdapter` 的调用方可提供等效的 `prepareHeaders` 回调。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -152,6 +159,7 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 | [`src/config.ts`](src/config.ts) | Profile schema、解析与可服务性校验 |
 | [`src/catalog.ts`](src/catalog.ts) | 已安装目录集成与漂移门禁 |
 | [`src/relay.ts`](src/relay.ts) | 随包中转路由及其种子目录 |
+| [`src/relay-models.generated.ts`](src/relay-models.generated.ts) | 生成的中转种子：SDKWork 目录投影，按选择器顺序排列 |
 | [`src/provider-data.ts`](src/provider-data.ts) | 配置界面使用的认证与端点生成数据 |
 | [`src/models.ts`](src/models.ts) | 基于 pi-ai 窄入口的 model collection、静态 provider 与 reasoning level |
 | [`src/provider.ts`](src/provider.ts) | 受支持协议表与提供方构建 |

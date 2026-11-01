@@ -37,9 +37,19 @@ export const remoteDefaultResponses: RemoteTable = {
     // ui-settings-plugin-inventory's Plugins-section tab and ui-plugin-manager's
     // manager store list the Loader inventory when their sections render.
     'pluginInventory/list': ok({ entries: [] }),
+    // ui-plugin-manager's Plugins page reads the manager's own inventory in both
+    // of its sections. The roster has always mounted that row, but no full-roster
+    // spec got far enough to observe these reads before the FORK DIVERGENCE alias
+    // in `vitest.config.ts` made the third-party IM row importable.
+    'pluginManager/listPlugins': ok([]),
+    'pluginManager/listBundles': ok([]),
     // ui-settings-account refreshes details after a stored-grant snapshot.
     'account/getProfile': ok(null),
     'account/getBalance': ok(null),
+    // ui-sdkwork-skills reads the catalog as soon as its settings section
+    // mounts; with no session that is the composition-wide inventory. The
+    // assembly mounts the settings sections at boot, so the read is boot-time.
+    'skills/list': ok({ skills: [] }),
     // ui-settings-account bonus notice read and acknowledgement at signing in.
     'account/getUnnotifiedBonuses': ok(null),
     'account/ackBonusNotified': ok(true),

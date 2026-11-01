@@ -16,16 +16,17 @@ import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-env/client'
 import type { EnvService } from '@deepseek-ai/dsh-client-ui-sdkwork-env/client'
 import {
-  DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl,
+  DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, DEFAULT_IAM_CLIENT_ID, DEFAULT_IAM_REDIRECT_URI,
+  readOemIamAuthorizeBaseUrl, readOemIamBaseUrl, readOemIamClientId, readOemIamRedirectUri,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SdkworkDesktopAuthSession } from '@sdkwork/iam-desktop-auth'
-import { createIamDesktopLogin, readSdkworkDesktopBridge, type IamDesktopLogin } from './iam-desktop.ts'
+import { isSdkworkDesktopAuthError, type SdkworkDesktopAuthSession } from '@sdkwork/iam-desktop-auth'
+import { createIamDesktopLogin, readSdkworkDesktopBridge, readSdkworkDesktopIamSessionBridge, type IamDesktopLogin } from './iam-desktop.ts'
 import {
   DEFAULT_UI_IAM_SETTINGS,
   type UiIamSettings,
 } from '../iam-settings.ts'
-import { createIamAuthRuntime } from './iam-runtime.ts'
-import type { SdkworkIamRuntimeAuthRuntimeLike } from '@sdkwork/auth-pc-react'
+import { createIamAuthRuntime, type IamAuthRuntime } from './iam-runtime.ts'
+import type { IamPersonaCatalog, IamUserPersona, IamUserPersonaUpdateCommand } from '@sdkwork/iam-app-sdk'
 import { createIamTokenStore, type IamStoredSession, type IamTokenStore } from './iam-token-store.ts'
 import type { AuthTokenManager } from '@sdkwork/sdk-common'
 import {
@@ -112,7 +113,7 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
   private readonly env: EnvService
   private readonly layout: ILayout
   private modal: IamModalActions | undefined
-  private runtime: SdkworkIamRuntimeAuthRuntimeLike | undefined
+  private runtime: IamAuthRuntime | undefined
   private runtimeBaseUrl: string | undefined
   private readonly tokenStore: IamTokenStore
   private readonly tokenManager: AuthTokenManager
@@ -129,6 +130,7 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
     this.tokenManager = getSdkworkGlobalTokenManager()
     this.tokenStore = createIamTokenStore({
       storageKey: IAM_SESSION_STORAGE_KEY,
+      host: readSdkworkDesktopIamSessionBridge(),
       onTokens: (session) => { this.syncTokenManagerFromStoredOrController(session) },
     })
     this.controller = createSdkworkIamRuntimeAuthController({
@@ -240,6 +242,41 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
    */
   appId(): string {
     return this.env.appId()
+  }
+
+  /**
+   * Read the signed-in account's persona (role, followed interests, and whether
+   * the first-run prompt was answered).
+   *
+   * The account is the authority: a stored selection follows the user across
+   * devices, while the local settings section only caches it for offline
+   * rendering. Requires a session; the transport rejects an anonymous call.
+   * @returns the stored persona, with `role: null` before the first choice.
+   */
+  retrievePersona(): Promise<IamUserPersona> {
+    return this.readRuntime().client.iam.users.current.persona.retrieve()
+  }
+
+  /**
+   * Replace the signed-in account's persona.
+   * @param command - the complete persona; omitted interests mean none.
+   * @returns the stored persona as the account now holds it.
+   */
+  updatePersona(command: IamUserPersonaUpdateCommand): Promise<IamUserPersona> {
+    return this.readRuntime().client.iam.users.current.persona.update(command)
+  }
+
+  /**
+   * Read the selectable persona taxonomy: the roles and interest directions the
+   * account accepts, with their per-locale labels.
+   *
+   * The picker narrows its own list onto these ids, so disabling a role or
+   * direction server-side removes it without a client release. Requires a
+   * session; the transport rejects an anonymous call.
+   * @returns the account persona catalog.
+   */
+  retrievePersonaCatalog(): Promise<IamPersonaCatalog> {
+    return this.readRuntime().client.iam.personaCatalog.retrieve()
   }
 
   /**
@@ -383,9 +420,14 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
     if (desktop !== undefined) {
       try {
         await desktop.completePendingCallbackFromLaunch()
-      } catch {
-        this.desktopFailed = true
-        this.notifyDesktop()
+      } catch (error) {
+        // The pending PKCE flow lives in page memory, so a callback delivered
+        // to a fresh process has nothing to redeem. That is not a failed
+        // login: the user simply starts the browser login again.
+        if (!isSdkworkDesktopAuthError(error) || error.code !== 'no-pending-flow') {
+          this.desktopFailed = true
+          this.notifyDesktop()
+        }
       }
     }
   }
@@ -445,7 +487,7 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
   }
 
   /** The lazily built runtime adapter for the active environment. */
-  private readRuntime(): SdkworkIamRuntimeAuthRuntimeLike {
+  private readRuntime(): IamAuthRuntime {
     const baseUrl = resolveIamBaseUrl(this.env.apiBaseUrl(), readOemIamBaseUrl())
     if (baseUrl.trim() === '') {
       throw new Error('ui-sdkwork-iam: IAM baseUrl is not configured')
@@ -466,21 +508,24 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
 
   /**
    * Lazily build or rebuild the desktop browser-login flow for the current
-   * app-api origin, hosted authorization origin, and tenant application.
+   * app-api origin, hosted authorization origin, OAuth client, and registered
+   * deep-link callback.
    * @returns the flow, or undefined outside the desktop shell / while unconfigured.
    */
   private ensureDesktopLogin(): IamDesktopLogin | undefined {
     const bridge = readSdkworkDesktopBridge()
     if (bridge === undefined) return undefined
     const baseUrl = resolveIamBaseUrl(this.env.apiBaseUrl(), readOemIamBaseUrl())
-    const appId = this.env.appId().trim()
-    if (baseUrl === '' || appId === '') return undefined
+    if (baseUrl === '') return undefined
     const authorizeBaseUrl = readOemIamAuthorizeBaseUrl() ?? DEFAULT_IAM_AUTHORIZE_BASE_URL
-    const key = `${baseUrl}\u0000${authorizeBaseUrl}\u0000${appId}`
+    const clientId = readOemIamClientId() ?? DEFAULT_IAM_CLIENT_ID
+    const redirectUri = readOemIamRedirectUri() ?? DEFAULT_IAM_REDIRECT_URI
+    const key = `${baseUrl}\u0000${authorizeBaseUrl}\u0000${clientId}\u0000${redirectUri}`
     if (this.desktopLogin === undefined || this.desktopLoginKey !== key) {
       this.desktopLogin?.dispose()
       const login = createIamDesktopLogin({
-        appId,
+        clientId,
+        redirectUri,
         authorizeBaseUrl,
         baseUrl,
         tokenManager: this.tokenManager,

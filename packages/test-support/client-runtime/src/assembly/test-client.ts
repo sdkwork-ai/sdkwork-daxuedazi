@@ -80,10 +80,15 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 5_000
 
 /**
  * Browser globals jsdom lacks that roster plugins touch at apply or mount:
- * client-hmr opens an `EventSource`; layout components observe size and font loading.
+ * client-hmr opens an `EventSource`; layout components observe size, media queries, and font loading.
  * Inert stand-ins, installed only where the global is absent.
  */
 const JSDOM_SHIMS: Readonly<Record<string, unknown>> = {
+  matchMedia: (media: string): MediaQueryList => Object.assign(new EventTarget(), {
+    media, matches: false, onchange: null,
+    addListener() {},
+    removeListener() {},
+  }),
   EventSource: class {
     addEventListener(): void {}
     close(): void {}
@@ -229,6 +234,10 @@ export class TestClient {
       release?.()
     }
     try {
+      // Held before module arrival: a third-party browser bundle runs its
+      // module scope at import (auto-animate constructs a ResizeObserver
+      // there), exactly as it does when the page loads the script.
+      release = sharedJsdomShims.acquire()
       const modules = new Map(await loadPluginModules({ ...plan, roster }))
       const connection = modules.get(CONNECTION_PACKAGE)
       if (connection !== undefined && plan.provide?.[CONNECTION_PACKAGE] === undefined) {
@@ -244,7 +253,6 @@ export class TestClient {
         })
       }
       mountPoint = resolveMountPoint(options.mount)
-      release = sharedJsdomShims.acquire()
       const system = createInProcessModules(graphFromRoster(roster.rows), modules)
       ctx.plugin(remoteProxiesPlugin(remoteNamespacesOf(modules.values(), mock), mock) as Plugin)
       // The dropped remote-access row's Hooks: every action is allowed on every resource unless the spec fixes the answers.

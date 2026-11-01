@@ -4,7 +4,7 @@ import { accessSync, constants, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
-import { resolveDesktopAppId, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
+import { resolveDesktopAppId, resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
 import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environment.mjs'
 import { createWindowsTokenSigner } from './windows-sign.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
@@ -15,7 +15,7 @@ import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
-const SHARED_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_RELEASE_ID|DOWNLOAD_PROD_EO_ZONE_ID|DOWNLOAD_(?:TEST|PROD)_(?:ORIGIN|COS_BUCKET|COS_SECRET_ID|COS_SECRET_KEY))$/u
+const SHARED_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|INSECURE_TLS|DISTRIBUTION|SDKWORK_(?:RELEASE_ENV|ENVIRONMENT|ALLOW_TEST_TOKEN)|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_RELEASE_ID|DOWNLOAD_PROD_EO_ZONE_ID|DOWNLOAD_(?:TEST|PROD)_(?:ORIGIN|COS_BUCKET|COS_SECRET_ID|COS_SECRET_KEY))$/u
 const WINDOWS_SETTING = /^DSH_DESKTOP_WINDOWS_(?:CER_FILE|SIGNTOOL|KEY_CONTAINER|TOKEN_PIN|SIGNATURE_CACHE_DIR|SIGNATURE_CACHE_CONCURRENCY|PACK_CONCURRENCY|COMPRESSION_LEVEL)$/u
 const MACOS_SETTING = /^(?:DSH_DESKTOP_MACOS_(?:SIGNING_IDENTITY|TEAM_ID|SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)|APPLE_(?:API_KEY|API_KEY_ID|API_ISSUER|ID|APP_SPECIFIC_PASSWORD|TEAM_ID|KEYCHAIN|KEYCHAIN_PROFILE)|CSC_(?:LINK|KEY_PASSWORD))$/u
 const AMBIENT_RELEASE_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|MANDATORY_UPDATE_.*|WINDOWS_.*|MACOS_.*)|APPLE_.*|(?:WIN_)?CSC_.*|DOWNLOAD_(?:TEST|PROD)_.*)$/iu
@@ -59,8 +59,9 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     if (!['3', '7'].includes(zipCompression)) throw new Error('desktop package: workflow ZIP compression must be 3 or 7')
   }
   const preset = environment.DSH_PACKAGING_PRESET
-  // Platform packaging settings are host configuration, not a vite env file,
-  // so they live under packaging/ (ENVIRONMENT_SPEC 5.1.7).
+  // ENVIRONMENT_SPEC 5.1.7: packaging settings are host configuration, not a
+  // Vite env file, so they live at packaging/<platform>.env and never at a
+  // composed `.env.<platform>` name.
   let path = join(appRoot, 'packaging', platform === 'win32' ? 'windows.env' : 'macos.env')
   if (preset !== undefined) {
     if (preset !== 'test' && preset !== 'production') throw new Error('desktop package: preset must be test or production')
@@ -74,7 +75,10 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     : /^DSH_DESKTOP_MACOS_(?:SIGNATURE_CACHE_DIR|PACK_CONCURRENCY|ZIP_COMPRESSION_LEVEL|DOWNLOAD_PROXY|NOTARIZATION_PROXY)$/u
   const settings = readSettings(path, name => preset === undefined
     ? SHARED_SETTING.test(name) || platformSetting.test(name)
-    : /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_(?:ORIGIN|RELEASE_ID))$/u.test(name) || publicPlatformSetting.test(name))
+    : /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|INSECURE_TLS|SDKWORK_(?:RELEASE_ENV|ENVIRONMENT|ALLOW_TEST_TOKEN)|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_(?:ORIGIN|RELEASE_ID))$/u.test(name) || publicPlatformSetting.test(name),
+  // A platform file declares paths relative to apps/desktop, as its template
+  // documents; a machine preset keeps resolving beside itself.
+  preset === undefined ? appRoot : dirname(path))
   if (preset !== undefined) {
     if (settings.DSH_DESKTOP_AUTO_UPDATE_ENV !== preset) throw new Error('desktop package: preset deployment must match its name')
     if (!options.unsigned && (platform === 'darwin' || !options.prepareOnly)) {
@@ -105,9 +109,9 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
 
 /**
  * Read an explicitly selected dotenv without exposing credential-bearing parser errors.
- * @param {string} path Selected file; relative file settings resolve beside it.
+ * @param {string} path Selected file; relative file settings resolve beside it by default.
  * @param {(name: string) => boolean} accepts Whether this file may declare a setting.
- * @param {string} baseDir Directory that relative file settings resolve against.
+ * @param {string} [baseDir] Directory relative file settings resolve against; defaults to the file's own directory.
  * @returns {NodeJS.ProcessEnv} Validated file settings.
  */
 function readSettings(path, accepts, baseDir = dirname(path)) {
@@ -149,6 +153,37 @@ function requireReadableFile(environment, name) {
 }
 
 /**
+ * Validate the deployment-specific SDKWork release settings before a build.
+ * The preparation step repeats the checks; failing here keeps a bad value from
+ * costing a full build.
+ * @param {NodeJS.ProcessEnv} environment Selected packaging environment.
+ * @returns {void}
+ */
+function validateSdkworkReleaseEnvironment(environment) {
+  const distribution = environment.DSH_DESKTOP_DISTRIBUTION?.trim()
+  if (distribution !== undefined && distribution !== ''
+    && distribution !== 'deployment' && distribution !== 'public') {
+    throw new Error('desktop package: DSH_DESKTOP_DISTRIBUTION must be deployment or public')
+  }
+  // ENVIRONMENT_SPEC 6.1.1: every packaged build declares a class. An unset
+  // class is the credential-carrying `deployment` default, so a public release
+  // states `public` instead of inheriting it.
+  const optIn = environment.DSH_DESKTOP_SDKWORK_RELEASE_ENV?.trim()
+  if (optIn !== undefined && optIn !== '' && optIn !== '0' && optIn !== '1') {
+    throw new Error('desktop package: DSH_DESKTOP_SDKWORK_RELEASE_ENV must be 0 or 1')
+  }
+  const lifecycle = environment.DSH_DESKTOP_SDKWORK_ENVIRONMENT?.trim()
+  if (lifecycle !== undefined && lifecycle !== ''
+    && !/^(?:development|dev|test|staging|production|prod)$/iu.test(lifecycle)) {
+    throw new Error('desktop package: DSH_DESKTOP_SDKWORK_ENVIRONMENT must be development, test, staging, or production')
+  }
+  const allowTest = environment.DSH_DESKTOP_SDKWORK_ALLOW_TEST_TOKEN?.trim()
+  if (allowTest !== undefined && allowTest !== '' && allowTest !== '0' && allowTest !== '1') {
+    throw new Error('desktop package: DSH_DESKTOP_SDKWORK_ALLOW_TEST_TOKEN must be 0 or 1')
+  }
+}
+
+/**
  * Validate the packaging mode before preparation without invoking a token or Apple's services.
  * @param {NodeJS.ProcessEnv} environment Selected local defaults or file-owned release settings.
  * @param {{ platform: 'win32' | 'darwin', arch: string }} target Selected release target.
@@ -158,6 +193,8 @@ function requireReadableFile(environment, name) {
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
   resolveDesktopTargetBuildPaths(environment, target.platform, target.arch)
   resolveDesktopAppId(environment)
+  resolveDesktopInsecureTls(environment)
+  validateSdkworkReleaseEnvironment(environment)
   resolveNpmRegistry(environment)
   if (target.platform !== 'darwin' || !options.unsigned) resolveDesktopPolicyEnvironment(environment)
   if (target.platform === 'darwin') resolveMacOSPackageSettings(environment)

@@ -5,11 +5,13 @@
  * application, and issue the access credential, reusing
  * `@sdkwork/iam-application-bootstrap` (register → provision → enable →
  * access-credential orchestration per IAM_APPLICATION_BOOTSTRAP_SPEC.md).
- * The registration output is written to the user-private credential bundle
- * (`~/.sdkwork/<application-code>/credentials/<profile-id>.json`), never to a
- * repository env file (`ENVIRONMENT_SPEC.md` section 5.1.7); the startup token
- * ensure step (dsh-sdkwork-env-bootstrap) reuses that token instead of
- * registering or signing a new one on every start.
+ * The issued credential is projected into the user-private bundle
+ * `~/.sdkwork/<application-code>/credentials/<profile-id>.json`
+ * (IAM_APPLICATION_BOOTSTRAP_SPEC.md section 5.4.1). No repository env file
+ * carries a token: ENVIRONMENT_SPEC.md section 5.1.7 retires every composed
+ * `.env.*` overlay, so the startup token ensure step
+ * (dsh-sdkwork-env-bootstrap) reuses this bundle instead of registering or
+ * signing a new token on every start.
  *
  * IAM application-bootstrap auth profiles live under `~/.sdkwork/iam-bootstrap/`
  * — for example `development.json` or the shared `default.json` — with legacy
@@ -24,7 +26,11 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   applySdkworkLaunchEnv,
+  bootstrapCredentialBundlePath,
+  readTokenTimestamps,
+  resolveSdkworkBootstrapProfile,
   resolveSdkworkLaunchProfile,
+  writeCredentialBundle,
 } from '../packages/boot/sdkwork-env-bootstrap/src/index.ts'
 import {
   bootstrapApplicationFromManifest,
@@ -35,7 +41,6 @@ import {
   resolveBootstrapEnvironmentFromEnv,
   resolveBootstrapAuthProfileCandidates,
   resolveBootstrapAuthProfileDir,
-  writeRegisteredBootstrapCredential,
 } from '@sdkwork/iam-application-bootstrap'
 
 const NAME = 'admin:bootstrap:app'
@@ -69,12 +74,10 @@ async function main() {
     profile: resolveSdkworkLaunchProfile(process.cwd()),
     env: process.env,
   })
-  if (flags['env-out'] !== undefined) {
-    throw new Error(
-      `${NAME}: --env-out is retired; the registration output is the credential bundle under ~/.sdkwork/<application-code>/credentials/`,
-    )
-  }
   const manifestPath = resolve(repoRoot, flags.config ?? 'agent.app.config.json')
+  const credentialsOut = flags['credentials-out'] === undefined
+    ? undefined
+    : resolve(repoRoot, flags['credentials-out'])
 
   let raw
   try {
@@ -135,25 +138,31 @@ async function main() {
   if (token === undefined || token === '') {
     throw new Error(`${NAME}: IAM application bootstrap did not return SDKWORK_ACCESS_TOKEN`)
   }
-  const deploymentProfile = process.env.SDKWORK_DEPLOYMENT_PROFILE === 'cloud' ? 'cloud' : 'standalone'
-  const credentialPaths = await writeRegisteredBootstrapCredential(
-    repoRoot,
-    {
-      token,
-      metadata: {
-        backend: environment.backendApiBaseUrl,
-        deploymentProfile,
-        environment: environment.environment,
-        source: 'iam-application-bootstrap',
-      },
-    },
-    { environment: environment.environment, deploymentProfile },
-  )
-  const writtenPath = credentialPaths[0] ?? ''
+  const resolved = resolveSdkworkBootstrapProfile(envRecord)
+  const deploymentProfile = resolved?.deploymentProfile
+    ?? (process.env.SDKWORK_DEPLOYMENT_PROFILE === 'cloud' ? 'cloud' : 'standalone')
+  const lifecycle = resolved?.environment ?? mapLifecycleForProfile(envRecord, flags.profile)
+  const profile = {
+    environment: lifecycle,
+    deploymentProfile,
+    profileId: `${deploymentProfile}.${lifecycle}`,
+  }
+  const bundlePath = credentialsOut ?? bootstrapCredentialBundlePath({ cwd: repoRoot, profile })
+  const timestamps = readTokenTimestamps(token)
+  const appId = typeof manifest?.backend?.appId === 'string' ? manifest.backend.appId : undefined
+  writeCredentialBundle(bundlePath, {
+    accessToken: token,
+    environment: profile.environment,
+    deploymentProfile: profile.deploymentProfile,
+    backend: environment.backendApiBaseUrl,
+    ...appId === undefined ? {} : { appId },
+    ...timestamps,
+    source: 'iam-application-bootstrap',
+  })
   const appKey = typeof manifest?.app?.key === 'string' ? manifest.app.key : 'app'
   process.stdout.write(
     `${NAME}: registered ${appKey} for ${environment.environment} at ${environment.backendApiBaseUrl}; `
-    + `tenant application ${result.tenantApplicationId}; wrote ${writtenPath}\n`,
+    + `tenant application ${result.tenantApplicationId}; wrote ${bundlePath}\n`,
   )
 }
 
@@ -173,6 +182,7 @@ function mapLifecycleFlag(profile) {
       return 'prod'
     case 'test':
     case 'staging':
+    case 'demo':
       return profile.trim().toLowerCase()
     default:
       return undefined
@@ -184,7 +194,7 @@ function mapLifecycleForProfile(env, profileFlag) {
   const fromFlag = (profileFlag ?? '').trim().toLowerCase()
   if (fromFlag === 'dev') return 'development'
   if (fromFlag === 'prod') return 'production'
-  if (fromFlag === 'development' || fromFlag === 'test' || fromFlag === 'staging' || fromFlag === 'production') {
+  if (fromFlag === 'development' || fromFlag === 'test' || fromFlag === 'staging' || fromFlag === 'demo' || fromFlag === 'production') {
     return fromFlag
   }
   const fromEnv = (env.SDKWORK_ENVIRONMENT ?? env.SDKWORK_BIRDCODER_ENVIRONMENT ?? '').trim().toLowerCase()

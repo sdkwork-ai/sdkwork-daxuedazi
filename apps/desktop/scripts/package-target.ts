@@ -21,16 +21,60 @@ import { macOSDownloadEnvironment, resolveMacOSPackageSettings } from './macos-p
 import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { packagingErrorDetails, packagingStep } from './packaging-step.mjs'
 import { notarizeMacOS } from './notarize-macos.mjs'
-import { resolveDesktopAppId, resolveMacOSNotarizationEnvironment } from './desktop-release-environment.mjs'
+import { resolveDesktopAppId, resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, INSECURE_TLS_ENV } from './desktop-release-environment.mjs'
 import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopBuildVersion } from './desktop-build-version.mjs'
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
+import {
+  resolveDesktopDistributionClass,
+  SDKWORK_RELEASE_ENV_FILENAME,
+} from './prepare-sdkwork-release-env.ts'
+import { readSdkworkReleaseEnvFile } from '../../../packages/boot/sdkwork-env-bootstrap/src/index.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
+
+/**
+ * Prove the distribution contract before the platform packaging step, so a
+ * build either ships an artifact that can authenticate or fails here.
+ *
+ * sdkwork-specs `ENVIRONMENT_SPEC.md` section 6.1.1 requires a `deployment`
+ * build to carry the release environment with a projected credential, and a
+ * `public` build to carry none. Checking it after preparation (rather than
+ * trusting it) also covers a stale artifact left by an earlier run and a
+ * hand-edited build tree.
+ * @param buildRoot - the selected target's build root.
+ * @param env - the packaging environment.
+ * @throws When the artifact contradicts the declared distribution class.
+ */
+function assertSdkworkDistributionArtifact(
+  buildRoot: string,
+  env: Readonly<Record<string, string | undefined>>,
+): void {
+  const distribution = resolveDesktopDistributionClass(env)
+  const path = join(buildRoot, SDKWORK_RELEASE_ENV_FILENAME)
+  const artifact = readSdkworkReleaseEnvFile(path)
+  if (distribution === 'public') {
+    if (artifact !== undefined) {
+      throw new Error(`desktop package: a public build must not carry ${path}; `
+        + 'remove it, or declare DSH_DESKTOP_DISTRIBUTION=deployment for a deployment build')
+    }
+    return
+  }
+  if (artifact === undefined) {
+    throw new Error(`desktop package: a deployment build must carry ${path}; `
+      + 'run `pnpm --filter @deepseek-ai/dsh-desktop run prepare:sdkwork-env`')
+  }
+  if (artifact.values.SDKWORK_ACCESS_TOKEN === undefined) {
+    throw new Error(`desktop package: ${path} carries no SDKWORK_ACCESS_TOKEN, so every IAM request `
+      + 'would fail before dispatch; provision one with `pnpm env:token:ensure --environment <lifecycle>` '
+      + 'or declare DSH_DESKTOP_DISTRIBUTION=public for a credential-free release')
+  }
+}
+
 const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
   'DSH_DESKTOP_WINDOWS_CER_FILE',
@@ -449,6 +493,16 @@ async function main(): Promise<void> {
   }
   const configured = selectDesktopPackagingEnvironment(target, invocation, process.env)
   const environment: Record<string, string | undefined> = configured ?? { ...process.env }
+  // FORK DIVERGENCE: a deployment whose HTTPS hosts serve self-signed
+  // certificates opts into the same trust the installed application uses.
+  // Child processes receive the variable through their own environment below;
+  // this process-level value covers the version discovery and bucket requests
+  // the packaging script makes itself.
+  if (resolveDesktopInsecureTls(environment)) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+    process.stdout.write('desktop package: accepting unverifiable HTTPS certificates for packaging downloads '
+      + `(${INSECURE_TLS_ENV}=1); the packaged application will accept them too\n`)
+  }
   const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
@@ -472,6 +526,7 @@ async function main(): Promise<void> {
     version: buildVersion, productVersion, node: process.version,
     commit: packaged.commit,
     dirty: packaged.dirty,
+    insecureTls: resolveDesktopInsecureTls(environment),
   }, { parallel: true, secrets })
   console.log(`DESKTOP_PACKAGING_RECORD ${run.directory}`)
   const previousDirectory = process.env.DSH_DESKTOP_PACKAGING_RUN_DIR
@@ -566,8 +621,14 @@ export async function packageTarget(
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
   const artifactsRoot = desktopArtifactOutput(buildPaths, invocation).directory
-  const buildEnv = withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(
-    desktopElectronBuilderEnvironment(environment, invocation.unsigned)))
+  const buildEnv = {
+    ...withoutWindowsSigningEnvironment(withoutDesktopUploadCredentials(
+      desktopElectronBuilderEnvironment(environment, invocation.unsigned))),
+    // FORK DIVERGENCE: the packaging subprocesses — pnpm for the runtime install,
+    // electron-builder for the Electron distribution and its assets — inherit the
+    // same trust decision as the application the run ships.
+    ...(resolveDesktopInsecureTls(environment) ? { NODE_TLS_REJECT_UNAUTHORIZED: '0' } : {}),
+  }
   const targetEnv: NodeJS.ProcessEnv = {
     ...buildEnv,
     // FORK DIVERGENCE: the lane reaches every preparation subprocess, not just
@@ -701,6 +762,15 @@ export async function packageTarget(
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
   await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)
+  // A deployment-specific build carries the SDKWork deployment and bootstrap
+  // credential its host was packaged for; electron-builder adds the artifact as
+  // a resource, and the installed shell hands it to the Host. The step runs for
+  // `--prepare-only` too, so the prepared tree is complete.
+  await execute(['run', 'prepare:sdkwork-env'], downloadEnv)
+  // Distribution contract (ENVIRONMENT_SPEC 6.1.1): a deployment build must
+  // ship a projected credential, a public build must ship none. Checked against
+  // the prepared tree rather than the preparation step's own report.
+  assertSdkworkDistributionArtifact(buildPaths.root, downloadEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime', '--dsh'], electronBuilderEnv)
   if (invocation.prepareOnly) return
   const buildMacArtifact = (artifact: DesktopPrepackagedArtifact) => execute(

@@ -16,7 +16,7 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { allowAllAccess } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import type { AppModeId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import { ModeRail } from '../src/client/ModeRail.tsx'
@@ -50,6 +50,7 @@ const useResource = (() => ({ status: 'none' as const, value: undefined, failure
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = sel => sel({ activePanelId: null })
 const standard = {
   ...allowAllAccess,
+  useContextMenu: contextMenuHook(),
   useSessions: emptySessions(), useWorkspaces: emptyWorkspaces(),
   useSessionStatus,
   useSessionRetainInfo: () => undefined,
@@ -121,11 +122,11 @@ describe('ModeRail', () => {
         registered={registeredOf([...MODE_ORDER])}
       />,
     )
-    // The shipped layout shows exactly the five fixed modes; Token Plan stays
-    // pinned at the group's end.
+    // The shipped layout shows the five fixed modes plus App Store; Token Plan
+    // stays pinned at the group's end.
     expect(record.map(r => r.key)).toEqual(
       [...DEFAULT_VISIBLE_MODES, PINNED_MODE, 'mode.rail.panel', 'mode.rail.settings'])
-    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'video', 'image', 'knowledge', 'assets'])
+    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'video', 'image', 'appstore', 'knowledge', 'assets'])
     const group = container.querySelector('[role="group"]')!
     expect(group.getAttribute('aria-label')).toBe('rail.label')
     const tokenPlan = group.querySelector('[data-entry="token-plan"]')!
@@ -151,7 +152,7 @@ describe('ModeRail', () => {
   it('follows a customized layout: reordered visible entries, hidden entries absent, unregistered modes never offered', () => {
     const record: { key: string; active: boolean }[] = []
     const layout = layoutStoreOf({
-      order: ['image', 'code', 'chat', 'contacts', 'video', 'appstore', 'knowledge', 'course', 'drive', 'assets'],
+      order: ['image', 'code', 'chat', 'contacts', 'video', 'appstore', 'knowledge', 'course', 'drive', 'assets', 'search'],
       hidden: ['contacts', 'knowledge'],
     })
     const { container } = render(

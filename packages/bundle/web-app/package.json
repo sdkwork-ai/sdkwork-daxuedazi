@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-web-app",
   "description": "The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, bash runtime variables, URL line)",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.4",
   "publishConfig": {
     "access": "public"
   },
@@ -110,6 +110,7 @@
     "@deepseek-ai/dsh-client-ui-settings-subagent": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-web-search": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sidebar": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sdkwork-sidebar": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sidebar-browser": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sidebar-files": "workspace:*",
@@ -183,6 +184,7 @@
     "@deepseek-ai/schemastery": "workspace:~",
     "commander": "^15.0.0",
     "open": "^11.0.2",
+    "@deepseek-ai/dsh-birdcoder-account": "workspace:*",
     "@deepseek-ai/dsh-api-sdkwork-app-build-controller": "workspace:*",
     "@deepseek-ai/dsh-api-sdkwork-git-controller": "workspace:*",
     "@deepseek-ai/dsh-api-sdkwork-template-install-controller": "workspace:*",
@@ -204,8 +206,10 @@
     "@deepseek-ai/dsh-client-ui-sdkwork-generations-video": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-git": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-git-pullrequest": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sdkwork-iam": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-knowledge": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-markets": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sdkwork-search": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-template-library": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-demand-hall": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-im-connector": "workspace:*",
@@ -223,25 +227,21 @@
     "@deepseek-ai/dsh-client-ui-sdkwork-xlsx-preview": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-docx-preview": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-settings-menu": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-sdkwork-persona": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-share": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-skills": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-token-plan": "workspace:*",
     "@deepseek-ai/dsh-client-ui-sdkwork-workspace-row-menus": "workspace:*",
-    "@deepseek-ai/dsh-host-apiproxy": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-directory-picker-auto": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-directory-picker-composed": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-api-gateway": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-app-build": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-builtin-skills": "workspace:*",
     "@deepseek-ai/dsh-sdkwork-git": "workspace:*",
-    "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
     "@deepseek-ai/dsh-session-projection-cache": "workspace:*",
     "@deepseek-ai/dsh-storage": "workspace:*",
     "@deepseek-ai/dsh-storage-domain": "workspace:*",
     "@deepseek-ai/dsh-storage-json": "workspace:*",
-    "@deepseek-ai/dsh-api-terminal-controller": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-sidebar-terminal": "workspace:*",
-    "@deepseek-ai/dsh-office-to-pdf": "workspace:*",
     "@deepseek-ai/dsh-api-account-controller": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-account": "workspace:*",
     "@deepseek-ai/dsh-client-shortcuts": "workspace:*",
@@ -250,9 +250,13 @@
     "@deepseek-ai/dsh-host-product-telemetry-otel": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-session-log": "workspace:*",
     "@xmanrui/dsh-im": "workspace:*",
+    "@montersy123/dsh-skill-market": "workspace:*",
+    "dsh-mcp-connector": "workspace:*",
     "@deepseek-ai/dsh-harness-dev-context": "workspace:*",
     "@deepseek-ai/dsh-deliverable-file-references": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-file-drag": "workspace:*"
+    "@deepseek-ai/dsh-client-ui-file-drag": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-context-menu": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -271,6 +275,7 @@
     "@deepseek-ai/dsh-shell-env": "workspace:*",
     "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@deepseek-ai/libreoffice-kit": "^0.1.5",
-    "@deepseek-ai/dsh-otel": "workspace:*"
+    "@deepseek-ai/dsh-otel": "workspace:*",
+    "dsh-better-sidebar": "workspace:*"
   }
 }

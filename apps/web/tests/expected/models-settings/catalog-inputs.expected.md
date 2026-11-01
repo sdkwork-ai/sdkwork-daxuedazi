@@ -2,6 +2,7 @@
   - text: 设置
   - navigation:
     - button "通用设置"
+    - button "侧边栏"
     - button "模型"
     - button "内置插件"
     - button "Agent 预设"
@@ -36,11 +37,11 @@
           - textbox "模型 ID 1":
             - /placeholder: 模型 ID
             - text: gpt-6-astra
+          - button "模型选项 1" [expanded]
+          - button "删除模型 1"
           - textbox "显示名称 1":
             - /placeholder: 显示名称
             - text: GPT-6 Astra
-          - button "模型选项 1" [expanded]
-          - button "删除模型 1"
           - text: 上下文窗口
           - textbox "上下文窗口 1":
             - /placeholder: 1M

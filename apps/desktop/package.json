@@ -2,7 +2,7 @@
   "name": "@deepseek-ai/dsh-desktop",
   "productName": "BirdCoder",
   "description": "Electron desktop shell for a bundled dsh runtime and external plugins",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-alpha.4",
   "private": true,
   "license": "MIT",
   "author": {
@@ -12,11 +12,18 @@
   "homepage": "https://github.com/sdkwork-ai/sdkwork-birdcoder2",
   "type": "module",
   "main": "lib/main.js",
+  "imports": {
+    "#brand-manifest": {
+      "types": "./scripts/brand-manifest.d.mts",
+      "default": "./scripts/brand-manifest.mjs"
+    }
+  },
   "scripts": {
     "test:installer": "node scripts/test-windows-installer.mjs",
     "build": "tsc -b && pnpm run bundle",
     "bundle": "tsdown --config-loader native",
     "dev": "tsx scripts/dev.ts",
+    "dev:online": "tsx scripts/dev.ts --online",
     "start": "tsx scripts/dev.ts --skip-build",
     "test:updates:local": "pnpm run build && node scripts/test-local-updater.mjs",
     "prepare:runtime": "tsx scripts/prepare-runtime.ts",
@@ -26,6 +33,7 @@
     "cache:windows-signatures": "node scripts/manage-windows-signature-cache.mjs",
     "prepare:packages": "tsx scripts/prepare-package-set.ts",
     "prepare:dsh": "tsx scripts/prepare-dsh.ts",
+    "prepare:sdkwork-env": "tsx scripts/prepare-sdkwork-release-env.ts",
     "prepare:package": "tsx scripts/package-target.ts --prepare-only",
     "verify:mac-signature": "node scripts/verify-macos-signature.mjs",
     "generate-icons": "node scripts/generate-icons.mjs",
@@ -105,6 +113,7 @@
     "@deepseek-ai/dsh-plugin-manager": "workspace:*",
     "zod": "4.4.3",
     "@deepseek-ai/dsh-util-file-drag": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
     "tencentcloud-sdk-nodejs-teo": "4.1.330"
   }
 }

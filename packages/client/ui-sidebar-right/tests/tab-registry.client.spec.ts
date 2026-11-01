@@ -62,8 +62,7 @@ describe('SidebarRightTabRegistry — recognition', () => {
   it('does not hide dotfiles from a path pattern', () => {
     const registry = new SidebarRightTabRegistry(new Context())
     registry.register(typeFor('env', ['.env*']))
-    // env-naming:allow — the resource classifier must recognize a retired spelling that already exists on disk
-    expect(registry.claim('dsh-resource://file/session/s/proj/.env.local').kind).toBe('env')
+    expect(registry.claim('dsh-resource://file/session/s/proj/.env.local').kind).toBe('env') // env-naming:allow — a glob-matching fixture, not a repository env file.
   })
 })
 

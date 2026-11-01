@@ -25,12 +25,12 @@ When merging upstream (`git fetch upstream && git merge upstream/master` — a r
 
 ## BirdCoder brand assets (merge-stable contract)
 
-The product mark of this fork is the **学伴AI orange mascot**, never the upstream DeepSeek fish/whale. Every upstream merge in history has reverted at least one logo surface; the rule below makes the branding merge-stable. The canonical raster lives in exactly one place and everything else derives from it:
+The product mark of this fork is the **BirdCoder bird**, never the upstream DeepSeek fish/whale. Every upstream merge in history has reverted at least one logo surface; the rule below makes the branding merge-stable. The canonical raster lives in exactly one place and everything else derives from it:
 
-- **Canonical raster:** `apps/web/public/favicon.png` (the 学伴AI mascot). Every icon the fork ships derives from it, and no other file holds a copy of the artwork:
+- **Canonical raster:** `apps/web/public/favicon.png` (the BirdCoder bird). Every icon the fork ships derives from it, and no other file holds a copy of the artwork:
   - `pnpm --dir apps/desktop run generate-icons` → `apps/desktop/build/icon.{ico,icns,png}` (application, installer, uninstaller and window icon) and the About-panel rasters `apps/desktop/resources/icon{,-windows,-macos}.png`.
   - `pnpm --dir apps/desktop run generate-installer-brand` → the installer's `apps/desktop/installer/assets/{brand,brand-2x,brand-dark,brand-dark-2x,uninstaller-sidebar}.png`.
-  - The same `generate-icons` run emits `apps/desktop/renderer/assets/welcome-bird.png`, the welcome-window lockup mark; the wordmark beside it is display copy, so it renders the OEM brand (学伴AI by default) instead of a literal.
+  - The same `generate-icons` run emits `apps/desktop/renderer/assets/welcome-bird.png`, the welcome-window lockup mark; the window's **BirdCoder** wordmark beside it is display copy.
   - `website/public/favicon.png` is the docs site's copy of the same raster.
 - **Fork-owned code surfaces:** `packages/client/ui-primitives/src/BirdLogo.tsx` and `BirdWordmark.tsx` — the ONLY brand art fork surfaces may render. Both are new files upstream does not have, so merges can never overwrite them. `BirdLogo` renders the mark in the sidebar brand-mark fallback (`ui-sidebar`), the official brand mark (`ui-brand-official`) and the hero brand-mark fallback (`ui-conversation` EmptyHero). `BirdWordmark` renders the product *name* in the official name slot (`ui-brand-official` → `OfficialBrandName`), because upstream's `BrandWordmark` spells the upstream name inside its own glyph paths: the sidebar showed the fork's bird beside the upstream name, and no call site could fix that.
 - **Upstream surfaces we intentionally deviate from:** `FishLogo.tsx` (stays upstream-fish, untouched, for upstream-only consumers), the hero swim-morph fallback in `EmptyHero.tsx` (fork renders the static `BirdLogo` instead — the morph animates fish path geometry and is meaningless for the raster mark), `website/public/favicon.svg` (deleted; the docs site links `favicon.png`), `website/public/wordmark.svg` (deleted; its glyph paths spell the upstream name, so `website/.vitepress/config.ts` builds the navigation lockup from `brand-mark.png` plus the fork's product name as text — themeable, and no path set to redraw), `apps/desktop/resources/icon*.svg` (deleted; they were the upstream whale's designer originals, and the PNGs beside them are generated now, so keeping them is a path for the whale to come back), and the installer's own brand and path-row files (see [Windows installer brand and path row](#windows-installer-brand-and-path-row-merge-stable-contract)).
@@ -56,7 +56,7 @@ If an upstream change reintroduces a fish fallback (new `FishLogo` call site, ne
 
 ## Desktop shell display copy (merge-stable contract)
 
-The desktop shell's user-visible copy — the fatal-recovery dialog, update dialog, and mandatory-update pages — names the product **学伴AI** at the shipped default (the dictionaries spell the token `BirdCoder`, which the default brand replaces at resolution time), never "DeepSeek Harness". Most of it lives in one fork-owned file, `apps/desktop/src/locale.ts`, which every upstream merge re-resolves onto upstream's key set with the product name re-applied (the 2026-09-17 sync replaced the old startup/plugin-window surfaces with upstream's native recovery and in-web plugin management; the fork's window icon, `sidebar.actions` seam, and settings-menu desktop rows are the surviving fork surfaces). An OEM profile's `brand.name` replaces that default at resolution time ([OEM profile](#oem-profile-merge-stable-contract)), so the dictionary literals stay `BirdCoder` while the rendered copy follows the deployment. The About panel is the exception to locale-file ownership: Electron takes its name from `app.setAboutPanelOptions()` in upstream-owned `apps/desktop/src/main.ts`, so that one line reads `desktopBrandName()` behind a `FORK DIVERGENCE` comment and is re-resolved on every merge like the installer strings. Re-verify after every upstream merge (must return nothing):
+The desktop shell's user-visible copy — the fatal-recovery dialog, update dialog, and mandatory-update pages — names the product **BirdCoder** at the shipped default, never "DeepSeek Harness". Most of it lives in one fork-owned file, `apps/desktop/src/locale.ts`, which every upstream merge re-resolves onto upstream's key set with the product name re-applied (the 2026-09-17 sync replaced the old startup/plugin-window surfaces with upstream's native recovery and in-web plugin management; the fork's window icon, `sidebar.actions` seam, and settings-menu desktop rows are the surviving fork surfaces). An OEM profile's `brand.name` replaces that default at resolution time ([OEM profile](#oem-profile-merge-stable-contract)), so the dictionary literals stay `BirdCoder` while the rendered copy follows the deployment. The About panel is the exception to locale-file ownership: Electron takes its name from `app.setAboutPanelOptions()` in upstream-owned `apps/desktop/src/main.ts`, so that one line reads `desktopBrandName()` behind a `FORK DIVERGENCE` comment and is re-resolved on every merge like the installer strings. Re-verify after every upstream merge (must return nothing):
 
 ```sh
 grep -rn "DeepSeek Harness" apps/desktop/src/locale.ts apps/desktop/src/main.ts apps/desktop/renderer   # nothing
@@ -64,25 +64,26 @@ grep -rn "DeepSeek Harness" apps/desktop/tests/expected   # nothing: the report 
 grep -c "BirdCoder" apps/desktop/tests/expected/about-panel.json   # 8: both menu labels and both applicationName rows, darwin + win32
 ```
 
-Upstream-owned source text keeps its upstream wording on purpose: the system-prompt identity and surface prompts, SDK runtime error strings, CLI help, profile descriptions, skill copy, and package metadata stay "DeepSeek Harness" so upstream syncs stay low-conflict. Do not rebrand those; only fork-owned display surfaces take the shipped brand (学伴AI, substituted for the `BirdCoder` token at render time) — the same fork-first rule as the logo, applied to copy. The same "not display copy, so not rebranded" rule holds for identifiers the wire and the package graph agree on: package names (`@deepseek-ai/dsh-*`, `@deepseek-ai/dsh-client-ui-sdkwork-*`), the `dsh` binary, `DSH_*` environment variables, the `~/.dsh` home, the `deepseek-harness-*` wire identity, and the SDK protocol description in `packages/bundle/sdk-app` (it names the protocol family, not the product).
+Upstream-owned source text keeps its upstream wording on purpose: the system-prompt identity and surface prompts, SDK runtime error strings, CLI help, profile descriptions, skill copy, and package metadata stay "DeepSeek Harness" so upstream syncs stay low-conflict. Do not rebrand those; only fork-owned display surfaces take the BirdCoder name — the same fork-first rule as the logo, applied to copy. The same "not display copy, so not rebranded" rule holds for identifiers the wire and the package graph agree on: package names (`@deepseek-ai/dsh-*`, `@deepseek-ai/dsh-client-ui-sdkwork-*`), the `dsh` binary, `DSH_*` environment variables, the `~/.dsh` home, the `deepseek-harness-*` wire identity, and the SDK protocol description in `packages/bundle/sdk-app` (it names the protocol family, not the product).
 
 ## Desktop application identity (merge-stable contract)
 
-The packaged shell owns every OS resource Electron derives from `app.name` — userData, the Chromium single-instance lock inside it, logs, `keybindings.json`, the background-close marker, the updater cache — so an installed upstream desktop application and this one run, update and uninstall side by side. `productName` in `apps/desktop/package.json` decides it: Electron names a packaged application after the manifest inside `app.asar` and falls back to the shared scoped name `@deepseek-ai/dsh-desktop` when that field is absent, while electron-builder merges only `extraMetadata` into that manifest. Shipped values: `BirdCoder` (application name, userData, logs, lock), `birdcoder-updater` (updater cache), `birdcoder://open` (URL scheme), the `birdcoder` command owned through `HKCU\Software\BirdCoder\Command`, `Global\BirdCoder.Command.<sid>` and `.birdcoder-command.json`, and `%APPDATA%\${PRODUCT_NAME}` for uninstall data. `scripts/desktop-application-identity.mjs` holds them; the builder config refuses a manifest that lost the field and its `afterPack` reads the manifest back out of the built `app.asar`. Per-surface detail: `apps/desktop/README.md`.
+The packaged shell owns every OS resource Electron derives from `app.name` — userData, the Chromium single-instance lock inside it, logs, `keybindings.json`, the background-close marker, the updater cache — so an installed upstream desktop application and this one run, update and uninstall side by side. `productName` in `apps/desktop/package.json` decides it: Electron names a packaged application after the manifest inside `app.asar` and falls back to the shared scoped name `@deepseek-ai/dsh-desktop` when that field is absent, while electron-builder merges only `extraMetadata` into that manifest. Every value now comes from the selected [brand manifest](brands/README.md): shipped `brands/birdcoder.json` gives `BirdCoder` (application name, userData, logs, lock), `birdcoder-updater` (updater cache), `birdcoder://open` (URL scheme), the `birdcoder` command owned through `HKCU\Software\BirdCoder\Command`, `Global\BirdCoder.Command.<sid>` and `.birdcoder-command.json`, `%APPDATA%\${PRODUCT_NAME}` for uninstall data, and `~/.birdcoder` for the Harness home. `DSH_BRAND` selects another manifest and ships it as `resources/brand.json`, which the shell reads before anything resolves `DSH_HOME`; `apps/desktop/src/brand.ts` applies the home and the legacy move. `apps/desktop/scripts/brand-manifest.mjs` validates every field and rejects the upstream identity; the builder config refuses a manifest that lost the field and its `afterPack` reads the manifest back out of the built `app.asar`. Per-surface detail: `apps/desktop/README.md` and [brands/README.md](brands/README.md).
 
 Re-verify after every upstream merge; the spec below also fails when any of them drifts:
 
 ```sh
 grep -c '"productName": "BirdCoder"' apps/desktop/package.json   # 1
 grep -rn "setAsDefaultProtocolClient('dsh')\|'dsh://\|DeepSeek Harness" apps/desktop/src apps/desktop/scripts/electron-builder-config.mjs apps/desktop/scripts/development-app.ts   # nothing
-pnpm exec vitest run apps/desktop/tests/desktop-application-identity.spec.ts
+grep -rn "setAsDefaultProtocolClient('birdcoder')\|'birdcoder://\|/usr/local/bin/birdcoder\|'birdcoder.cmd'" apps/desktop/src   # nothing: the brand manifest owns them
+grep -c 'to: .brand.json.' apps/desktop/scripts/electron-builder-config.mjs   # 1: every package carries its brand
+pnpm exec vitest run apps/desktop/tests/desktop-application-identity.spec.ts apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/brand-home.spec.ts
 ```
 
-The Harness home (`~/.dsh`, the `desktop` profile, sessions, credentials) stays shared on purpose: it is data, not a process-scoped resource.
+The Harness home is per brand: `~/.<home.dirName>` from the manifest, exported as `DSH_HOME` before any plugin mounts. Two installed brands therefore keep separate sessions, credentials, profiles and workspaces, and only a brand that declares `home.adoptLegacyDshHome` takes over a legacy `~/.dsh` (rename, then link, then keep it for that launch).
 
 ## Linux desktop runtime (merge-stable contract)
 
-The Desktop Host is spawned with Electron's own executable in RunAsNode mode (`apps/desktop/src/host-process.ts` passes `process.execPath`), so a Linux Host is still the Electron binary. Two surfaces assume a real Node runtime and are patched here:
 
 - **sharp**: its prebuilt libvips statically links glib while the Electron binary exports the system copy, so the first decode binds `g_object_unref` to the wrong copy and kills the Host. `apps/desktop-host/src/sharp-platform.ts` refuses the bare `sharp` specifier on Linux under Electron and is installed by the Host entry (`apps/desktop-host/src/index.ts`) and by `runDesktopCli` (`apps/desktop-host/src/cli.ts`); the built-in IM plugin already keeps the original file when no codec loads, and `apps/desktop/tests/fixtures/runtime-payload-smoke.mjs` probes the same prebuilt under the bundled plain Node runtime instead. Windows and macOS are unaffected and keep sharp in-process.
 - **mandatory update policy**: the policy client identifies installed clients as `desktop-win` / `desktop-mac` only, so a Linux manifest carrying `dshMandatoryUpdatePolicy` aborted the launch with `desktop policy: unsupported platform`. `apps/desktop/src/main.ts` ignores a configured policy on Linux, and `apps/desktop/scripts/electron-builder-config.mjs` embeds none in Linux packages; Windows and macOS still require it.
@@ -90,7 +91,7 @@ The Desktop Host is spawned with Electron's own executable in RunAsNode mode (`a
 Re-verify after every upstream merge:
 
 ```sh
-pnpm exec vitest run apps/desktop-host/tests/sharp-platform.spec.ts apps/desktop/tests/linux-package-policy.spec.ts apps/desktop/tests/main-startup.spec.ts
+pnpm exec vitest run apps/desktop-host/tests/sharp-platform.spec.ts apps/desktop/tests/linux-package-policy.spec.ts apps/desktop/tests/caption-platform.spec.ts apps/desktop/tests/main-startup.spec.ts
 grep -rn "installLinuxSharpGuard()" apps/desktop-host/src   # 2: Host entry and desktop CLI
 grep -c "resolvedPlatform === 'linux'" apps/desktop/scripts/electron-builder-config.mjs   # 1
 grep -c "policyPlatform" apps/desktop/src/main.ts   # 3
@@ -98,7 +99,7 @@ grep -c "policyPlatform" apps/desktop/src/main.ts   # 3
 
 ## Product name and slogans (merge-stable contract)
 
-The fork ships the display brand **学伴AI**. Client and desktop dictionaries still spell the product `BirdCoder` — capital `B`, capital `C` — as the substitution token the OEM default brand replaces at render time; `Birdcoder` is a misspelling on any surface a person reads. The mark is covered by the brand-assets contract above and the desktop shell by the section above it; this section is the client display copy, the slogans, and the re-verification for both.
+The fork ships **BirdCoder** — capital `B`, capital `C`. `Birdcoder` is a misspelling on any surface a person reads. The mark is covered by the brand-assets contract above and the desktop shell by the section above it; this section is the client display copy, the slogans, and the re-verification for both.
 
 **Display copy.** Each file below is upstream-owned and patched in place behind a `FORK DIVERGENCE: BirdCoder product name (AGENTS.md, "BirdCoder brand assets").` comment, re-resolved onto upstream's key set on every merge:
 
@@ -120,15 +121,13 @@ node node_modules/vitest/vitest.mjs run apps/desktop/tests/fatal-recovery.spec.t
 node node_modules/vitest/vitest.mjs run packages/client/ui-settings-account/tests/account.client.spec.tsx -u
 ```
 
-**Slogans.** Upstream's hero line is `探索未至之境` / `Into the Unknown`; the fork carries its own on purpose in all eight dictionaries, so a merge that restores the upstream line is a regression, not a neutral change:
+**Slogans.** Upstream's hero line is `探索未至之境` / `Into the Unknown`; the fork carries its own on purpose, so a merge that restores the upstream line is a regression, not a neutral change:
 
 | Surface | zh | en |
 | --- | --- | --- |
-| conversation hero (`ui-conversation` `hero.headline`) | `大学生专用知识平台` | `The knowledge platform for university students` |
-| desktop welcome (`apps/desktop/src/locale.ts`) | `欢迎使用 BirdCoder` (token; renders the OEM brand) | `Welcome to BirdCoder` (token; renders the OEM brand) |
+| conversation hero (`ui-conversation` `hero.headline`) | `你就是人工智能专家` | `You are the AI expert` |
+| desktop welcome (`apps/desktop/src/locale.ts`) | `欢迎使用 BirdCoder` | `Welcome to BirdCoder` |
 | docs site (`website/.vitepress/config.ts` `siteIdentity`) | `用于构建 Agent Harness 的插件化 SDK` | the same string serves both locales |
-
-The other six dictionaries carry the same positioning under `hero.headline` — `大学生のための知識プラットフォーム` (ja), `La plataforma de conocimiento para universitarios` (es), `La plateforme de connaissances pour les étudiants` (fr), `Die Wissensplattform für Studierende` (de), `Платформа знаний для студентов` (ru), `A plataforma de conhecimento para universitários` (pt) — so no locale falls back to the upstream tagline.
 
 Three surfaces carry the name as a document title rather than locale copy: `apps/web/index.html`'s `<title>`, `apps/web/public/manifest.webmanifest`'s `name`/`short_name`, and `website/.vitepress/config.ts`'s `title`.
 
@@ -145,7 +144,7 @@ grep -rn "DeepSeek Harness" apps/desktop/tests/expected packages/client/ui-setti
 
 ## OEM profile (merge-stable contract)
 
-OEM mode keeps the official DeepSeek verification flow and moves only the origins and display brand into `$DSH_HOME/oem.json` (`DSH_OEM_CONFIG`): [`packages/host/sdkwork-oem`](packages/host/sdkwork-oem/README.md) resolves `ctx.oem`, base rows read it through `inject: [oem]`, and [`ui-sdkwork-oem`](packages/client/ui-sdkwork-oem/README.md) brands client copy. Defaults follow the SDKWork lifecycle: `development` uses `platform-dev` / `api-dev` over HTTP, `testing` / `staging` use `-test` / `-staging`, and `production` uses the bare domains; only development admits plain HTTP, and an `environments.<lifecycle>` block can override the shared root fields per tier. **The shipped display brand is 学伴AI, and the OEM profile's default brand is 学伴AI**; a deployment may set `brand.name` to another display name, and must then replace the build-time logo rasters in the same build (the runtime profile never swaps images). It also carries `sdkwork.iamBaseUrl` and `sdkwork.iamAuthorizeBaseUrl` for the SDKWork IAM PC and desktop browser login. The DeepSeek API-key vendor and its displayed endpoint never move. The merge rules, allowed endpoint literals, and re-verification commands live in the [host package's merge contract](packages/host/sdkwork-oem/README.md#merge-contract). Never add an OEM branch inside `deepseek-account-platform`, and never spell a product name in display copy outside `LocaleRuntime.setBrand` or `resolveDesktopLocale`.
+OEM mode keeps the official DeepSeek verification flow and moves only the origins and display brand into `$DSH_HOME/oem.json` (`DSH_OEM_CONFIG`): [`packages/host/sdkwork-oem`](packages/host/sdkwork-oem/README.md) resolves `ctx.oem`, base rows read it through `inject: [oem]`, and [`ui-sdkwork-oem`](packages/client/ui-sdkwork-oem/README.md) brands client copy. The home itself is per brand and comes from the [brand manifest](brands/README.md), not from this file: a profile cannot choose the directory it lives in. A deployment that ships `brands/<key>.oem.json` gets it packaged as `resources/oem.json`, which becomes the default `DSH_OEM_CONFIG` until the home carries its own `oem.json`; the home copy always wins. Defaults follow the SDKWork lifecycle: `development` uses `platform-dev` / `api-dev` over HTTP, `testing` / `staging` use `-test` / `-staging`, and `production` uses the bare domains; only development admits plain HTTP, and an `environments.<lifecycle>` block can override the shared root fields per tier. **The shipped display brand is 学伴AI, and the OEM profile's default brand is 学伴AI**; a future OEM may set `brand.name` to another display name, and must then replace the build-time logo rasters in the same build (the runtime profile never swaps images) and select that brand's manifest. It also carries `sdkwork.iamBaseUrl`, `sdkwork.iamAuthorizeBaseUrl`, `sdkwork.iamClientId`, and `sdkwork.iamRedirectUri` for the SDKWork IAM PC and desktop browser login; the OAuth client and deep-link callback ship as `birdcoder` and `birdcoder://auth/callback`, and the redirect scheme must match the selected brand manifest's `desktop.protocol`. The DeepSeek API-key vendor and its displayed endpoint never move. The merge rules, allowed endpoint literals, and re-verification commands live in the [host package's merge contract](packages/host/sdkwork-oem/README.md#merge-contract). Never add an OEM branch inside `deepseek-account-platform`, and never spell a product name in display copy outside `LocaleRuntime.setBrand` or `resolveDesktopLocale`.
 
 ## Rail tooltip (merge-stable contract)
 
@@ -188,6 +187,17 @@ grep -c "<Menu" packages/client/ui-sdkwork-workspace-row-menus/src/client/RowMen
 grep -c "SubmenuMenu" packages/client/ui-primitives/src/index.ts   # 2: the component and its props type
 pnpm exec vitest run packages/client/ui-primitives/tests/submenu-menu.client.spec.tsx packages/client/ui-primitives/tests/submenu-placement.client.spec.ts
 ```
+
+## Third-party plugin submodules are read-only (merge-stable contract)
+
+`plugins/*` are upstream plugins pinned as Git submodules and **never edited here**: no source edit, no local patch, no re-vendored copy, and no "fix it here first". A missing capability is fixed upstream, released, and pulled in by moving the gitlink; the workspace treats `plugins/*` as install-and-load members, so an in-place edit is overwritten by the next `git submodule update` and makes the pin unreproducible. Integrate only through public surfaces — a bundle patch row that mounts the plugin by name, its published `dsh.client` declarations, and its service API — and put fork behavior that must differ in a fork-owned package beside it. Pin a release tag where one exists and commit the gitlink with the refreshed `pnpm-lock.yaml` ([submodule workflow](plugins/README.md)). Re-verify (the first command must print nothing):
+
+```sh
+git -C plugins/dsh-better-sidebar status --porcelain --untracked-files=no
+pnpm exec vitest run packages/client/ui-sdkwork-sidebar/tests/better-sidebar-contract.client.spec.ts
+```
+
+The vendored plugin mounts as the web-app `better-sidebar` row, so a shipped build offers it with no installer step; the fork's left column mirrors the same `TabDescriptor` page model through `ctx.sdkworkSidebar` ([package](packages/client/ui-sdkwork-sidebar/README.md)).
 
 ## Windows installer install mode (merge-stable contract)
 
@@ -761,3 +771,9 @@ node ../sdkwork-specs/tools/sync-agent-main-branch-standard.mjs --root . --check
 The first fails when the current branch is anything other than `main`, and reports a detached HEAD
 as `detached`. The second fails when this block is out of date.
 <!-- /SDKWORK-MAIN-BRANCH-STANDARD: v1 -->
+
+The Desktop Host is spawned with Electron's own executable in RunAsNode mode (`apps/desktop/src/host-process.ts` passes `process.execPath`), so a Linux Host is still the Electron binary. Three surfaces assume a real Node runtime or a Windows-shaped window and are patched here:
+- **window caption**: upstream leaves a Linux window framed with Electron's own application menu, so Ubuntu stacked the window manager's title, Electron's `Application`/`Edit` row, and the page into two headers, and that native row kept its light GTK fill under a dark application theme. `apps/desktop/src/caption-platform.ts` widens the Windows caption to Linux (`usesProductCaption`): the main window takes `titleBarStyle: 'hidden'` with the native `titleBarOverlay`, `Menu.setApplicationMenu` keeps only hidden shortcut rows, and the application preload publishes the same `data-windows-titlebar` marker, caption entries, and measured palette it already publishes on Windows ([decision](.agents/notes/implemented/architecture/2026-11-01-linux-desktop-caption.md)). A framed Linux Welcome window calls `window.setMenu(null)` (`apps/desktop/src/welcome-window.ts`) so the hidden menu draws no empty native row, isolated update overlays start below the caption (`apps/desktop/src/update-overlay.ts`), and Linux relays fullscreen state. The marker keeps upstream's name so upstream's caption CSS keeps merging; macOS keeps `hiddenInset`.
+grep -c "usesProductCaption" apps/desktop/src/main.ts apps/desktop/src/preload-windows.ts apps/desktop/src/preload-platform.ts apps/desktop/src/update-overlay.ts   # 6 / 2 / 2 / 2: import plus every platform decision
+grep -rn "process.platform === 'win32'" apps/desktop/src/preload-windows.ts apps/desktop/src/preload-platform.ts   # nothing: both read the gate
+grep -c "window.setMenu(null)" apps/desktop/src/welcome-window.ts   # 1: the framed Linux Welcome window drops the empty menu row

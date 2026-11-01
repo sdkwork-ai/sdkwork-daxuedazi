@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { allowAllAccess, bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionListState, SessionSummary } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
   WorkspaceId, WorkspaceSnapshot, WorkspaceView,
@@ -10,7 +10,8 @@ import type { SessionStatusSnapshot } from '@deepseek-ai/dsh-client-ui-session/c
 import type { GlobalStandardProps } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import type { WorkspaceBrowserProps } from '../src/client/contract/slots.ts'
+import type { ContextMenuTarget } from '@deepseek-ai/dsh-client-ui-context-menu/client'
+import type { WorkspaceActionRequest, WorkspaceBrowserProps } from '../src/client/contract/slots.ts'
 import { createWorkspaceViewStore } from '../src/client/stores.ts'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
 import { zh } from '../src/client/locales.ts'
@@ -136,6 +137,14 @@ function mountWithPluginMenus({ pinned = false }: { pinned?: boolean } = {}) {
   const open = vi.fn()
   const props: WorkspaceBrowserProps = {
     ...allowAllAccess,
+    useContextMenu: contextMenuHook(),
+    // The merged browser also reads the Workspace action-request channel and the
+    // active context-menu target; both are root-provided hooks in production.
+    useWorkspaceActionRequest: hook(null as WorkspaceActionRequest | null),
+    useContextMenuTarget: hook(null as ContextMenuTarget | null),
+    openWorkspaceMenu: vi.fn(),
+    settleWorkspaceAction: vi.fn(),
+    openSessionMenu: vi.fn(),
     wide: true,
     expandSidebar: vi.fn(),
     requestSearch: vi.fn(),

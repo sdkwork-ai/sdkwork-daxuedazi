@@ -11,10 +11,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionListState, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
-import { allowAllAccess } from '@deepseek-ai/dsh-client-test-runtime'
-import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import { allowAllAccess, contextMenuHook } from '@deepseek-ai/dsh-client-test-runtime'
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { GlobalStandardProps, HostObservable, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
@@ -24,16 +23,34 @@ import type {
 import { MarketsPage, type MarketsPageProps } from '../src/client/MarketsPage.tsx'
 import type { ConfigLedger, OfficialItem } from '../src/client/configItems.ts'
 import type { MarketsConfigForms } from '../src/client/settingsForms.ts'
-import { emptyInstallSession, type PluginStore, type PluginStoreState } from '../src/client/pluginStore.ts'
+import { emptyInstallSession, type PluginStore, type PluginReadState, type PluginStoreState } from '../src/client/pluginStore.ts'
 import { createPluginNavigation, type MarketsPluginNavigation } from '../src/client/plugin-navigation.ts'
+import { createMarketPanelSource, type MarketControl } from '../src/client/marketPanel.ts'
 const useSessionStatus: GlobalStandardProps['useSessionStatus'] = selector => selector(new Map())
 
 // The embedded SDKWork market page is mocked: its panel copy is rendered
 // verbatim so assertions read the page contract without the App Store stack.
 vi.mock('../src/client/marketsHost.ts', () => ({
-  MarketsApp: ({ page, t }: { page: string; t: (key: string) => string }) => (
-    <div data-testid={`markets-app-${page}`}>Market surface {page} {t(`panel.${page}.empty`)}</div>
+  MarketsApp: ({ page, t, searchQuery }: {
+    page: string
+    t: (key: string) => string
+    searchQuery?: string
+  }) => (
+    <div
+      data-testid={`markets-app-${page}`}
+      {...(searchQuery === undefined ? {} : { 'data-search-query': searchQuery })}
+    >
+      Market surface {page} {t(`panel.${page}.empty`)}
+    </div>
   ),
+}))
+
+// The embedded SDKWork create-expert flow is mocked for the same reason: the
+// my-experts body renders without the Agents PC stack.
+vi.mock('../src/client/expertsHost.tsx', () => ({
+  useExpertsCreateConfigured: () => false,
+  ExpertsCreateDialog: () => <div data-experts-dialog="" />,
+  ExpertsCreateEditor: () => <div data-experts-editor="" />,
 }))
 
 afterEach(() => { cleanup() })
@@ -43,6 +60,27 @@ const dispatchPrompt = vi.fn()
 
 /** The installed tab's configure double: records the configured rows. */
 const onConfigure = vi.fn()
+/**
+ * The SkillHub market's panel double: the page must draw this component in
+ * place, exactly as it draws the one the plugin registers on the `main` ledger.
+ */
+function MarketPanelDouble() {
+  return <div data-skill-market-panel="">skillhub market panel</div>
+}
+/** The source snapshot: one object, as the real source keeps it until the panel changes. */
+const marketPanelSnapshot = { component: MarketPanelDouble }
+/**
+ * The MCP connector's panel snapshot: the page the plugin serves, resolved the
+ * way the page resolves it (the Connectors tab frames it; it draws no catalog
+ * of its own).
+ */
+const connectorPanelSnapshot = { src: '/mcp-connector/ui/' }
+/** The connector's host-side callbacks: the market page hands them through. */
+const connectorBridge = {
+  workspaceContext: () => null,
+  workspaceOptions: () => [],
+  startSession: () => {},
+}
 /** The page's `pluginNavigation` request ledger, recreated per render. */
 let navigation: MarketsPluginNavigation
 /** The page's acknowledgement double: records that a request was consumed. */
@@ -58,14 +96,27 @@ beforeEach(() => {
 
 /** Empty global standard-kit hooks (the page reads none). */
 function emptySessions() {
-  const store = createSnapshotStore<SessionListState>(
-    { ids: [], byId: {}, phase: 'ready', projectionsBySession: {} })
+  const store = createSnapshotStore<SessionListState>({
+    ids: [],
+    byId: {},
+    current: undefined,
+    phase: 'ready',
+    subagentsByParent: {},
+    jobsBySession: {},
+    currentAddress: undefined,
+  })
   return bindSnapshotSelector(store)
 }
 
 function emptyWorkspaces() {
-  const store = createSnapshotStore<WorkspaceSnapshot>({
-    items: [], archivedSessionIds: [], pinnedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+  const store = createSnapshotStore<WorkspaceListState>({
+    items: [],
+    archivedSessionIds: [],
+    state: 'idle',
+    phase: 'pending',
+    error: null,
+    baselinesReady: false,
+    recentWorkspaceId: undefined,
   })
   return bindSnapshotSelector(store)
 }
@@ -89,6 +140,7 @@ const useResource = (() => ({ status: 'none' as const, value: undefined, failure
 const usePanelInfo: GlobalStandardProps['usePanelInfo'] = sel => sel({ activePanelId: null })
 const standard = {
   ...allowAllAccess,
+  useContextMenu: contextMenuHook(),
   useSessions: emptySessions(), useWorkspaces: emptyWorkspaces(),
   useSessionStatus,
   useSessionRetainInfo: () => undefined,
@@ -180,21 +232,28 @@ const bundleFixtures = [
   },
 ] as unknown as BundleInfo[]
 
+/** The installed market bundle: what a deployment lists once dshmarket is in. */
+const marketBundleFixture = {
+  name: 'dshmarket', version: '1.73.6', description: 'The community plugin market', enabled: true,
+  installed: true, optional: false, removable: true, rows: [], overrides: [],
+} as unknown as BundleInfo
+
 /** Build the store double the page reads and writes through. */
-function makeStore(managementAvailable = true, bundles: readonly BundleInfo[] = bundleFixtures): PluginStore {
-  const listeners = new Set<() => void>()
-  let state: PluginStoreState = {
-    read: {
-      status: 'ready',
-      snapshot: {
-        inventory: { entries: [...inventoryEntries] } as never,
-        rows: managerRows as never,
-        bundles: bundles as never,
-        managementAvailable,
-      },
+function makeStore(
+  managementAvailable = true,
+  bundles: readonly BundleInfo[] = bundleFixtures,
+  read: PluginReadState = {
+    status: 'ready',
+    snapshot: {
+      inventory: { entries: [...inventoryEntries] } as never,
+      rows: managerRows as never,
+      bundles: bundles as never,
+      managementAvailable,
     },
-    install: undefined,
-  }
+  },
+): PluginStore {
+  const listeners = new Set<() => void>()
+  let state: PluginStoreState = { read, install: undefined }
   const publish = (): void => { for (const listener of [...listeners]) listener() }
   return {
     refresh: async () => { storeDoubles.refreshes += 1 },
@@ -364,10 +423,36 @@ function page(options: {
    * from a rendered key: the default seat is an identity, so it cannot.
    */
   translate?: MarketsPageProps['t']
+  /** The store read the market gate branches on. A ready read by default. */
+  read?: PluginReadState
+  /** The `market` control the dshmarket client half publishes, when loaded. */
+  market?: MarketControl
+  /**
+   * Whether the independent skill-market plugin registered its panel. True by
+   * default: the shipped composition mounts that row, so the Skills tab draws
+   * the market's panel in place; a case that says false exercises the notice a
+   * deployment with the row turned off shows.
+   */
+  skillMarket?: boolean
+  /**
+   * Whether the MCP connector plugin registered its panel. True by default for
+   * the same reason: the Connectors tab frames the page that plugin serves, and
+   * a case that says false exercises the notice a deployment without the row
+   * shows.
+   */
+  connector?: boolean
+  /** The page's reload action (the market gate's pending face). */
+  reload?: () => void
 } = {}) {
-  store = makeStore(options.managementAvailable ?? true, options.bundles ?? bundleFixtures)
+  store = makeStore(
+    options.managementAvailable ?? true,
+    options.bundles ?? bundleFixtures,
+    options.read,
+  )
   const items = options.items ?? itemFixtures
   navigation = createPluginNavigation()
+  const marketControl = createMarketPanelSource()
+  if (options.market !== undefined) marketControl.attach(options.market)
   return render(
     <MarketsPage
       {...standard}
@@ -382,6 +467,26 @@ function page(options: {
       // bundle through the service publishes here, exactly as the plugin does.
       bundleRequest={navigation.hooks.bundleRequest}
       onBundleRequestHandled={onBundleRequestHandled}
+      // The market control ledger: a case that publishes the dshmarket control
+      // sees the live panel, and the default (nothing attached) exercises the
+      // install/pending faces the real page shows before that plugin loads.
+      marketControl={marketControl}
+      // The skill market's panel source: the shipped composition mounts the
+      // plugin, so the default hands the page its component; a case that says
+      // false exercises the surface a deployment with the row turned off shows.
+      skillMarketPanel={{
+        getSnapshot: () => (options.skillMarket ?? true ? marketPanelSnapshot : undefined),
+        subscribe: () => () => {},
+      }}
+      // The connector's panel source: present by default (the shipped
+      // composition mounts the row), so the Connectors tab frames the page the
+      // plugin serves; a case that says false exercises the unavailable notice.
+      mcpConnectorPanel={{
+        getSnapshot: () => (options.connector ?? true ? connectorPanelSnapshot : undefined),
+        subscribe: () => () => {},
+      }}
+      connectorBridge={connectorBridge}
+      reload={options.reload ?? (() => {})}
       // The child seats' render face: the page asks for each configuration
       // entry's own `summary`/`page` view, for a bundle's or a row's own form,
       // and for the detail contributions — exactly as the real props face
@@ -423,8 +528,14 @@ function clickTab(view: ReturnType<typeof page>, name: string): void {
 }
 
 /** Click one Plugins sub-tab chip by its data-plugin-subtab id. */
-function clickPluginSubTab(view: ReturnType<typeof page>, id: 'cloud' | 'official' | 'installed'): void {
+function clickPluginSubTab(view: ReturnType<typeof page>, id: 'market' | 'cloud' | 'official' | 'installed'): void {
   const chip = view.container.querySelector(`[data-plugin-subtab="${id}"]`) as HTMLElement
+  fireEvent.click(chip)
+}
+
+/** Click one Skills sub-tab chip by its data-skill-subtab id. */
+function clickSkillSubTab(view: ReturnType<typeof page>, id: 'market' | 'cloud'): void {
+  const chip = view.container.querySelector(`[data-skill-subtab="${id}"]`) as HTMLElement
   fireEvent.click(chip)
 }
 
@@ -464,7 +575,7 @@ describe('MarketsPage', () => {
     expect(view.getByRole('tablist', { name: 'tabs.label' })).not.toBeNull()
   })
 
-  it('renders the four category tabs with Plugins selected first and the header tools', () => {
+  it('renders the four category tabs with Plugins first and the Plugin Market as its landing view', () => {
     const view = page()
     const tablist = view.getByRole('tablist', { name: 'tabs.label' })
     const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'))
@@ -474,44 +585,187 @@ describe('MarketsPage', () => {
       ])
     expect(tabs[0]!.getAttribute('aria-selected')).toBe('true')
     expect(tabs[1]!.getAttribute('aria-selected')).toBe('false')
-    // The Plugins sub-tab strip is mounted below the main bar, with the
-    // cloud chip selected (the default landing view).
+    // The Plugins sub-tab strip is mounted below the main bar. The Plugin
+    // Market leads the row and is the landing view; the cloud catalog follows.
     const subTablist = view.getByRole('tablist', { name: 'subtabs.label' })
     const subChips = Array.from(subTablist.querySelectorAll('[role="tab"]'))
     expect(subChips.map(chip => chip.getAttribute('data-plugin-subtab')))
-      .toEqual(['cloud', 'official', 'installed'])
+      .toEqual(['market', 'cloud', 'official', 'installed'])
+    expect(subChips.map(chip => chip.textContent))
+      .toEqual(['subtab.market', 'subtab.cloud', 'subtab.official', 'subtab.installed'])
     expect(subChips[0]!.getAttribute('aria-selected')).toBe('true')
-    // The Plugins panel is the active one, and the tools speak Plugins.
-    expect(view.container.querySelector('[data-markets-tab="plugins"]')!.textContent)
-      .toContain('panel.plugins.empty')
+    expect(subChips[1]!.getAttribute('aria-selected')).toBe('false')
+    // A hairline divider separates the two market views from the two views
+    // over this application's own plugin tree — one group break, not three.
+    expect(subTablist.querySelectorAll('div[aria-hidden="true"]').length).toBe(1)
+    // The Plugins panel lands on the Plugin Market. The market's own page
+    // carries its search, so this page draws no second search field — but the
+    // add menu stays, because creating a plugin is this page's flow.
+    expect(view.container.querySelector('[data-markets-tab="plugins"]')!.getAttribute('data-plugins-subtab'))
+      .toBe('market')
+    expect(view.container.querySelector('[data-plugin-market="missing"]')).not.toBeNull()
+    expect(view.queryByTestId('markets-app-plugins')).toBeNull()
+    expect(view.queryByRole('searchbox', { name: 'search.plugins' })).toBeNull()
+    expect(view.container.querySelector('[data-markets-add]')).not.toBeNull()
+    expect(view.queryByRole('button', { name: 'mine.plugins' })).toBeNull()
+    // The cloud catalog keeps the page's own tools.
+    clickPluginSubTab(view, 'cloud')
     expect(view.getByTestId('markets-app-plugins')).toBeTruthy()
     const search = view.getByRole('searchbox', { name: 'search.plugins' })
     expect(search.getAttribute('placeholder')).toBe('search.plugins')
+    // The header's query is the embedded catalog's controlled filter: the
+    // storefront page renders no search input of its own.
+    expect(view.getByTestId('markets-app-plugins').getAttribute('data-search-query')).toBe('')
+    fireEvent.change(search, { target: { value: 'vue' } })
+    expect(view.getByTestId('markets-app-plugins').getAttribute('data-search-query')).toBe('vue')
     // The Plugins tab's add affordance replaces the inert my-catalog button.
     expect(view.container.querySelector('[data-markets-add]')).not.toBeNull()
     expect(view.queryByRole('button', { name: 'mine.plugins' })).toBeNull()
   })
 
+  it('keeps the add menu on the Plugin Market and lets it create a plugin', () => {
+    const render = vi.fn((props?: { surface?: string }) => (
+      <div data-market-surface={props?.surface}>community market</div>
+    ))
+    const control: MarketControl = { version: 1, render }
+    const view = page({ market: control })
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="live"]')).not.toBeNull()
+    expect(view.getByText('community market')).not.toBeNull()
+    expect(view.container.querySelector('[data-market-surface="plugins"]')).not.toBeNull()
+    // The market owns the search; a second, inert search field beside it would
+    // read as broken. The add menu is this page's own flow and stays.
+    expect(view.queryByRole('searchbox', { name: 'search.market' })).toBeNull()
+    expect(view.container.querySelector('[data-markets-add]')).not.toBeNull()
+    // The dropdown opens over the market panel and both items are reachable.
+    fireEvent.click(view.getByRole('button', { name: 'add.aria' }))
+    const menu = view.getByRole('menu', { name: 'add.aria' })
+    expect(menu).not.toBeNull()
+    expect(view.getByRole('menuitem', { name: 'add.create.title' })).not.toBeNull()
+    fireEvent.click(view.getByRole('menuitem', { name: 'add.create.title' }))
+    expect(dispatchPrompt).toHaveBeenCalledWith('prompt.create')
+    expect(view.queryByRole('menu')).toBeNull()
+    // The panel marker follows the active sub-tab.
+    expect(view.container.querySelector('[data-markets-tab="plugins"]')!.getAttribute('data-plugins-subtab'))
+      .toBe('market')
+  })
+
+  it('offers the install affordance and runs it through the plugin store', async () => {
+    const view = page()
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="missing"]')).not.toBeNull()
+    expect(view.getByText('market.missing.title')).not.toBeNull()
+    expect(view.getByText('market.missing.detail')).not.toBeNull()
+    fireEvent.click(view.container.querySelector('[data-plugin-market-install]') as HTMLElement)
+    // The one Install action inspects the package, then starts the run.
+    await waitFor(() => {
+      expect(storeDoubles.inspect).toHaveBeenCalledWith('dshmarket')
+      expect(storeDoubles.installBundle).toHaveBeenCalledWith('dshmarket')
+    })
+  })
+
+  it('marks the install action busy while the run is in flight', async () => {
+    let release: (value: PluginSpecInspection) => void = () => {}
+    storeDoubles.inspect.mockReturnValue(new Promise((resolve) => { release = resolve }))
+    const view = page()
+    clickPluginSubTab(view, 'market')
+    fireEvent.click(view.container.querySelector('[data-plugin-market-install]') as HTMLElement)
+    // The click opens a session and immediately enters its inspection phase,
+    // so the affordance reports the run instead of offering it twice.
+    await waitFor(() => { expect(view.getByText('market.missing.installing')).not.toBeNull() })
+    expect((view.container.querySelector('[data-plugin-market-install]') as HTMLButtonElement).disabled)
+      .toBe(true)
+    release({ status: 'accepted', kind: 'registry', name: 'dshmarket', bundle: true, registry: null })
+  })
+
+  it('returns to the cloud catalog from the market affordance', () => {
+    const view = page()
+    clickPluginSubTab(view, 'market')
+    fireEvent.click(view.container.querySelector('[data-plugin-market-cloud]') as HTMLElement)
+    expect(view.getByTestId('markets-app-plugins')).toBeTruthy()
+    expect(view.container.querySelector('[data-plugin-subtab="cloud"]')!.getAttribute('aria-selected'))
+      .toBe('true')
+  })
+
+  it('does not offer an install the deployment cannot perform', () => {
+    const view = page({ managementAvailable: false })
+    clickPluginSubTab(view, 'market')
+    expect(view.getByText('market.missing.unmanaged')).not.toBeNull()
+    expect((view.container.querySelector('[data-plugin-market-install]') as HTMLButtonElement).disabled)
+      .toBe(true)
+  })
+
+  it('prompts a reload when the market is installed but its client half is absent', () => {
+    const reload = vi.fn()
+    const view = page({ bundles: [...bundleFixtures, marketBundleFixture], reload })
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="pending"]')).not.toBeNull()
+    expect(view.getByText('market.pending.title')).not.toBeNull()
+    fireEvent.click(view.container.querySelector('[data-plugin-market-reload]') as HTMLElement)
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends a switched-off market to the installed roster instead of a reload', async () => {
+    const view = page({ bundles: [...bundleFixtures, { ...marketBundleFixture, enabled: false } as BundleInfo] })
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="disabled"]')).not.toBeNull()
+    expect(view.getByText('market.disabled.title')).not.toBeNull()
+    fireEvent.click(view.container.querySelector('[data-plugin-market-enable]') as HTMLElement)
+    await waitFor(() => {
+      expect(view.container.querySelector('[data-official-scope="installed"]')).not.toBeNull()
+    })
+  })
+
+  it('shows the loading face while the first inventory read is in flight', () => {
+    const view = page({ read: { status: 'loading' } })
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="loading"]')).not.toBeNull()
+    expect(view.getByText('market.loading')).not.toBeNull()
+    // The gate owns the read: the market leads the chip row and can be the
+    // first surface a boot shows, so it asks for the inventory itself.
+    expect(storeDoubles.refreshes).toBeGreaterThan(0)
+  })
+
+  it('reports a failed inventory read and retries it', async () => {
+    const view = page({ read: { status: 'error', detail: 'boom' } })
+    clickPluginSubTab(view, 'market')
+    expect(view.container.querySelector('[data-plugin-market="error"]')).not.toBeNull()
+    expect(view.getByText('market.error.title')).not.toBeNull()
+    fireEvent.click(view.getByText('market.error.retry'))
+    await waitFor(() => { expect(storeDoubles.refreshes).toBeGreaterThan(0) })
+  })
+
   it('switches the active panel and the tools copy on tab click', () => {
     const view = page()
     clickTab(view, 'tab.skills')
+    // The Skills tab lands on the market chip: the SkillHub market is the
+    // Skills tab's own content, drawn in place, so the header keeps only the
+    // add menu and the page draws no search of its own.
     expect(view.container.querySelector('[data-markets-tab="skills"]')!.textContent)
-      .toContain('panel.skills.empty')
-    // The Skills tab renders the SDKWork skills market page.
-    expect(view.getByTestId('markets-app-skills')).toBeTruthy()
-    expect(view.getByRole('searchbox', { name: 'search.skills' }).getAttribute('placeholder'))
-      .toBe('search.skills')
-    // The Skills tab carries its own add affordance (find/upload/create).
+      .toContain('skillhub market panel')
+    expect(view.container.querySelector('[data-skill-market-embedded]')).not.toBeNull()
+    expect(view.queryByRole('searchbox', { name: 'search.skills' })).toBeNull()
+    // The Skills tab carries its own add affordance (market/find/upload/create).
     expect(view.container.querySelector('[data-markets-add="skills"]')).not.toBeNull()
     expect(view.queryByRole('button', { name: 'mine.skills' })).toBeNull()
 
+    // The cloud chip keeps the SDKWork skills market page and the page tools.
+    clickSkillSubTab(view, 'cloud')
+    expect(view.container.querySelector('[data-markets-tab="skills"]')!.textContent)
+      .toContain('panel.skills.empty')
+    expect(view.getByTestId('markets-app-skills')).toBeTruthy()
+    expect(view.getByRole('searchbox', { name: 'search.skills' }).getAttribute('placeholder'))
+      .toBe('search.skills')
+
     clickTab(view, 'tab.connectors')
-    // The Connectors tab maps to the storefront's MCP catalog page.
-    expect(view.container.querySelector('[data-markets-tab="connectors"]')!.textContent)
-      .toContain('panel.mcp.empty')
-    expect(view.getByTestId('markets-app-mcp')).toBeTruthy()
-    expect(view.getByRole('searchbox', { name: 'search.connectors' })).not.toBeNull()
-    expect(view.getByRole('button', { name: 'mine.connectors' })).not.toBeNull()
+    // The Connectors tab is the MCP connector itself: the page its plugin
+    // serves, framed in place. The panel owns its search and its installed
+    // view, so the page draws neither of its own beside it.
+    expect(view.container.querySelector('[data-mcp-connector-embedded]')).not.toBeNull()
+    expect(view.container.querySelector('[data-mcp-connector-frame]')).not.toBeNull()
+    expect(view.queryByTestId('markets-app-mcp')).toBeNull()
+    expect(view.queryByRole('searchbox', { name: 'search.connectors' })).toBeNull()
+    expect(view.queryByRole('button', { name: 'mine.connectors' })).toBeNull()
 
     // Back to Experts restores the experts panel and tools.
     clickTab(view, 'tab.experts')
@@ -519,16 +773,113 @@ describe('MarketsPage', () => {
       .toContain('panel.experts.empty')
     expect(view.getByRole('searchbox', { name: 'search.experts' })).not.toBeNull()
 
-    // Plugins mounts its add affordance again.
+    // Plugins returns to its landing view, the Plugin Market.
     clickTab(view, 'tab.plugins')
+    expect(view.container.querySelector('[data-plugin-subtab][aria-selected="true"]')!.getAttribute('data-plugin-subtab'))
+      .toBe('market')
+    // The cloud catalog keeps the page's add affordance.
+    clickPluginSubTab(view, 'cloud')
     expect(view.container.querySelector('[data-markets-add]')).not.toBeNull()
+  })
+
+  it('renders the Skills sub-tabs with the SkillHub market leading and its panel in place', () => {
+    const view = page()
+    clickTab(view, 'tab.skills')
+    const strip = view.getByRole('tablist', { name: 'subtabs.skills.label' })
+    const chips = Array.from(strip.querySelectorAll('[role="tab"]'))
+    expect(chips.map(chip => chip.getAttribute('data-skill-subtab'))).toEqual(['market', 'cloud'])
+    expect(chips.map(chip => chip.textContent)).toEqual(['subtab.skillMarket', 'subtab.skillCloud'])
+    // The market chip is the landing view; the cloud chip is one click away.
+    expect(chips[0]!.getAttribute('aria-selected')).toBe('true')
+    expect(chips[1]!.getAttribute('aria-selected')).toBe('false')
+    // The market's content is the tab's content: the registered panel is drawn
+    // in place and there is no hand-over control to a second page.
+    expect(view.container.querySelector('[data-skill-market-embedded]')).not.toBeNull()
+    expect(view.container.querySelector('[data-skill-market-panel]')).not.toBeNull()
+
+    // Leaving Skills and coming back always lands on the market chip.
+    clickSkillSubTab(view, 'cloud')
+    expect(view.container.querySelector('[data-skill-market-embedded]')).toBeNull()
+    clickTab(view, 'tab.experts')
+    clickTab(view, 'tab.skills')
+    expect(view.container.querySelector('[data-skill-subtab][aria-selected="true"]')!.getAttribute('data-skill-subtab'))
+      .toBe('market')
+    expect(view.container.querySelector('[data-skill-market-embedded]')).not.toBeNull()
+  })
+
+  it('names a deployment that disabled the skill-market row instead of leaving the tab blank', () => {
+    const view = page({ skillMarket: false })
+    clickTab(view, 'tab.skills')
+    // No panel is registered, so the tab states that rather than drawing an
+    // empty frame or a control that cannot work.
+    expect(view.container.querySelector('[data-skill-market-embedded]')).toBeNull()
+    expect(view.container.querySelector('[data-skill-market-unavailable]')).not.toBeNull()
+    expect(view.getByText('skills.market.unavailable.title')).not.toBeNull()
+    expect(view.getByText('skills.market.unavailable.detail')).not.toBeNull()
+    // The cloud catalog stays reachable through its chip.
+    clickSkillSubTab(view, 'cloud')
+    expect(view.getByTestId('markets-app-skills')).toBeTruthy()
+  })
+
+  it('frames the MCP connector\'s own page on the connectors tab', () => {
+    const view = page()
+    clickTab(view, 'tab.connectors')
+    const frame = view.container.querySelector('[data-mcp-connector-frame]')
+    expect(frame?.getAttribute('src')).toBe('/mcp-connector/ui/')
+    // The frame carries the product name as its accessible name.
+    expect(frame?.getAttribute('title')).toBe('connectors.surface.title')
+    // The tab is the connector itself, not a cloud catalog: nothing of the
+    // storefront's MCP page rides along and no page-level search competes with
+    // the panel's own, which is the same rule the SkillHub market chip follows.
+    expect(view.queryByTestId('markets-app-mcp')).toBeNull()
+    expect(view.queryByRole('searchbox')).toBeNull()
+    // Re-entering the category lands on the connector again.
+    clickTab(view, 'tab.plugins')
+    clickTab(view, 'tab.connectors')
+    expect(view.container.querySelector('[data-mcp-connector-frame]')).not.toBeNull()
+  })
+
+  it('names a deployment that disabled the connector row instead of framing a missing route', () => {
+    const view = page({ connector: false })
+    clickTab(view, 'tab.connectors')
+    // No panel is registered, so the tab states that rather than pointing a
+    // frame at a route nobody serves.
+    expect(view.container.querySelector('[data-mcp-connector-frame]')).toBeNull()
+    expect(view.container.querySelector('[data-mcp-connector-unavailable]')).not.toBeNull()
+    expect(view.getByText('connectors.unavailable.title')).not.toBeNull()
+    expect(view.getByText('connectors.unavailable.detail')).not.toBeNull()
+  })
+
+  it('lists the skill market in the skills add menu only while the panel is registered', () => {
+    const view = page()
+    clickTab(view, 'tab.skills')
+    // From the cloud chip the menu's market row is the way back to the market
+    // chip, without leaving the page.
+    clickSkillSubTab(view, 'cloud')
+    fireEvent.click(view.getByRole('button', { name: 'skills.add.aria' }))
+    const titles = Array.from(view.getByRole('menu', { name: 'skills.add.aria' }).querySelectorAll('[role="menuitem"]'))
+      .map(item => item.getAttribute('aria-label'))
+    expect(titles).toEqual([
+      'skills.market.add.title', 'skills.find.title', 'skills.upload.title', 'skills.create.title',
+    ])
+    fireEvent.click(view.getByRole('menuitem', { name: 'skills.market.add.title' }))
+    expect(view.queryByRole('menu')).toBeNull()
+    expect(view.container.querySelector('[data-skill-subtab][aria-selected="true"]')!.getAttribute('data-skill-subtab'))
+      .toBe('market')
+    expect(view.container.querySelector('[data-skill-market-embedded]')).not.toBeNull()
+    cleanup()
+
+    const disabled = page({ skillMarket: false })
+    clickTab(disabled, 'tab.skills')
+    fireEvent.click(disabled.getByRole('button', { name: 'skills.add.aria' }))
+    expect(disabled.queryByRole('menuitem', { name: 'skills.market.add.title' })).toBeNull()
   })
 
   it('opens the my-experts page from the experts tab and returns through back', () => {
     const view = page()
     clickTab(view, 'tab.experts')
-    // The Experts tab's my-catalog affordance is live (it opens the mine
-    // view); the Connectors tab's stays inert.
+    // The Experts tab's my-catalog affordance opens the mine view; Connectors
+    // has none, because the connector panel carries its own installed view.
     expect(view.getByRole('button', { name: 'mine.experts' }).getAttribute('aria-disabled')).toBeNull()
     fireEvent.click(view.getByRole('button', { name: 'mine.experts' }))
     // The mine view owns the whole column: the market chrome is not mounted.
@@ -706,16 +1057,21 @@ describe('MarketsPage', () => {
     clickTab(view, 'tab.experts')
     expect(view.container.querySelector('[data-plugins-subtabs]')).toBeNull()
     clickTab(view, 'tab.plugins')
-    // Re-entering Plugins restores the strip on the default cloud sub-tab.
+    // Re-entering Plugins restores the strip on the default Plugin Market chip.
     expect(view.container.querySelector('[data-plugins-subtabs]')).not.toBeNull()
-    expect(view.container.querySelector('[data-plugin-subtab="cloud"]')!.getAttribute('aria-selected'))
+    expect(view.container.querySelector('[data-plugin-subtab="market"]')!.getAttribute('aria-selected'))
       .toBe('true')
   })
 
   it('switches the active panel when the sub-tab changes', async () => {
     const view = page()
-    // Default cloud sub-tab mounts the appstore surface.
-    expect(view.getByTestId('markets-app-plugins')).toBeTruthy()
+    // The Plugins landing view is the Plugin Market.
+    expect(view.container.querySelector('[data-plugin-market="missing"]')).not.toBeNull()
+    // The cloud chip mounts the appstore surface and the page's own tools.
+    clickPluginSubTab(view, 'cloud')
+    await waitFor(() => {
+      expect(view.getByTestId('markets-app-plugins')).toBeTruthy()
+    })
     clickPluginSubTab(view, 'official')
     await waitFor(() => {
       expect(view.container.querySelector('[data-official-scope="official"]')).not.toBeNull()
@@ -732,15 +1088,20 @@ describe('MarketsPage', () => {
 
   it('accepts search input and clears it when the category switches', () => {
     const view = page()
+    // The search field belongs to the cloud catalog's tools.
+    clickPluginSubTab(view, 'cloud')
     const search = view.getByRole('searchbox', { name: 'search.plugins' }) as HTMLInputElement
     fireEvent.change(search, { target: { value: 'code-review' } })
     expect(search.value).toBe('code-review')
     clickTab(view, 'tab.skills')
+    clickSkillSubTab(view, 'cloud')
     expect((view.getByRole('searchbox', { name: 'search.skills' }) as HTMLInputElement).value).toBe('')
   })
 
   it('dispatches the create-plugin prompt from the add menu', () => {
     const view = page()
+    // The add trigger lives beside the cloud catalog's tools.
+    clickPluginSubTab(view, 'cloud')
     fireEvent.click(view.getByRole('button', { name: 'add.aria' }))
     const menu = view.getByRole('menu', { name: 'add.aria' })
     expect(menu).not.toBeNull()
@@ -753,6 +1114,7 @@ describe('MarketsPage', () => {
 
   it('opens the add-market dialog from the menu and submits the composed prompt', () => {
     const view = page()
+    clickPluginSubTab(view, 'cloud')
     fireEvent.click(view.getByRole('button', { name: 'add.aria' }))
     fireEvent.click(view.getByRole('menuitem', { name: 'add.market.title' }))
     expect(view.queryByRole('menu')).toBeNull()
@@ -783,6 +1145,7 @@ describe('MarketsPage', () => {
 
   it('dismisses the add-market dialog without dispatching', () => {
     const view = page()
+    clickPluginSubTab(view, 'cloud')
     fireEvent.click(view.getByRole('button', { name: 'add.aria' }))
     fireEvent.click(view.getByRole('menuitem', { name: 'add.market.title' }))
     fireEvent.change(view.getByRole('textbox', { name: 'dialog.market.source' }),
@@ -857,6 +1220,9 @@ describe('MarketsPage', () => {
   it('dispatches the find-skills prompt with the query on Enter in the skills search', () => {
     const view = page()
     clickTab(view, 'tab.skills')
+    // The search field belongs to the cloud catalog's tools; the market chip
+    // draws the SkillHub market in place, and that market owns its own search.
+    clickSkillSubTab(view, 'cloud')
     const search = view.getByRole('searchbox', { name: 'search.skills' })
     fireEvent.change(search, { target: { value: 'pdf' } })
     fireEvent.keyDown(search, { key: 'Enter' })

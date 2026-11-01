@@ -13,6 +13,7 @@ import '../../../../../../sdkwork-appstore/apps/sdkwork-appstore-pc/src/index.cs
 import {
   AppstoreMarketsSurface,
   type AppstoreMarketsPage,
+  type AppstoreMarketsSurfaceProps,
   type AppstoreMarketsSurfaceSession,
 } from '@sdkwork/appstore-pc-embed'
 import { getSdkworkGlobalTokenManager } from '@deepseek-ai/dsh-client-ui-sdkwork-iam/sdkwork-global-token-manager'
@@ -292,6 +293,12 @@ export function createMarketsHostRuntime(
 export interface MarketsAppProps {
   /** The market page this surface instance renders. */
   page: AppstoreMarketsPage
+  /**
+   * The page header's search query, forwarded as the embedded catalog's
+   * controlled text filter: the header field is the one search, and the
+   * storefront page renders no local search input of its own.
+   */
+  searchQuery?: string
   /** Markets namespace translate seat for the no-data surface. */
   t: TranslateNS<'markets'>
 }
@@ -300,11 +307,11 @@ export interface MarketsAppProps {
  * Render one SDKWork market page through the configured host adapter.
  * With no configured gateway the adapter mounts no SDKWork runtime and the
  * unconfigured status panel keeps the tab panel a complete themed surface.
- * @param props - the market page id and the Markets locale seat.
+ * @param props - the market page id, the header query, and the Markets locale seat.
  * @returns the market page element tree.
  */
 export function MarketsApp(props: MarketsAppProps): ReactNode {
-  const { page, t } = props
+  const { page, searchQuery, t } = props
   const adapter = activeAdapter
   if (adapter === undefined) {
     throw new Error('ui-sdkwork-markets: SDKWork host runtime is not configured')
@@ -321,9 +328,10 @@ export function MarketsApp(props: MarketsAppProps): ReactNode {
   return createElement(
     SdkworkHostThemeSurface,
     { theme: adapter.readThemeBridge(), surface: `markets-${page}` },
-    createElement(AppstoreMarketsSurface as FC, {
+    createElement(AppstoreMarketsSurface as FC<AppstoreMarketsSurfaceProps>, {
       key: snapshot.environmentRevision,
       page,
+      ...(searchQuery === undefined ? {} : { searchQuery }),
       apiBaseUrl: snapshot.apiBaseUrl,
       ...(snapshot.accessToken === '' ? {} : { accessToken: snapshot.accessToken }),
       locale: snapshot.locale,

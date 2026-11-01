@@ -16,4 +16,3 @@ export const hashManifestContent: IamApplicationBootstrapModule['hashManifestCon
 export const loadBootstrapAuthProfileFromHome: IamApplicationBootstrapModule['loadBootstrapAuthProfileFromHome']
 export const resolveBootstrapAuth: IamApplicationBootstrapModule['resolveBootstrapAuth']
 export const resolveBootstrapEnvironmentFromEnv: IamApplicationBootstrapModule['resolveBootstrapEnvironmentFromEnv']
-export const writeRegisteredBootstrapCredential: IamApplicationBootstrapModule['writeRegisteredBootstrapCredential']
