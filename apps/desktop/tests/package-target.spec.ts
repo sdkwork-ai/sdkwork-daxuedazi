@@ -202,7 +202,7 @@ describe('desktop packaging environment selection', () => {
     // exported DSH_DESKTOP_APP_ID the file already carries.
     const directory = await mkdtemp(join(tmpdir(), 'dsh-package-target-'))
     try {
-      await writeFile(join(directory, '.env.windows'), 'DSH_DESKTOP_APP_ID=com.example.windows\n')
+      await writeFile(join(directory, 'packaging/windows.env'), 'DSH_DESKTOP_APP_ID=com.example.windows\n')
       const selected = selectDesktopPackagingEnvironment(
         { platform: 'win32' }, { unsigned: true, prepareOnly: false },
         { PATH: 'build-tools', DSH_DESKTOP_APP_ID: 'com.stale.desktop' }, directory,

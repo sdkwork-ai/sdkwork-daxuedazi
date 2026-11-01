@@ -100,7 +100,7 @@ it('validates before building and passes the same mode and version to checks and
   }
   for (const step of job.steps) expect(step.run ?? '').not.toContain('${{ inputs.')
   expect(job.steps.indexOf(settings)).toBeLessThan(job.steps.indexOf(commands[0]!))
-  expect(job.steps.some(step => step.run?.includes('.env.windows'))).toBe(false)
+  expect(job.steps.some(step => step.run?.includes('packaging/windows.env'))).toBe(false)
 })
 
 it('retains failure diagnostics and uploads only the selected successful installer', () => {

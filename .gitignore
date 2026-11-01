@@ -15,8 +15,8 @@ config/host/postgres.env.local
 .sdkwork.local.env
 .sdkwork.local.env.*
 *.bak
-apps/desktop/.env.windows
-apps/desktop/.env.macos
+apps/desktop/packaging/windows.env
+apps/desktop/packaging/macos.env
 apps/desktop/*.p12
 node_modules/
 # Upstream TypeScript packages emit to lib/ (build output stays untracked).

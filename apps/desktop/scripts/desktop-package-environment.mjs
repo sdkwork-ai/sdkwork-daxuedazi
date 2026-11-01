@@ -59,7 +59,9 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     if (!['3', '7'].includes(zipCompression)) throw new Error('desktop package: workflow ZIP compression must be 3 or 7')
   }
   const preset = environment.DSH_PACKAGING_PRESET
-  let path = join(appRoot, platform === 'win32' ? '.env.windows' : '.env.macos')
+  // Platform packaging settings are host configuration, not a vite env file,
+  // so they live under packaging/ (ENVIRONMENT_SPEC 5.1.7).
+  let path = join(appRoot, 'packaging', platform === 'win32' ? 'windows.env' : 'macos.env')
   if (preset !== undefined) {
     if (preset !== 'test' && preset !== 'production') throw new Error('desktop package: preset must be test or production')
     const root = environment.DSH_PACKAGING_CONFIG_DIR
@@ -105,9 +107,10 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
  * Read an explicitly selected dotenv without exposing credential-bearing parser errors.
  * @param {string} path Selected file; relative file settings resolve beside it.
  * @param {(name: string) => boolean} accepts Whether this file may declare a setting.
+ * @param {string} baseDir Directory that relative file settings resolve against.
  * @returns {NodeJS.ProcessEnv} Validated file settings.
  */
-function readSettings(path, accepts) {
+function readSettings(path, accepts, baseDir = dirname(path)) {
   let contents
   try {
     contents = readFileSync(path, 'utf8')
@@ -130,7 +133,7 @@ function readSettings(path, accepts) {
     if (settings[name].includes('\0')) throw new Error(`desktop package: ${name} cannot contain a NUL character`)
   }
   for (const name of FILE_SETTINGS) {
-    if (settings[name]?.trim()) settings[name] = resolve(dirname(path), settings[name].trim())
+    if (settings[name]?.trim()) settings[name] = resolve(baseDir, settings[name].trim())
   }
   return settings
 }
