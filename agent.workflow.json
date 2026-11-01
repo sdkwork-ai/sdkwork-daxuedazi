@@ -168,7 +168,7 @@
     {
       "id": "sdkwork-appstore",
       "repository": "sdkwork-ai/sdkwork-appstore",
-      "ref": "8d8d5b48d06c8ec28f707b3f9f48e4ccdf4c5560",
+      "ref": "ae828ae5b1a8f0b4a76d7f7002058ae932454be0",
       "refInput": "SDKWORK_APPSTORE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },

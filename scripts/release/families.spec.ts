@@ -159,7 +159,7 @@ describe('release families', () => {
 
     expect(planned.map(entry => ({ path: entry.manifestPath, tag: entry.tag }))).toEqual([
       { path: 'package.json', tag: undefined },
-      { path: 'packages/core/published/package.json', tag: 'birdcoder-v0.0.2' },
+      { path: 'packages/core/published/package.json', tag: 'sdkwork-daxuedazi-v0.0.2' },
       { path: 'apps/desktop/package.json', tag: undefined },
       { path: 'packages/experimental/prototype/package.json', tag: undefined },
     ])
@@ -177,7 +177,7 @@ describe('release families', () => {
       const plan = planShared(dsh, root, [published], version)
 
       expect(plan.version).toBe(version)
-      expect(plan.planned[1]?.tag).toBe(`birdcoder-v${version}`)
+      expect(plan.planned[1]?.tag).toBe(`sdkwork-daxuedazi-v${version}`)
     },
   )
 
@@ -187,7 +187,7 @@ describe('release families', () => {
     const cli = member('apps/cli', '@deepseek-ai/dsh')
     const cordis = { ...member('vendor/cordis', '@deepseek-ai/cordis'), version: '4.0.1' }
 
-    expect(dsh.tagFor(cli)).toBe('birdcoder-v0.0.1')
+    expect(dsh.tagFor(cli)).toBe('sdkwork-daxuedazi-v0.0.1')
     expect(vendor.tagFor(cordis)).toBe('vendor-cordis-v4.0.1')
     // The prefix is constructed, not recovered from a tag: a version with a
     // hyphen would defeat any suffix-stripping.

@@ -52,7 +52,7 @@ function githubRelease(value: unknown, index: number): GitHubRelease {
 }
 
 /** Tag prefixes the repository has published releases under, current convention first. */
-const RELEASE_TAG_PREFIXES = ['birdcoder-v', 'dsh-v'] as const
+const RELEASE_TAG_PREFIXES = ['sdkwork-daxuedazi-v', 'birdcoder-v', 'dsh-v'] as const
 
 function versionedRelease(release: GitHubRelease): VersionedRelease | undefined {
   const canonicalTag = release.tagName.startsWith(RELEASE_TAG_PREFIXES[0])
@@ -79,8 +79,9 @@ function higherRelease(left: VersionedRelease, right: VersionedRelease): Version
  * Select GitHub's expected Latest tag after publishing one release.
  *
  * Other drafts do not participate. The current release does because this
- * selection controls the PATCH that makes it public. Canonical `birdcoder-v`
- * tags win a precedence tie with legacy `dsh-v` and `v` tags.
+ * selection controls the PATCH that makes it public. Canonical
+ * `sdkwork-daxuedazi-v` tags win a precedence tie with legacy `birdcoder-v`,
+ * `dsh-v`, and bare `v` tags.
  * @param input - one GitHub release array or the page arrays emitted by `gh api --paginate --slurp`.
  * @param currentTag - tag whose verified release is being published or retried.
  * @returns ids and metadata used by the release PATCH and Latest verification.

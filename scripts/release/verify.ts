@@ -52,8 +52,9 @@ function verifyTag(family: ReleaseFamily, members: readonly ReleaseMember[], ref
     throw new Error(`release family ${family.id} requires running from a ${family.tagPrefix}* tag, got ${ref || '(no ref)'}`)
   }
   const tag = ref.slice(prefix.length)
-  if (!tag.startsWith(family.tagPrefix)) {
-    throw new Error(`tag ${tag} does not belong to release family ${family.id} (expected ${family.tagPrefix}*)`)
+  const acceptedPrefixes = [family.tagPrefix, ...family.legacyTagPrefixes]
+  if (!acceptedPrefixes.some(candidate => tag.startsWith(candidate))) {
+    throw new Error(`tag ${tag} does not belong to release family ${family.id} (expected ${acceptedPrefixes.map(candidate => `${candidate}*`).join(' or ')})`)
   }
   const expected = members.map(member => family.tagFor(member))
   if (!expected.includes(tag)) {

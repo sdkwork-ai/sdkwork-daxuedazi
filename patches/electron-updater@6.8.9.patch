@@ -6,7 +6,7 @@ index e768d24e7a957caf32a4b8ca6c68cb50eb5865ee..47a8e38bbfe4bf6e0d892ff6a030fd71
  const util_1 = require("../util");
  const Provider_1 = require("./Provider");
  const hrefRegExp = /\/tag\/(v?[^/]+)$/;
-+const releaseTagPrefixes = ["birdcoder-v", "dsh-v"];
++const releaseTagPrefixes = ["sdkwork-daxuedazi-v", "birdcoder-v", "dsh-v"];
 +function versionFromTag(tag) {
 +    const version = semver.valid(tag);
 +    if (version !== null) {

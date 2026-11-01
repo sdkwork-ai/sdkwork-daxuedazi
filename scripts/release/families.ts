@@ -109,6 +109,12 @@ export abstract class ReleaseFamily {
   abstract readonly tagPrefix: string
 
   /**
+   * Prefixes this family still accepts on an existing tag even though new
+   * releases are named with {@link tagPrefix}, keeping older releases rebuildable.
+   */
+  readonly legacyTagPrefixes: readonly string[] = []
+
+  /**
    * Assert that built artifacts match this release family's required profile.
    * Families without environment-selected artifacts accept every build tree.
    * @param _root - repository root containing generated artifacts.
@@ -351,9 +357,12 @@ class DshFamily extends ReleaseFamily {
     'packages/*/*/package.json',
     'apps/*/package.json',
   ] as const
-  // The fork's release tags name the BirdCoder product line; pack-only (no
-  // registry publication), consumed by container-release.yml on birdcoder-v*.
-  readonly tagPrefix = 'birdcoder-v'
+  // The fork's release tags name this repository's product line; pack-only (no
+  // registry publication), consumed by container-release.yml. Tags published
+  // under the former `birdcoder-v` prefix stay accepted so a rewriting rebuild
+  // of an older release still verifies.
+  readonly tagPrefix = 'sdkwork-daxuedazi-v'
+  override readonly legacyTagPrefixes = ['birdcoder-v', 'dsh-v'] as const
 
   /** Require current artifacts from a complete official client build. */
   override verifyBuildArtifacts(root: string): void {

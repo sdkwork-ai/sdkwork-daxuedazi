@@ -1,11 +1,13 @@
-# One birdcoder-v* tag packages every Desktop target, two native container
-# images, and the Compose/Kubernetes bundle, then publishes their exact asset
-# set in one GitHub Release. Container images remain offline Docker archives.
+# One sdkwork-daxuedazi-v* tag packages every Desktop target, two native
+# container images, and the Compose/Kubernetes bundle, then publishes their exact
+# asset set in one GitHub Release. Container images remain offline Docker
+# archives. The legacy birdcoder-v* prefix still triggers the same release so
+# tags published before the rename keep rebuilding.
 name: Release (dsh artifacts)
 
 on:
   push:
-    tags: ['birdcoder-v*']
+    tags: ['sdkwork-daxuedazi-v*', 'birdcoder-v*']
   workflow_dispatch:
     inputs:
       version:
@@ -44,8 +46,11 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            version="${GITHUB_REF_NAME#birdcoder-v}"
-            test "$GITHUB_REF_NAME" = "birdcoder-v$version"
+            case "$GITHUB_REF_NAME" in
+              sdkwork-daxuedazi-v*) version="${GITHUB_REF_NAME#sdkwork-daxuedazi-v}" ;;
+              birdcoder-v*) version="${GITHUB_REF_NAME#birdcoder-v}" ;;
+              *) echo "unsupported release tag $GITHUB_REF_NAME" >&2; exit 1 ;;
+            esac
           else
             version="$DISPATCH_VERSION"
           fi
@@ -383,7 +388,8 @@ jobs:
     name: Publish one verified GitHub Release
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      startsWith(github.ref, 'refs/tags/birdcoder-v')
+      (startsWith(github.ref, 'refs/tags/sdkwork-daxuedazi-v') ||
+       startsWith(github.ref, 'refs/tags/birdcoder-v'))
     needs: [resolve, desktop, container-bundle, container-image]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -468,6 +474,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         if: steps.release-state.outputs.already-published != 'true'
         with:
+          name: ${{ github.ref_name }}
           files: release-assets/*
           body_path: release-notes.md
           fail_on_unmatched_files: true

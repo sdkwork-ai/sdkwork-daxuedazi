@@ -73,8 +73,9 @@ describe('GitHub Latest selection', () => {
     expect(selectGitHubLatest([
       release(80, 'dsh-v0.1.0-rc.8'),
       release(81, 'birdcoder-v0.1.0-rc.8'),
-    ], 'birdcoder-v0.1.0-rc.8')).toMatchObject({
-      highestTag: 'birdcoder-v0.1.0-rc.8',
+      release(82, 'sdkwork-daxuedazi-v0.1.0-rc.8'),
+    ], 'sdkwork-daxuedazi-v0.1.0-rc.8')).toMatchObject({
+      highestTag: 'sdkwork-daxuedazi-v0.1.0-rc.8',
       makeLatest: true,
     })
   })

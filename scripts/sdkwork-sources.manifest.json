@@ -39,7 +39,7 @@
     {
       "name": "sdkwork-appstore",
       "url": "https://github.com/sdkwork-ai/sdkwork-appstore.git",
-      "commit": "8d8d5b48d06c8ec28f707b3f9f48e4ccdf4c5560"
+      "commit": "ae828ae5b1a8f0b4a76d7f7002058ae932454be0"
     },
     {
       "name": "sdkwork-membership",
