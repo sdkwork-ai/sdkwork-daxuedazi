@@ -235,3 +235,6 @@ build/
 
 # Generated company-signed CUA release record.
 /packages/experimental/cua-macos/cua-helper.json
+
+# Local sandbox ACL recovery artifacts (backup/report scratch, never committed)
+.sandbox-acl-recovery/

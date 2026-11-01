@@ -34,6 +34,8 @@ import {
   materializeEnsuredBootstrapAccessToken,
   normalizeSdkworkLifecycleEnvironment,
   renderSdkworkReleaseEnv,
+  resolveApplicationCode,
+  SDKWORK_APPLICATION_CODE_ENV_KEY,
   selectSdkworkReleaseEnv,
   withoutInheritedSdkworkDeployment,
   type SdkworkLifecycleEnvironment,
@@ -183,6 +185,11 @@ export async function prepareSdkworkReleaseEnv(
   }
   const root = options.root ?? REPOSITORY_ROOT
   const launch: Record<string, string | undefined> = withoutInheritedSdkworkDeployment(env)
+  // The artifact names the application whose credential bundle the installed
+  // Host must read. It comes from this checkout's manifest, never from the
+  // shell that started the packaging run: an inherited code belongs to the
+  // application that shell is running.
+  launch[SDKWORK_APPLICATION_CODE_ENV_KEY] = resolveApplicationCode(root)
   const { cwd } = applySdkworkLaunchEnv({ cwd: root, profile: environment, env: launch, warn })
   const ensured = await ensureSdkworkBootstrapToken({
     cwd,
