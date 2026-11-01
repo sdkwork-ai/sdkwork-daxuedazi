@@ -1,8 +1,10 @@
 CLAUDE.local.md
 .env
-# SDKWork env overlays (sdkwork-specs ENVIRONMENT_SPEC.md section 5.1.7):
-# host-local overrides are never committed; tracked templates keep the
-# .example suffix and are not matched here.
+# SDKWork env files (sdkwork-specs ENVIRONMENT_SPEC.md section 5.1.7): exactly
+# `.env`, `.env.example`, and `.env.<deployment-profile>.<environment>`. The
+# three composed names below are retired: nothing reads them, and
+# tools/check-env-file-naming.mjs fails when one exists. They stay ignored only
+# so a stray file cannot be committed while it is being deleted.
 .env.local
 .env.*.local
 .env.*.bootstrap.local
