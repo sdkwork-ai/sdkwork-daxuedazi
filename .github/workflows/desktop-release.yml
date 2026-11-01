@@ -57,13 +57,16 @@ env:
   # back to interactive IAM login. The token is a repository secret, never a
   # tracked file, and packaging only projects it — it cannot generate or
   # refresh one.
+  # The secret's `secrets` context is unavailable in this workflow-level env,
+  # so the credential is injected at job level below.
   DSH_DESKTOP_DISTRIBUTION: deployment
-  SDKWORK_ACCESS_TOKEN: ${{ secrets.SDKWORK_ACCESS_TOKEN }}
 
 jobs:
   package:
     name: Package ${{ matrix.name }}
     timeout-minutes: 90
+    env:
+      SDKWORK_ACCESS_TOKEN: ${{ secrets.SDKWORK_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
