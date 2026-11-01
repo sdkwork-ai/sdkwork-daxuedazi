@@ -77,6 +77,7 @@ describe('code-file classification', () => {
     expect(classifyFileType('docker-compose.yaml')).toBe('docker')
     expect(classifyFileType('feature.component.ts')).toBe('angular')
     expect(classifyFileType('Dockerfile.local')).toBe('docker')
+    // env-naming:allow — the file-type classifier must recognize a retired spelling that already exists on disk
     expect(classifyFileType('.env.production')).toBe('env')
   })
 
