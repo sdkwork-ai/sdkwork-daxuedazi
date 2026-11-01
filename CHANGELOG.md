@@ -59,6 +59,8 @@ Fork 同步：merge `upstream/main`（`82ff44c26aa`）到本地 `main`，窗口 
 * **打包凭据投影**（`f88df427dc`）：打包只投影已配置的 SDKWork 凭据，按分发类别（`deployment` / `public`）决定是否携带，不再在打包窗口内顺手签发令牌。
 * **引导凭据私有化**（`62cbdce890`）：bootstrap 凭据收进用户私有 bundle，不再落在检出目录。
 * **签名缓存 fixture 隔离**（`48ee68039a`）：把签名缓存 fixture 移出检出目录，避免打包窗口内检出被污染。
+* **Windows 打包的插件 bin 换行**：打包前按插件 `package.json` 的 `bin` 声明归一化换行（含 `scripts/cli-bridge.mjs`），不再因 CRLF shebang 触发 `ERR_PNPM_BIN_CRLF`。
+* **CI 打包磁盘空间**：Linux 桌面与容器镜像车道在构建前释放镜像自带的 Android、.NET、GHC、CodeQL 工具链与 Docker 缓存，避免 `no space left on device` 让 deb/rpm 与镜像打包失败。
 * **菜单快照跟上 BirdCoder 产品名**（`0117f15874`）。
 
 #### 环境与凭据
@@ -67,6 +69,7 @@ Fork 同步：merge `upstream/main`（`82ff44c26aa`）到本地 `main`，窗口 
 * **宿主 PostgreSQL 配置**（`f63f7d6b50`）：`.env.postgres.example` 迁为受跟踪的 `config/host/postgres.env.example`，本地 profile 落 `config/host/postgres.env`（gitignore）。
 * **桌面打包设置**（`57484bf714`）：打包环境文件统一到 `apps/desktop/packaging/<platform>.env`，模板同目录，不再使用组合式 `.env.<platform>` 名称。
 * **环境命名治理**（`80e0220b42`、`b1f6c59b15`、`79563944a8`、`edbb383b80`）：同步工作区改动，补齐已退役环境名的分类器测试、凭据包提示与忽略清单说明。
+* **发布车道携带 SDKWork 引导凭据**：桌面发布工作流按 sdkwork-specs `ENVIRONMENT_SPEC.md` 6.1.1 改用 `deployment` 分发类别，从仓库 secret `SDKWORK_ACCESS_TOKEN` 只读投影到 `resources/sdkwork-release.env`；安装后的应用无需交互式 IAM 登录即可通过 access-token-only 请求。凭据不进入受跟踪文件，发布产物仍只随该部署分发。
 
 #### 品牌与合并策略
 

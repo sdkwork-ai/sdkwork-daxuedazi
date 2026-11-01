@@ -49,12 +49,16 @@ env:
   # The test-deployment policy requires the approved login-document origins
   # (see apps/desktop/packaging/windows.env.example); production would reject the field.
   DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: '{"allowedAuthOrigins":["https://login.example.com"]}'
-  # This lane publishes general-purpose releases, so it declares the `public`
-  # distribution class of sdkwork-specs ENVIRONMENT_SPEC section 6.1.1: the
-  # installed application carries no SDKWork release environment and resolves
-  # its own deployment, falling back to interactive IAM login. A deployment
-  # build is the default elsewhere and fails without a projected credential.
-  DSH_DESKTOP_DISTRIBUTION: public
+  # This lane publishes the same deployment as the packaging host, so it
+  # declares the `deployment` distribution class of sdkwork-specs
+  # ENVIRONMENT_SPEC section 6.1.1: the installed application carries the
+  # projected SDKWork release environment (including its bootstrap
+  # `SDKWORK_ACCESS_TOKEN`) and reaches the production gateway without falling
+  # back to interactive IAM login. The token is a repository secret, never a
+  # tracked file, and packaging only projects it — it cannot generate or
+  # refresh one.
+  DSH_DESKTOP_DISTRIBUTION: deployment
+  SDKWORK_ACCESS_TOKEN: ${{ secrets.SDKWORK_ACCESS_TOKEN }}
 
 jobs:
   package:
@@ -138,6 +142,18 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+
+      # The workspace install, runtime materialization, and electron-builder
+      # staging need more room than a hosted Ubuntu image leaves once its
+      # Android, .NET, GHC, and CodeQL toolchains are counted. None of them are
+      # used by this lane, and removing them keeps the deb/rpm stage from
+      # failing on a full disk.
+      - name: Free disk space for the packaged runtime
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h
 
       - name: Clone SDKWork ecosystem siblings
         uses: ./.github/actions/setup-sdkwork-siblings

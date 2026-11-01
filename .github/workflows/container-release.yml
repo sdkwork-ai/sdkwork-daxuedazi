@@ -203,6 +203,18 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
+      # The prebuilt copy plus BuildKit's overlay snapshots exceed the free
+      # space a hosted Ubuntu image leaves after its unused Android, .NET, GHC,
+      # and CodeQL toolchains. Drop those and any stale image cache first; the
+      # build itself failed with `no space left on device` without this step.
+      - name: Free disk space for the container build
+        shell: bash
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker image prune --all --force || true
+          docker buildx prune --all --force || true
+          df -h
+
       - name: Clone SDKWork ecosystem siblings
         # The repository is checked out into repo/ in this job, so relative
         # action paths resolve from the workspace root, not the checkout.
