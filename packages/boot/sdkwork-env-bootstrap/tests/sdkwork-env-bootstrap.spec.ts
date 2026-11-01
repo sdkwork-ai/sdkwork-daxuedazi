@@ -1,10 +1,10 @@
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   applySdkworkLaunchEnv,
-  bootstrapLocalEnvPath,
+  bootstrapCredentialBundlePath,
   clearInheritedInjectedSdkworkEnv,
   dropUnmarkedPackagedProductionDeployment,
   ensureSdkworkBootstrapToken,
@@ -14,6 +14,7 @@ import {
   materializeEnsuredBootstrapAccessToken,
   resolveSdkworkBootstrapProfile,
   resolveSdkworkLaunchProfile,
+  readCredentialBundle,
   resolveSdkworkRepoRoot,
   SDKWORK_DEVELOPMENT_GATEWAY_URL,
   SDKWORK_INJECTED_ENV_MARKER,
@@ -21,6 +22,7 @@ import {
   SDKWORK_TEST_GATEWAY_URL,
   SDKWORK_PRODUCTION_GATEWAY_URL,
   trackedSdkworkEnvPath,
+  writeCredentialBundle,
 } from '../src/index.ts'
 
 const MANIFEST = JSON.stringify({
@@ -43,16 +45,52 @@ const MANIFEST = JSON.stringify({
  */
 const REMOTE_GATEWAY_URL = 'https://gateway.invalid'
 
+/**
+ * A disposable local fixture JWT: `alg: none`, an application id claim, and the
+ * literal `signature` segment the module classifies as a fixture token.
+ */
+const FIXTURE_TOKEN = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature'
+
 let dir: string
+/** Disposable home directory, so no test reads or writes the real `~/.sdkwork`. */
+let home: string
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'sdkwork-env-bootstrap-'))
+  home = mkdtempSync(join(tmpdir(), 'sdkwork-env-bootstrap-home-'))
   writeFileSync(join(dir, 'agent.app.config.json'), MANIFEST)
 })
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
+  rmSync(home, { recursive: true, force: true })
 })
+
+/**
+ * The credential bundle path the module resolves for one lifecycle environment.
+ * @param environment - canonical lifecycle environment.
+ * @returns the absolute bundle path under the disposable home.
+ */
+function bundlePath(environment: string): string {
+  return bootstrapCredentialBundlePath(dir, environment, { homeDir: home })
+}
+
+/**
+ * Persist one bootstrap token as the module would find it, outside the checkout.
+ * @param environment - canonical lifecycle environment.
+ * @param accessToken - the bearer token to store.
+ * @returns the bundle path that was written.
+ */
+function writeTokenBundle(environment: string, accessToken: string): string {
+  const path = bundlePath(environment)
+  writeCredentialBundle(path, {
+    accessToken,
+    environment,
+    deploymentProfile: 'standalone',
+    source: 'test-fixture',
+  })
+  return path
+}
 
 describe('resolveSdkworkRepoRoot', () => {
   it('walks up to the directory that owns agent.app.config.json', () => {
@@ -101,7 +139,7 @@ describe('applySdkworkLaunchEnv', () => {
     const nested = join(dir, 'apps', 'desktop')
     mkdirSync(nested, { recursive: true })
     const env: Record<string, string | undefined> = {}
-    expect(applySdkworkLaunchEnv({ cwd: nested, profile: 'development', env, warn }).cwd).toBe(resolve(dir))
+    expect(applySdkworkLaunchEnv({ cwd: nested, profile: 'development', env, homeDir: home, warn }).cwd).toBe(resolve(dir))
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_DEVELOPMENT_GATEWAY_URL)
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.development')
     expect(env.SDKWORK_ACCESS_TOKEN).toBeUndefined()
@@ -110,7 +148,7 @@ describe('applySdkworkLaunchEnv', () => {
 
   it('falls back to the development gateway when the tracked file is absent', () => {
     const env: Record<string, string | undefined> = {}
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_DEVELOPMENT_GATEWAY_URL)
     expect(env.SDKWORK_ENVIRONMENT).toBe('development')
   })
@@ -130,7 +168,7 @@ describe('applySdkworkLaunchEnv', () => {
     const nested = join(dir, 'apps', 'desktop')
     mkdirSync(nested, { recursive: true })
     const env: Record<string, string | undefined> = {}
-    expect(applySdkworkLaunchEnv({ cwd: nested, profile: 'development', env, warn }).cwd).toBe(resolve(dir))
+    expect(applySdkworkLaunchEnv({ cwd: nested, profile: 'development', env, homeDir: home, warn }).cwd).toBe(resolve(dir))
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.test')
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_TEST_GATEWAY_URL)
   })
@@ -139,7 +177,7 @@ describe('applySdkworkLaunchEnv', () => {
     const nested = join(dir, 'apps', 'desktop')
     mkdirSync(nested, { recursive: true })
     const env: Record<string, string | undefined> = {}
-    const cwd = applySdkworkLaunchEnv({ cwd: nested, profile: 'production', env, warn }).cwd
+    const cwd = applySdkworkLaunchEnv({ cwd: nested, profile: 'production', env, homeDir: home, warn }).cwd
     expect(cwd).toBe(resolve(nested))
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_PRODUCTION_GATEWAY_URL)
     expect(env.SDKWORK_ENVIRONMENT).toBe('production')
@@ -150,7 +188,7 @@ describe('applySdkworkLaunchEnv', () => {
     const env: Record<string, string | undefined> = {
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api-custom.example',
     }
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe('https://api-custom.example')
   })
 
@@ -161,7 +199,7 @@ describe('applySdkworkLaunchEnv', () => {
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: SDKWORK_PRODUCTION_GATEWAY_URL,
     }
     markInjectedSdkworkEnv(env)
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.development')
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_DEVELOPMENT_GATEWAY_URL)
     expect(env[SDKWORK_INJECTED_ENV_MARKER]).toBeUndefined()
@@ -174,73 +212,61 @@ describe('applySdkworkLaunchEnv', () => {
     }
     markInjectedSdkworkEnv(env)
     env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL = 'http://127.0.0.1:10240'
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe('http://127.0.0.1:10240')
   })
 
-  it('copies an overlay token into a blank launch environment', () => {
+  it('copies a credential-bundle token into a blank launch environment', () => {
     writeFileSync(join(dir, '.env.standalone.development'), [
       'SDKWORK_PROFILE_ID=standalone.development',
       'SDKWORK_ACCESS_TOKEN=',
       '',
     ].join('\n'))
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), 'SDKWORK_ACCESS_TOKEN=overlay-jwt\n')
+    writeTokenBundle('development', 'overlay-jwt')
     const env: Record<string, string | undefined> = {
       SDKWORK_ACCESS_TOKEN: '',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
     }
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_ACCESS_TOKEN).toBe('overlay-jwt')
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.development')
   })
 
-  it('copies the development fixture overlay token for a remote development gateway', () => {
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), [
-      '# SDKWork private bootstrap credentials (gitignored).',
-      'SDKWORK_ACCESS_TOKEN=eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
-      '',
-    ].join('\n'))
+  it('copies the development fixture bundle token for a remote development gateway', () => {
+    writeTokenBundle('development', FIXTURE_TOKEN)
     writeFileSync(trackedSdkworkEnvPath(dir, 'development'), [
       `SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL=${REMOTE_GATEWAY_URL}`,
       '',
     ].join('\n'))
     const env: Record<string, string | undefined> = {}
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(REMOTE_GATEWAY_URL)
-    expect(env.SDKWORK_ACCESS_TOKEN).toBe('eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature')
+    expect(env.SDKWORK_ACCESS_TOKEN).toBe(FIXTURE_TOKEN)
   })
 
-  it('does not copy a fixture overlay token outside the development tier', () => {
-    writeFileSync(bootstrapLocalEnvPath(dir, 'test'), [
-      'SDKWORK_ACCESS_TOKEN=eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
-      '',
-    ].join('\n'))
+  it('does not copy a fixture bundle token outside the development tier', () => {
+    writeTokenBundle('test', FIXTURE_TOKEN)
     writeFileSync(trackedSdkworkEnvPath(dir, 'test'), [
       `SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL=${REMOTE_GATEWAY_URL}`,
       '',
     ].join('\n'))
     const env: Record<string, string | undefined> = { SDKWORK_PROFILE_ID: 'standalone.test' }
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_ACCESS_TOKEN).toBeUndefined()
   })
 
-  it('prefers the environment-scoped overlay over the unscoped registration output', () => {
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), [
-      'SDKWORK_ACCESS_TOKEN=eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
-      '',
-    ].join('\n'))
+  it('prefers the credential bundle over the retired registration output', () => {
+    writeTokenBundle('development', FIXTURE_TOKEN)
     writeFileSync(join(dir, '.sdkwork.local.env'), 'SDKWORK_ACCESS_TOKEN=registered-dev-token\n')
     const env: Record<string, string | undefined> = {}
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
-    expect(env.SDKWORK_ACCESS_TOKEN).toBe(
-      'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
-    )
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
+    expect(env.SDKWORK_ACCESS_TOKEN).toBe(FIXTURE_TOKEN)
   })
 
-  it('fills a blank token from the unscoped registration output when no overlay exists', () => {
+  it('fills a blank token from the retired registration output when no bundle exists', () => {
     writeFileSync(join(dir, '.sdkwork.local.env'), 'SDKWORK_ACCESS_TOKEN=registered-dev-token\n')
     const env: Record<string, string | undefined> = {}
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_ACCESS_TOKEN).toBe('registered-dev-token')
   })
 
@@ -260,7 +286,7 @@ describe('applySdkworkLaunchEnv', () => {
   it('drops an unmarked packaged production deployment inherited from the parent process', () => {
     const env = packagedProductionDeployment()
     const lines: string[] = []
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn: line => lines.push(line) })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn: line => lines.push(line) })
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.development')
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_DEVELOPMENT_GATEWAY_URL)
     expect(lines.join('')).toContain("ignoring the packaged application's production deployment")
@@ -268,7 +294,7 @@ describe('applySdkworkLaunchEnv', () => {
 
   it('keeps the whole inherited deployment once any of its keys differs from the production default', () => {
     const env: Record<string, string | undefined> = { ...packagedProductionDeployment(), SDKWORK_ENVIRONMENT: 'staging' }
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_PRODUCTION_GATEWAY_URL)
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.production')
   })
@@ -277,11 +303,11 @@ describe('applySdkworkLaunchEnv', () => {
     const env: Record<string, string | undefined> = {
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: SDKWORK_PRODUCTION_GATEWAY_URL,
     }
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_PRODUCTION_GATEWAY_URL)
   })
 
-  it('uses the selected lifecycle overlay instead of always reading development', () => {
+  it('uses the selected lifecycle bundle instead of always reading development', () => {
     writeFileSync(join(dir, '.env'), [
       'SDKWORK_PROFILE_ID=standalone.staging',
       'SDKWORK_ACCESS_TOKEN=',
@@ -293,9 +319,9 @@ describe('applySdkworkLaunchEnv', () => {
       'SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL=https://api-staging.birdcoder.com',
       '',
     ].join('\n'))
-    writeFileSync(bootstrapLocalEnvPath(dir, 'staging'), 'SDKWORK_ACCESS_TOKEN=staging-jwt\n')
+    writeTokenBundle('staging', 'staging-jwt')
     const env: Record<string, string | undefined> = {}
-    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, warn })
+    applySdkworkLaunchEnv({ cwd: dir, profile: 'development', env, homeDir: home, warn })
     expect(env.SDKWORK_PROFILE_ID).toBe('standalone.staging')
     expect(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(SDKWORK_STAGING_GATEWAY_URL)
     expect(env.SDKWORK_ACCESS_TOKEN).toBe('staging-jwt')
@@ -390,9 +416,15 @@ describe('resolveSdkworkBootstrapProfile', () => {
   })
 })
 
-describe('bootstrapLocalEnvPath', () => {
-  it('names the profile overlay per section 5.1.7', () => {
-    expect(basename(bootstrapLocalEnvPath('/repo', 'test'))).toBe('.env.standalone.test.bootstrap.local')
+describe('bootstrapCredentialBundlePath', () => {
+  it('resolves the profile bundle inside the user credential store', () => {
+    expect(bootstrapCredentialBundlePath('/repo', 'test', { homeDir: home, applicationCode: 'demo' }))
+      .toBe(join(home, '.sdkwork', 'demo', 'credentials', 'standalone.test.json'))
+  })
+
+  it('derives the application code from the manifest and never writes inside the checkout', () => {
+    expect(bundlePath('development')).toBe(join(home, '.sdkwork', 'birdcoder', 'credentials', 'standalone.development.json'))
+    expect(bundlePath('development').startsWith(resolve(dir))).toBe(false)
   })
 })
 
@@ -429,7 +461,7 @@ describe('ensureSdkworkBootstrapToken', () => {
       SDKWORK_ACCESS_TOKEN: 'already-there',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
     }
-    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })).toEqual({ status: 'configured' })
+    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })).toEqual({ status: 'configured' })
   })
 
   it('accepts a configured development fixture token on the remote development gateway', async () => {
@@ -442,6 +474,7 @@ describe('ensureSdkworkBootstrapToken', () => {
     expect(await ensureSdkworkBootstrapToken({
       cwd: dir,
       env,
+      homeDir: home,
       warn,
       tryApplicationBootstrap: false,
     })).toEqual({ status: 'configured' })
@@ -458,6 +491,7 @@ describe('ensureSdkworkBootstrapToken', () => {
     expect(await ensureSdkworkBootstrapToken({
       cwd: dir,
       env,
+      homeDir: home,
       warn,
       tryApplicationBootstrap: false,
       allowTestTokenGeneration: true,
@@ -478,6 +512,7 @@ describe('ensureSdkworkBootstrapToken', () => {
     const result = await ensureSdkworkBootstrapToken({
       cwd: dir,
       env,
+      homeDir: home,
       warn,
       tryApplicationBootstrap: false,
     })
@@ -485,12 +520,12 @@ describe('ensureSdkworkBootstrapToken', () => {
     expect(env.SDKWORK_ACCESS_TOKEN).toBeUndefined()
   })
 
-  it('treats an empty SDKWORK_ACCESS_TOKEN as unset and reuses the overlay', async () => {
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), 'SDKWORK_ACCESS_TOKEN=overlay-jwt\n')
+  it('treats an empty SDKWORK_ACCESS_TOKEN as unset and reuses the credential bundle', async () => {
+    const path = writeTokenBundle('development', 'overlay-jwt')
     const env = { SDKWORK_PROFILE_ID: 'standalone.development', SDKWORK_ACCESS_TOKEN: '' }
-    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })).toEqual({
+    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })).toEqual({
       status: 'generated',
-      path: bootstrapLocalEnvPath(dir, 'development'),
+      path,
       token: 'overlay-jwt',
     })
   })
@@ -498,7 +533,7 @@ describe('ensureSdkworkBootstrapToken', () => {
   it('reuses the registration output token', async () => {
     writeFileSync(join(dir, '.sdkwork.local.env'), 'SDKWORK_ACCESS_TOKEN=registered-token\n')
     const env = { SDKWORK_PROFILE_ID: 'standalone.development' }
-    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })).toEqual({
+    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })).toEqual({
       status: 'registered',
       token: 'registered-token',
     })
@@ -514,6 +549,7 @@ describe('ensureSdkworkBootstrapToken', () => {
     expect(await ensureSdkworkBootstrapToken({
       cwd: dir,
       env,
+      homeDir: home,
       warn,
       tryApplicationBootstrap: false,
       allowTestTokenGeneration: true,
@@ -523,22 +559,27 @@ describe('ensureSdkworkBootstrapToken', () => {
     })
   })
 
-  it('generates a development fixture JWT into the gitignored overlay and is idempotent', async () => {
+  it('generates a development fixture JWT into the user credential store and is idempotent', async () => {
     const env = {
       SDKWORK_PROFILE_ID: 'standalone.development',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
     }
-    const first = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })
+    const path = bundlePath('development')
+    const first = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })
     expect(first.status).toBe('generated')
-    expect(first.status === 'generated' ? first.path : '').toBe(bootstrapLocalEnvPath(dir, 'development'))
-    const overlay = bootstrapLocalEnvPath(dir, 'development')
-    expect(existsSync(overlay)).toBe(true)
-    const content = readFileSync(overlay, 'utf8')
-    expect(content).toMatch(/^# SDKWork private bootstrap credentials \(gitignored\)\.\nSDKWORK_ACCESS_TOKEN=.+\n$/u)
-    const before = readFileSync(overlay, 'utf8')
-    const second = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })
+    expect(first.status === 'generated' ? first.path : '').toBe(path)
+    expect(existsSync(path)).toBe(true)
+    const bundle = readCredentialBundle(path)
+    expect(bundle?.accessToken.split('.')).toHaveLength(3)
+    expect(bundle?.environment).toBe('development')
+    expect(bundle?.deploymentProfile).toBe('standalone')
+    expect(bundle?.source).toBe('local-fixture')
+    // Nothing is ever written inside the checkout.
+    expect(readdirSync(dir).filter(name => name.includes('bootstrap'))).toEqual([])
+    const before = readFileSync(path, 'utf8')
+    const second = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })
     expect(second.status).toBe('generated')
-    expect(readFileSync(overlay, 'utf8')).toBe(before)
+    expect(readFileSync(path, 'utf8')).toBe(before)
   })
 
   it('reuses a cached token without calling IAM bootstrap or the network', async () => {
@@ -552,7 +593,7 @@ describe('ensureSdkworkBootstrapToken', () => {
       })).toString('base64url'),
       'signature',
     ].join('.')
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), `SDKWORK_ACCESS_TOKEN=${token}\n`)
+    writeTokenBundle('development', token)
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     try {
       const env = {
@@ -563,7 +604,7 @@ describe('ensureSdkworkBootstrapToken', () => {
         SDKWORK_IAM_BOOTSTRAP_OPERATOR_USERNAME: 'admin',
         SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: REMOTE_GATEWAY_URL,
       }
-      const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })
+      const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })
       expect(result.status).toBe('configured')
       expect(fetchSpy).not.toHaveBeenCalled()
     } finally {
@@ -576,12 +617,12 @@ describe('ensureSdkworkBootstrapToken', () => {
       SDKWORK_PROFILE_ID: 'standalone.test',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
     }
-    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })).toEqual({
+    expect(await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })).toEqual({
       status: 'unavailable',
       reason: 'test token generation requires allowTestTokenGeneration',
     })
-    expect(existsSync(bootstrapLocalEnvPath(dir, 'test'))).toBe(false)
-    const allowed = await ensureSdkworkBootstrapToken({ cwd: dir, env, allowTestTokenGeneration: true, warn })
+    expect(existsSync(bundlePath('test'))).toBe(false)
+    const allowed = await ensureSdkworkBootstrapToken({ cwd: dir, env, allowTestTokenGeneration: true, homeDir: home, warn })
     expect(allowed.status).toBe('generated')
   })
 
@@ -590,17 +631,13 @@ describe('ensureSdkworkBootstrapToken', () => {
       SDKWORK_PROFILE_ID: 'standalone.development',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: REMOTE_GATEWAY_URL,
     }
-    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn, tryApplicationBootstrap: false })
+    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn, tryApplicationBootstrap: false })
     expect(result.status).toBe('generated')
-    expect(existsSync(bootstrapLocalEnvPath(dir, 'development'))).toBe(true)
+    expect(existsSync(bundlePath('development'))).toBe(true)
   })
 
-  it('reuses an existing local fixture overlay for the remote development gateway', async () => {
-    writeFileSync(bootstrapLocalEnvPath(dir, 'development'), [
-      '# SDKWork private bootstrap credentials (gitignored).',
-      'SDKWORK_ACCESS_TOKEN=eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
-      '',
-    ].join('\n'))
+  it('reuses an existing local fixture bundle for the remote development gateway', async () => {
+    const path = writeTokenBundle('development', FIXTURE_TOKEN)
     const env = {
       SDKWORK_PROFILE_ID: 'standalone.development',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: REMOTE_GATEWAY_URL,
@@ -608,21 +645,22 @@ describe('ensureSdkworkBootstrapToken', () => {
     await expect(ensureSdkworkBootstrapToken({
       cwd: dir,
       env,
+      homeDir: home,
       warn,
       tryApplicationBootstrap: false,
     })).resolves.toEqual({
       status: 'generated',
-      path: bootstrapLocalEnvPath(dir, 'development'),
-      token: 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJhcHBfaWQiOiJzZGt3b3JrLWJpcmRjb2RlciJ9.signature',
+      path,
+      token: FIXTURE_TOKEN,
     })
   })
 
   it('fails closed for production and staging', async () => {
     const env = { SDKWORK_PROFILE_ID: 'standalone.production' }
-    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })
+    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })
     expect(result.status).toBe('unavailable')
     expect(result.status === 'unavailable' ? result.reason : '').toContain('private secret source')
-    expect(existsSync(bootstrapLocalEnvPath(dir, 'production'))).toBe(false)
+    expect(existsSync(bundlePath('production'))).toBe(false)
   })
 
   it('reports unavailable when the manifest is missing', async () => {
@@ -631,7 +669,7 @@ describe('ensureSdkworkBootstrapToken', () => {
       SDKWORK_PROFILE_ID: 'standalone.development',
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
     }
-    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, warn })
+    const result = await ensureSdkworkBootstrapToken({ cwd: dir, env, homeDir: home, warn })
     expect(result.status).toBe('unavailable')
     expect(result.status === 'unavailable' ? result.reason : '').toContain('agent.app.config.json')
   })

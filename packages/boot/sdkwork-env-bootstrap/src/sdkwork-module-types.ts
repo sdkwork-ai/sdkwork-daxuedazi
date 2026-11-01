@@ -19,13 +19,22 @@ export interface IamApplicationBootstrapModule {
   createFetchIamApplicationBootstrapClient: (config: { baseUrl: string; fetch?: typeof fetch }) => unknown
   /** Registry client built on the AppBase backend SDK (Node entry). */
   createIamApplicationBootstrapClientFromAppbaseBackendSdk: (config: { baseUrl: string }) => unknown
-  /** Render the registration result as env-file contents. */
-  formatBootstrapEnvFile: (input: Record<string, unknown>) => string
   /** Digest of a raw manifest, used to skip an unchanged re-registration. */
   hashManifestContent: (raw: string) => string
-  /** Write the registration output; `undefined` in older siblings, which fall back to the registered env file. */
-  writeRegisteredBootstrapEnvFiles:
-    | ((repoRoot: string, contents: string, environment?: string) => Promise<string[]>)
+  /**
+   * Write the registration output into the user-private credential store;
+   * `undefined` in an older sibling, which falls back to the local bundle path.
+   */
+  writeRegisteredBootstrapCredential:
+    | ((
+      repoRoot: string,
+      record: {
+        token: string
+        appId?: string
+        metadata?: Record<string, string | undefined>
+      },
+      options?: { environment?: string; deploymentProfile?: 'standalone' | 'cloud'; homeDir?: string },
+    ) => Promise<string[]>)
     | undefined
   /** Read the operator's stored bootstrap credentials for one profile. */
   loadBootstrapAuthProfileFromHome: (options: Record<string, unknown>) => Promise<{
@@ -53,6 +62,6 @@ export interface CredentialEntryModule {
   readApplicationManifest(path: string): unknown
   /** Resolve the manifest path a repository root owns. */
   resolveRepoApplicationManifestPath(repoRoot: string, manifestPath?: string): string
-  /** Build the token env record written into the overlay. */
+  /** Build the token record for a launch environment. */
   buildBootstrapAccessTokenEnvRecord(existing: string, options: Record<string, unknown>): Record<string, string>
 }

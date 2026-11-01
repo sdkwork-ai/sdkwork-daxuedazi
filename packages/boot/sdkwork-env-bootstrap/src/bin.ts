@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
  * `dsh-sdkwork-env-bootstrap` — CLI for {@link ensureSdkworkBootstrapToken}:
- * apply the source/dev launch profile (identity keys + gateway + overlay),
- * then ensure the SDKWork profile has a bootstrap access token, generating
- * a disposable local JWT for development (and test with
- * `--allow-test-token-generation`) into the gitignored profile overlay.
+ * apply the source/dev launch profile (identity keys + gateway + credential
+ * bundle), then ensure the SDKWork profile has a bootstrap access token,
+ * generating a disposable local JWT for development (and test with
+ * `--allow-test-token-generation`) into the user-private credential store
+ * (`~/.sdkwork/<application-code>/credentials/<profile-id>.json`).
  * `pnpm build` and `pnpm desktop:dev` run this so Electron does not have to
  * generate the token through the bundled dynamic import.
  * @module @deepseek-ai/dsh-sdkwork-env-bootstrap/bin
@@ -35,7 +36,7 @@ const result = await ensureSdkworkBootstrapToken({
 
 // Materialize an ensured token into the process environment so the ui-sdkwork-env
 // host projection (which reads the launch environment synchronously) sees it
-// without re-parsing the overlay file.
+// without re-reading the credential bundle.
 materializeEnsuredBootstrapAccessToken(result, process.env)
 
 switch (result.status) {
@@ -46,7 +47,7 @@ switch (result.status) {
     process.stdout.write('sdkwork-env: SDKWORK_ACCESS_TOKEN is configured in the environment\n')
     break
   case 'registered':
-    process.stdout.write('sdkwork-env: bootstrap access token available from the registration output (.sdkwork.local.env)\n')
+    process.stdout.write('sdkwork-env: bootstrap access token available from the user credential store\n')
     break
   case 'generated':
     process.stdout.write(`sdkwork-env: bootstrap access token ensured at ${result.path}\n`)

@@ -5,10 +5,11 @@
  * application, and issue the access credential, reusing
  * `@sdkwork/iam-application-bootstrap` (register → provision → enable →
  * access-credential orchestration per IAM_APPLICATION_BOOTSTRAP_SPEC.md).
- * The registration output is written to the environment-scoped
- * `.env.standalone.<lifecycle>.bootstrap.local` artifact at the repo root;
- * the startup token ensure step (dsh-sdkwork-env-bootstrap) reuses that token
- * instead of registering or signing a new one on every start.
+ * The registration output is written to the user-private credential bundle
+ * (`~/.sdkwork/<application-code>/credentials/<profile-id>.json`), never to a
+ * repository env file (`ENVIRONMENT_SPEC.md` section 5.1.7); the startup token
+ * ensure step (dsh-sdkwork-env-bootstrap) reuses that token instead of
+ * registering or signing a new one on every start.
  *
  * IAM application-bootstrap auth profiles live under `~/.sdkwork/iam-bootstrap/`
  * — for example `development.json` or the shared `default.json` — with legacy
@@ -19,7 +20,7 @@
  * @module scripts/sdkwork-app-bootstrap
  */
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   applySdkworkLaunchEnv,
@@ -28,14 +29,13 @@ import {
 import {
   bootstrapApplicationFromManifest,
   createFetchIamApplicationBootstrapClient,
-  formatBootstrapEnvFile,
   hashManifestContent,
   loadBootstrapAuthProfileFromHome,
   resolveBootstrapAuth,
   resolveBootstrapEnvironmentFromEnv,
   resolveBootstrapAuthProfileCandidates,
   resolveBootstrapAuthProfileDir,
-  writeRegisteredBootstrapEnvFiles,
+  writeRegisteredBootstrapCredential,
 } from '@sdkwork/iam-application-bootstrap'
 
 const NAME = 'admin:bootstrap:app'
@@ -69,8 +69,12 @@ async function main() {
     profile: resolveSdkworkLaunchProfile(process.cwd()),
     env: process.env,
   })
+  if (flags['env-out'] !== undefined) {
+    throw new Error(
+      `${NAME}: --env-out is retired; the registration output is the credential bundle under ~/.sdkwork/<application-code>/credentials/`,
+    )
+  }
   const manifestPath = resolve(repoRoot, flags.config ?? 'agent.app.config.json')
-  const envOutPath = resolve(repoRoot, flags['env-out'] ?? '.sdkwork.local.env')
 
   let raw
   try {
@@ -127,15 +131,25 @@ async function main() {
     profile: bootstrapAuthProfile?.profile ?? null,
   })
 
-  const header = '# SDKWork IAM application-bootstrap registration output (gitignored).\n'
-  const contents = header + formatBootstrapEnvFile({ result, primaryDomain: environment.primaryDomain })
-  let writtenPath = flags['env-out'] ? envOutPath : ''
-  if (flags['env-out']) {
-    writeFileSync(envOutPath, contents)
-  } else {
-    const overlayPaths = await writeRegisteredBootstrapEnvFiles(repoRoot, contents, environment.environment, process.env.SDKWORK_DEPLOYMENT_PROFILE === 'cloud' ? 'cloud' : 'standalone')
-    writtenPath = overlayPaths[0] ?? writtenPath
+  const token = result.env.SDKWORK_ACCESS_TOKEN?.trim()
+  if (token === undefined || token === '') {
+    throw new Error(`${NAME}: IAM application bootstrap did not return SDKWORK_ACCESS_TOKEN`)
   }
+  const deploymentProfile = process.env.SDKWORK_DEPLOYMENT_PROFILE === 'cloud' ? 'cloud' : 'standalone'
+  const credentialPaths = await writeRegisteredBootstrapCredential(
+    repoRoot,
+    {
+      token,
+      metadata: {
+        backend: environment.backendApiBaseUrl,
+        deploymentProfile,
+        environment: environment.environment,
+        source: 'iam-application-bootstrap',
+      },
+    },
+    { environment: environment.environment, deploymentProfile },
+  )
+  const writtenPath = credentialPaths[0] ?? ''
   const appKey = typeof manifest?.app?.key === 'string' ? manifest.app.key : 'app'
   process.stdout.write(
     `${NAME}: registered ${appKey} for ${environment.environment} at ${environment.backendApiBaseUrl}; `
