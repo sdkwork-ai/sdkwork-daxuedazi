@@ -60,7 +60,7 @@ Fork 同步：merge `upstream/main`（`82ff44c26aa`）到本地 `main`，窗口 
 * **引导凭据私有化**（`62cbdce890`）：bootstrap 凭据收进用户私有 bundle，不再落在检出目录。
 * **签名缓存 fixture 隔离**（`48ee68039a`）：把签名缓存 fixture 移出检出目录，避免打包窗口内检出被污染。
 * **Windows 打包的插件 bin 换行**：打包前按插件 `package.json` 的 `bin` 声明归一化换行（含 `scripts/cli-bridge.mjs`），不再因 CRLF shebang 触发 `ERR_PNPM_BIN_CRLF`。
-* **CI 打包磁盘空间**：Linux 桌面与容器镜像车道在构建前释放镜像自带的 Android、.NET、GHC、CodeQL 工具链与 Docker 缓存，避免 `no space left on device` 让 deb/rpm 与镜像打包失败。
+* **CI 打包磁盘空间与容器镜像超时**：Linux 桌面与容器镜像车道在构建前释放镜像自带的 Android、.NET、GHC、CodeQL 工具链与 Docker 缓存；容器镜像车道另把 Docker data-root 迁到 runner 的大容量临时盘（`/mnt`），`prebuilt` 上下文改为硬链接复制，避免 BuildKit 快照写满根盘导致的 `no space left on device`；容器镜像车道超时从 45 分钟放宽到 90 分钟，覆盖 arm64 上的构建与离线镜像导出。
 * **菜单快照跟上 BirdCoder 产品名**（`0117f15874`）。
 
 #### 环境与凭据

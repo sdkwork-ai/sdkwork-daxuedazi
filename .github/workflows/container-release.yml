@@ -190,7 +190,10 @@ jobs:
             arch: arm64
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # The arm64 lane exceeded the previous 45-minute budget after installing,
+    # building, and assembling the same workspace the desktop lanes get 90
+    # minutes for; both architectures now share that budget.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
         with:
@@ -203,17 +206,32 @@ jobs:
           persist-credentials: false
           submodules: recursive
 
-      # The prebuilt copy plus BuildKit's overlay snapshots exceed the free
-      # space a hosted Ubuntu image leaves after its unused Android, .NET, GHC,
-      # and CodeQL toolchains. Drop those and any stale image cache first; the
+      # The installed workspace, BuildKit's overlay snapshots, the image layers,
+      # and the exported image archive together exceed the root disk a hosted
+      # Ubuntu image leaves after its unused Android, .NET, GHC, and CodeQL
+      # toolchains. Drop those and any stale image cache first, then move
+      # Docker's data-root onto the large ephemeral `/mnt` disk so BuildKit
+      # snapshots and layers never compete with the workspace for `/`; the
       # build itself failed with `no space left on device` without this step.
-      - name: Free disk space for the container build
+      - name: Free disk space and relocate the Docker data-root
         shell: bash
         run: |
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL
+          set -euo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/powershell
           docker image prune --all --force || true
           docker buildx prune --all --force || true
-          df -h
+          if [[ -d /mnt ]] && (( $(df -Pm /mnt | awk 'NR == 2 { print $2 }') >= 30000 )); then
+            sudo mkdir -p /mnt/docker
+            sudo python3 -c "import json,pathlib; p=pathlib.Path('/etc/docker/daemon.json'); c=json.loads(p.read_text()) if p.exists() and p.read_text().strip() else {}; c['data-root']='/mnt/docker'; p.write_text(json.dumps(c, indent=2)+'\n')"
+            sudo systemctl restart docker
+            for _ in {1..30}; do
+              docker info >/dev/null 2>&1 && break
+              sleep 2
+            done
+            docker info --format 'docker data-root: {{.DockerRootDir}}'
+          fi
+          df -h / /mnt
 
       - name: Clone SDKWork ecosystem siblings
         # The repository is checked out into repo/ in this job, so relative
@@ -251,12 +269,17 @@ jobs:
         # runner, none — so the record carried no profile and no title.
         run: pnpm run build:official
 
+      # Hardlink the copy: the prebuilt context only has to drop
+      # `.dockerignore`, and BuildKit reads the files without writing them.
+      # A real copy duplicated the whole installed workspace on the root disk;
+      # the hardlinked one costs inodes, not space. The later `chmod +x` on the
+      # Landlock binaries touches the same inodes and is harmless.
       - name: Prepare prebuilt context
         shell: bash
         run: |
           set -euo pipefail
           rm -rf prebuilt
-          cp -r repo prebuilt
+          cp -al repo prebuilt
           rm -f prebuilt/.dockerignore
 
       - name: Download native Landlock artifacts
