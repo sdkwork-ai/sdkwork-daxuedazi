@@ -62,11 +62,14 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   desktop:
-    name: Package Desktop matrix
+    name: Package Desktop targets
     needs: resolve
     uses: ./.github/workflows/desktop-release.yml
     with:
       version: ${{ needs.resolve.outputs.version }}
+      # A tag publishes every target: the assembly rejects a missing asset, so a
+      # partial selection belongs to a diagnostic dispatch, not to publication.
+      targets: all
     # The called workflow clones the SDKWork siblings with
     # SDKWORK_GITHUB_TOKEN; reusable workflows receive no secrets by default.
     secrets: inherit
@@ -190,10 +193,11 @@ jobs:
             arch: arm64
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
-    # The arm64 lane exceeded the previous 45-minute budget after installing,
-    # building, and assembling the same workspace the desktop lanes get 90
-    # minutes for; both architectures now share that budget.
-    timeout-minutes: 90
+    # 0.2.2-alpha.4 added the dsh-mcp-connector and dsh-skill-market git-linked
+    # plugins to the workspace build and the shared runners slowed down, so the
+    # container lanes need real headroom: the amd64 lane took 77 minutes and the
+    # arm64 lane was cancelled at the previous ceilings (45 then 90).
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v6
         with:
@@ -490,9 +494,9 @@ jobs:
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${release_id}"
           echo 'already-published=false' >> "$GITHUB_OUTPUT"
 
-      # CHANGELOG.md accumulates every released version so the repository keeps a
-      # full history; a GitHub Release note must carry only the version its tag
-      # names, so the body is the current `## <version>` section, not the file.
+      # CHANGELOG.md records only the current version; a GitHub Release note
+      # must carry the version its tag names either way, so the body is the
+      # current `## <version>` section, not the whole file.
       - name: Extract the current version's changelog
         shell: bash
         env:

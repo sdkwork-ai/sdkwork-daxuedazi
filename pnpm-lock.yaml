@@ -268,6 +268,9 @@ importers:
       '@sdkwork/iam-application-bootstrap':
         specifier: workspace:^
         version: link:../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-application-bootstrap
+      '@sdkwork/sdk-common':
+        specifier: workspace:^
+        version: link:../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@stylistic/eslint-plugin':
         specifier: ^5.10.0
         version: 5.10.0(eslint@10.13.0(jiti@2.7.0)(supports-color@9.4.0))
@@ -1226,6 +1229,9 @@ importers:
       '@sdkwork/mcp-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript
+      '@sdkwork/order-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -7852,6 +7858,9 @@ importers:
       dsh-mcp-connector:
         specifier: workspace:*
         version: link:../../../plugins/dsh-mcp-connector
+      dshmarket:
+        specifier: ^1.73.8
+        version: 1.73.8(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-settings@packages+settings+settings)
       open:
         specifier: ^11.0.2
         version: 11.0.4
@@ -24681,6 +24690,9 @@ importers:
       dsh-mcp-connector:
         specifier: workspace:*
         version: link:../../../plugins/dsh-mcp-connector
+      dshmarket:
+        specifier: ^1.73.8
+        version: 1.73.8(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-settings@packages+settings+settings)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -34073,6 +34085,15 @@ packages:
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
     engines: {node: '>=12'}
+
+  dshmarket@1.73.8:
+    resolution: {integrity: sha512-n0JSL2HtHONYMr8b2uMX6ncxq4pkZY3bU3hPOqf6bcGNsKH+1Wx6QY+MQHcmgM1UhLp+3ltmTxgszSuWCt0W+Q==}
+    peerDependencies:
+      '@deepseek-ai/cordis': ^4.0.1
+      '@deepseek-ai/dsh-settings': ^0.1.0-rc.7 || ^0.1.1-rc.2 || ^0.1.2-alpha.2 || ^0.2.0-rc.1 || ^0.2.1-alpha.3 || ^0.2.1-rc.1
+    peerDependenciesMeta:
+      '@deepseek-ai/dsh-settings':
+        optional: true
 
   dts-resolver@3.0.0:
     resolution: {integrity: sha512-1T1f+z+4tl9XD+m+0HBgWoL/nm0bOIffyWaUuUSBlFg/86IWvfx+wjNaO/ybU0AJzG9/Mi5hBUgGV6zCmWEN7Q==}
@@ -47067,6 +47088,15 @@ snapshots:
       dotenv: 16.6.1
 
   dotenv@16.6.1: {}
+
+  dshmarket@1.73.8(@deepseek-ai/cordis@vendor+cordis)(@deepseek-ai/dsh-settings@packages+settings+settings):
+    dependencies:
+      '@deepseek-ai/cordis': link:vendor/cordis
+      '@deepseek-ai/schemastery': link:vendor/schemastery
+      js-yaml: 4.3.2
+      undici: 7.30.1
+    optionalDependencies:
+      '@deepseek-ai/dsh-settings': link:packages/settings/settings
 
   dts-resolver@3.0.0(oxc-resolver@11.20.0):
     optionalDependencies:

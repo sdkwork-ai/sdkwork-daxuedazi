@@ -29,52 +29,9 @@ import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
 import { resolveBrand } from './brand-manifest.mjs'
-import {
-  resolveDesktopDistributionClass,
-  SDKWORK_RELEASE_ENV_FILENAME,
-} from './prepare-sdkwork-release-env.ts'
-import { readSdkworkReleaseEnvFile } from '../../../packages/boot/sdkwork-env-bootstrap/src/index.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
-
-/**
- * Prove the distribution contract before the platform packaging step, so a
- * build either ships an artifact that can authenticate or fails here.
- *
- * sdkwork-specs `ENVIRONMENT_SPEC.md` section 6.1.1 requires a `deployment`
- * build to carry the release environment with a projected credential, and a
- * `public` build to carry none. Checking it after preparation (rather than
- * trusting it) also covers a stale artifact left by an earlier run and a
- * hand-edited build tree.
- * @param buildRoot - the selected target's build root.
- * @param env - the packaging environment.
- * @throws When the artifact contradicts the declared distribution class.
- */
-function assertSdkworkDistributionArtifact(
-  buildRoot: string,
-  env: Readonly<Record<string, string | undefined>>,
-): void {
-  const distribution = resolveDesktopDistributionClass(env)
-  const path = join(buildRoot, SDKWORK_RELEASE_ENV_FILENAME)
-  const artifact = readSdkworkReleaseEnvFile(path)
-  if (distribution === 'public') {
-    if (artifact !== undefined) {
-      throw new Error(`desktop package: a public build must not carry ${path}; `
-        + 'remove it, or declare DSH_DESKTOP_DISTRIBUTION=deployment for a deployment build')
-    }
-    return
-  }
-  if (artifact === undefined) {
-    throw new Error(`desktop package: a deployment build must carry ${path}; `
-      + 'run `pnpm --filter @deepseek-ai/dsh-desktop run prepare:sdkwork-env`')
-  }
-  if (artifact.values.SDKWORK_ACCESS_TOKEN === undefined) {
-    throw new Error(`desktop package: ${path} carries no SDKWORK_ACCESS_TOKEN, so every IAM request `
-      + 'would fail before dispatch; provision one with `pnpm env:token:ensure --environment <lifecycle>` '
-      + 'or declare DSH_DESKTOP_DISTRIBUTION=public for a credential-free release')
-  }
-}
 
 const WINDOWS_SIGNING_ENV_PREFIX = 'DSH_DESKTOP_WINDOWS_'
 const WINDOWS_SIGNING_ENV_NAMES = [
@@ -583,21 +540,22 @@ async function main(): Promise<void> {
  * rules do not reach inside it. The shebang then arrives as CRLF and `pnpm pack`
  * refuses the plugin with `ERR_PNPM_BIN_CRLF`. The packed artifact is what a Unix
  * install executes, so the shebang is normalized to the form that runs there.
- * Every executable `pnpm pack` inspects counts: the manifest's `bin` entries
- * (some plugins place them outside `bin/`, e.g. `scripts/cli-bridge.mjs`) and
- * any other file under `bin/`.
+ *
+ * The executable set is the plugin's `bin/*` files plus every path the
+ * manifest's `bin` field names (string or map form): `dsh-mcp-connector`
+ * declares its entry at `scripts/probe-connector.mjs`, outside `bin/`, and the
+ * 0.2.2-alpha.4 Windows lanes failed on exactly that file.
  * @param directory - absolute plugin directory about to be packed.
  */
 function normalizePackedPluginShebangs(directory: string): void {
-  const targets = new Set<string>(globSync('bin/*', { cwd: directory }))
-  const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as { bin?: unknown }
-  const declared = typeof manifest.bin === 'string'
-    ? [manifest.bin]
-    : manifest.bin !== null && typeof manifest.bin === 'object' ? Object.values(manifest.bin) : []
-  for (const value of declared) {
-    if (typeof value === 'string') targets.add(value.replace(/^\.\//, ''))
+  const executables = new Set(globSync('bin/*', { cwd: directory }))
+  const manifestPath = join(directory, 'package.json')
+  if (existsSync(manifestPath)) {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { bin?: string | Record<string, string> }
+    const declared = typeof manifest.bin === 'string' ? [manifest.bin] : Object.values(manifest.bin ?? {})
+    for (const relative of declared) executables.add(relative)
   }
-  for (const entry of targets) {
+  for (const entry of executables) {
     const path = join(directory, entry)
     if (!existsSync(path)) continue
     const source = readFileSync(path, 'utf8')
@@ -776,15 +734,6 @@ export async function packageTarget(
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
   await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)
-  // A deployment-specific build carries the SDKWork deployment and bootstrap
-  // credential its host was packaged for; electron-builder adds the artifact as
-  // a resource, and the installed shell hands it to the Host. The step runs for
-  // `--prepare-only` too, so the prepared tree is complete.
-  await execute(['run', 'prepare:sdkwork-env'], downloadEnv)
-  // Distribution contract (ENVIRONMENT_SPEC 6.1.1): a deployment build must
-  // ship a projected credential, a public build must ship none. Checked against
-  // the prepared tree rather than the preparation step's own report.
-  assertSdkworkDistributionArtifact(buildPaths.root, downloadEnv)
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime', '--dsh'], electronBuilderEnv)
   if (invocation.prepareOnly) return
   const buildMacArtifact = (artifact: DesktopPrepackagedArtifact) => execute(

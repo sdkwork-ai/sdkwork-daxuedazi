@@ -2,6 +2,8 @@
 
 Status: implemented
 
+由 [2026-11-02-vite-env-configuration.md](2026-11-02-vite-env-configuration.zh.md) 取代：SDKWork 配置现在来自 Web 构建烘焙进页面的受跟踪 Vite env 文件。本笔记引入的发布环境产物、分发类别与应用身份资源均已删除。
+
 [English](2026-11-01-desktop-release-sdkwork-env.md) | 中文
 
 ## 问题
@@ -26,6 +28,14 @@ Status: implemented
 
 该步骤通过 `renderSdkworkReleaseEnv` 写出 `resources/sdkwork-release.env`，只包含 `SDKWORK_RELEASE_ENV_KEYS`：部署选择、SDKWork 各面 URL、凭据包携带的注册声明，以及 `SDKWORK_ACCESS_TOKEN`。模型提供方密钥、operator 引导凭据、数据库 URL 与 `VITE_*` / `PORTAL_PUBLIC_*` 均不在列表中，手工编辑的文件声明它们时会被报告并忽略。投影出的凭据与缓存中的那份字节一致，因此过期、轮换与吊销在两种载体上表现相同。
 
+### 两个类别都声明应用身份，只有凭据随类别变化
+
+`sdkwork-app.json` 记录清单 `app.key` 去掉厂商前缀后的编码（`birdcoder2`）。`prepare:sdkwork-env` 为每个分发类别把它写进目标构建根，`extraResources` 将其复制为 `resources/sdkwork-app.json`，`src/main.ts` 在启动 Host 之前解析它并通过 Host 环境传入 `SDKWORK_APPLICATION_CODE`。安装后的启动因此直接命名 `~/.sdkwork/<application-code>/credentials/`，而不是根据它恰好运行所在的 profile 目录（`<home>/profiles/desktop`）去推导。该文件不含凭据，因此公开版本携带它，同时仍然拒绝发布环境产物。
+
+### 发布车道提交自己的部署凭据（fork divergence）
+
+发布车道没有 secret manager 或 runner provision 的凭据来源，因此本 fork 允许其受跟踪的物化文件携带该部署的 `SDKWORK_ACCESS_TOKEN`。值写在 `.env.standalone.production` 里，operator 用 `pnpm env:token:ensure --environment production` 物化一次，`prepare:sdkwork-env` 像其它受跟踪值一样读取并投影进产物。是否可用仍由复用检查决定：只有未过期、且 `environment`、`app_id` 与租户声明都匹配本清单的令牌才会被复用，其它情况打包直接失败，因此刷新凭据是一次受跟踪的提交，而不是一次 secret 轮换。`ENVIRONMENT_SPEC.md` 第 5.1.7 节把该令牌视为私有引导凭据并要求 secret manager；此处是有意分歧，因为安装后的应用本来就会在 `resources/sdkwork-release.env` 中携带同一个值，而按规范发行的公开包会装出一个连登录请求都无法派发的应用。
+
 ### 安装后的应用在解析之前应用它
 
 桌面主进程把资源路径作为 `DSH_DESKTOP_SDKWORK_RELEASE_ENV_FILE` 传给 Host；`resolveSdkworkReleaseEnvFile` 优先采用启动环境给出的显式路径，否则使用打包资源，源码启动则不传。Host 在 `applySdkworkLaunchEnv` 之前调用 `applySdkworkReleaseEnv`，因此该产物只填补启动环境留空的名字，operator 覆盖始终优先。token 随后走 `IAM_APPLICATION_BOOTSTRAP_SPEC.md` 第 5.4 节的常规路径：仍然有效的凭据原样复用；投影的那份不再可复用时，Host 会报告产物路径、补救方式与 provision 命令，因为 `deployment` 构建同样无法通过交互式登录完成认证。
@@ -46,6 +56,8 @@ Status: implemented
 
 **始终写入该产物。** 公开发布就会随发布工程师恰好配置的凭据一起分发。声明的类别保证公开流水线不含凭据，`ENVIRONMENT_SPEC.md` 第 6.1.1 节也写明了分发规则。
 
+**改用发布 secret，不提交该值。** 这样凭据不会进入 checkout，也是 `ENVIRONMENT_SPEC.md` 第 5.1.7 节期望的形态。但它也让每次发布依赖一个没有文件记录的仓库设置，并依赖目标机器自身的 provision——正是本笔记要修的故障：产物只在已经安装过凭据的机器上才能认证。受跟踪的值让来源出现在刷新它的那次 diff 里。
+
 **继续依赖安装机自己的凭据包或 operator 凭据。** 当 operator 在目标机器上 provision 了 `~/.sdkwork/iam-bootstrap/<lifecycle>.json` 时它已经可用，也是续期路径。但它帮不了没有这套配置的部署构建，而那正是失败场景：打包机持有凭据，安装后的应用没有。
 
 **只写入 `SDKWORK_ACCESS_TOKEN`。** 默认网关恰好与 production 令牌匹配，但 test 或 staging 构建就会把该凭据发给 production 网关，部署身份仍然是隐式的。写入选择键让产物描述它所认证的部署。
@@ -54,8 +66,8 @@ Status: implemented
 
 ## 结果
 
-`deployment` 构建现在无需依赖安装用户的 shell 环境即可访问其 SDKWork 网关并通过认证，test 或 staging 档的构建也能到达正确的网关而不是 production 默认值。忘记声明类别现在产出的是携带凭据的产物，而不是坏掉的产物；公开流水线必须明确写出 `public`。打包不再能挪动令牌：构建复用 `env:token:ensure` 已经确定的值，因此过期或吊销的凭据会以明确的打包或启动失败呈现，而不是悄悄换成与 operator 检查过的不同的令牌。产物仍然包含一个可吊销的引导凭据，因此它只属于其构建针对的部署，刷新它意味着重新执行显式命令并重新打包。
+`deployment` 构建现在无需依赖安装用户的 shell 环境即可访问其 SDKWork 网关并通过认证，test 或 staging 档的构建也能到达正确的网关而不是 production 默认值。两种类别的安装产物都会命名打包机 provision 过的同一个凭据包，因此公开版本在已配置凭据的机器上复用该凭据，而不是去 `~/.sdkwork/desktop/` 下查找。忘记声明类别现在产出的是携带凭据的产物，而不是坏掉的产物；公开流水线必须明确写出 `public`。发布车道的凭据是受跟踪的值，因此它会随仓库及其产出的每个安装包一起公开：轮换意味着吊销令牌、刷新 `.env.standalone.production` 并重新打包，而声明一旦不再匹配，车道立即 fail closed。打包不再能挪动令牌：构建复用 `env:token:ensure` 已经确定的值，因此过期或吊销的凭据会以明确的打包或启动失败呈现，而不是悄悄换成与 operator 检查过的不同的令牌。
 
 ## 验证
 
-`pnpm exec vitest run packages/boot/sdkwork-env-bootstrap/tests apps/desktop-host/tests/launch-environment.spec.ts apps/desktop/tests/prepare-sdkwork-release-env.spec.ts apps/desktop/tests/sdkwork-release-env.spec.ts apps/desktop/tests/package-target-stages.spec.ts apps/desktop/tests/desktop-package-environment.spec.ts` 覆盖允许清单、渲染、解析、优先级与部署选择清除、Host 应用产物与 operator 优先、resolve 阶段拒绝创建凭据、refresh 不会回退到它被要求替换的值、打包步骤的分发类别与缺令牌失败、拒绝无产物的 `deployment` 构建的打包门禁、外壳传入的资源路径，以及在下载环境下运行该步骤的打包阶段。对安装路径的本地模拟——一个空 home 目录，分别在有无产物时——两种情形都解析到 `standalone.production` / `https://api.birdcoder.com`，前者没有令牌，后者是打包机的 production 令牌。
+`pnpm exec vitest run packages/boot/sdkwork-env-bootstrap/tests apps/desktop-host/tests/launch-environment.spec.ts apps/desktop/tests/prepare-sdkwork-release-env.spec.ts apps/desktop/tests/sdkwork-app-identity.spec.ts apps/desktop/tests/sdkwork-release-env.spec.ts apps/desktop/tests/package-target-stages.spec.ts apps/desktop/tests/desktop-package-environment.spec.ts` 覆盖允许清单、渲染、解析、优先级与部署选择清除、Host 应用产物与 operator 优先、resolve 阶段拒绝创建凭据、refresh 不会回退到它被要求替换的值、打包步骤的分发类别与缺令牌失败、两个类别都携带的应用身份、拒绝无产物的 `deployment` 构建的打包门禁、外壳传入的资源路径，以及在下载环境下运行该步骤的打包阶段。对安装路径的本地模拟——一个空 home 目录，分别在有无产物时——两种情形都解析到 `standalone.production` / `https://api.birdcoder.com`，前者没有令牌，后者是打包机的 production 令牌。

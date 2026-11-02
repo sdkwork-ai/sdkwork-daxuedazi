@@ -89,7 +89,6 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 import { applyBrandBootstrap, resolveRuntimeBrand } from './brand.ts'
-import { DESKTOP_SDKWORK_RELEASE_ENV_FILE_VARIABLE, resolveSdkworkReleaseEnvFile } from './sdkwork-release-env.ts'
 import {
   INSECURE_TLS_ARGUMENT,
   applyDesktopTlsTrust,
@@ -508,15 +507,6 @@ async function main(): Promise<void> {
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
   const development = !app.isPackaged
-  // The packaging lane may have written the deployment's SDKWork environment
-  // beside the application. The Host applies it before it freezes its launch
-  // snapshot; an explicit path in the environment overrides the resource.
-  const sdkworkReleaseEnvFile = resolveSdkworkReleaseEnvFile({
-    packaged: app.isPackaged,
-    resourcesPath: process.resourcesPath,
-    environment: process.env,
-  })
-  if (sdkworkReleaseEnvFile !== undefined) console.info(`desktop sdkwork: release environment ${sdkworkReleaseEnvFile}`)
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
@@ -672,9 +662,6 @@ async function main(): Promise<void> {
       hostInspectPort, {
         ...hostEnvironment,
         DSH_CLIENT_VERSION: desktopClientVersion(),
-        ...sdkworkReleaseEnvFile === undefined
-          ? {}
-          : { [DESKTOP_SDKWORK_RELEASE_ENV_FILE_VARIABLE]: sdkworkReleaseEnvFile },
       }, onFailure,
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) }, (record) => {

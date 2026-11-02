@@ -7,6 +7,7 @@ CLAUDE.local.md
 # PostgreSQL profile in `config/host/postgres.env`, and desktop packaging
 # settings in `apps/desktop/packaging/<platform>.env`.
 .env.standalone.staging
+.env.cloud.staging
 # Retired composed names. Nothing reads them, and tools/check-env-file-naming.mjs
 # fails when one exists; they stay ignored only so a stray file cannot be
 # committed while it is being deleted.
@@ -194,6 +195,9 @@ tmp-*.spec.ts
 .tmp-*
 *.log
 *-log.txt
+
+# One-off claims runner placeholder at the repo root (never committed)
+/run-claims.mjs
 .q.mjs
 .gh-track.mjs
 .pack-status.txt
