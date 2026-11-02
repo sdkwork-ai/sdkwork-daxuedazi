@@ -146,7 +146,10 @@ function main(): void {
   const releasePermissions = objectValue(releaseJob.permissions, 'release workflow release permissions')
   assert(desktopJob.uses === './.github/workflows/desktop-release.yml', 'tagged publication must call the reusable Desktop matrix')
   assert(bundleJob.permissions === undefined && imageJob.permissions === undefined, 'container package jobs must inherit read-only permissions')
-  assert(resolveJob['timeout-minutes'] === 5 && bundleJob['timeout-minutes'] === 15 && nativeJob['timeout-minutes'] === 15 && imageJob['timeout-minutes'] === 45 && releaseJob['timeout-minutes'] === 15, 'native release jobs must have bounded runtimes')
+  // The image lane exports a full offline archive after the build; on arm64
+  // the export alone overran the previous 45-minute budget, so both images
+  // now get the same 90 minutes the Desktop lanes use.
+  assert(resolveJob['timeout-minutes'] === 5 && bundleJob['timeout-minutes'] === 15 && nativeJob['timeout-minutes'] === 15 && imageJob['timeout-minutes'] === 90 && releaseJob['timeout-minutes'] === 15, 'native release jobs must have bounded runtimes')
   assert(Array.isArray(releaseJob.needs) && releaseJob.needs.includes('desktop') && releaseJob.needs.includes('container-bundle') && releaseJob.needs.includes('container-image') && releasePermissions.contents === 'write', 'only the aggregate release job may receive repository write access')
   assert(releaseConcurrency.group === 'dsh-github-release' && releaseConcurrency['cancel-in-progress'] === false, 'GitHub Release publication must serialize every dsh tag without cancelling an active publication')
   assert((releaseWorkflow.match(/contents: write/g) ?? []).length === 1, 'release workflow must grant repository write access exactly once')
