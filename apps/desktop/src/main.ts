@@ -1228,7 +1228,7 @@ async function main(): Promise<void> {
   app.setAboutPanelOptions({
     // FORK DIVERGENCE (AGENTS.md, "Desktop shell display copy" and "OEM
     // profile"): the About panel is a fork-owned display surface; its name is
-    // the deployment's OEM brand, shipped as BirdCoder without a profile.
+    // the deployment's OEM brand, shipped as 学伴AI without a profile.
     applicationName: desktopBrandName(),
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.

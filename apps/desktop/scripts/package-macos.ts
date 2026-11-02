@@ -16,6 +16,7 @@ import {
 } from './desktop-auto-update-environment.mjs'
 import { verifyMacOSAppUpdateConfig } from './macos-app-update-config.mjs'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
+import { resolveBrand } from './brand-manifest.mjs'
 import { verifyMacOSNotarizedApplication, verifyMacOSSignature } from './verify-macos-signature.mjs'
 
 const execute = promisify(execFile)
@@ -112,7 +113,7 @@ export async function packageMacOSArtifacts(
     await verifyMacOSAppUpdateConfig(dmgApp, update)
     apple.verifySignature(zipApp, expected)
     apple.verifySignature(dmgApp, expected)
-    const base = `deepseek-harness-${version}-mac-${arch}`
+    const base = `${resolveBrand(environment).desktop.artifactPrefix}-${version}-mac-${arch}`
     const artifacts = [
       [dmgOutput, `${base}.dmg`],
       [zipOutput, `${base}.zip`],

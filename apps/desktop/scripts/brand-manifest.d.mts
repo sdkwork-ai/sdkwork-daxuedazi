@@ -3,7 +3,7 @@
  * packaging scripts and the Electron shell.
  *
  * Precedence: `DSH_BRAND_CONFIG` (an explicit manifest path) wins, then
- * `DSH_BRAND` (a key under `brands/`), then `birdcoder`.
+ * `DSH_BRAND` (a key under `brands/`), then `daxuedazi`.
  */
 
 /** Environment variable naming one brand key under `brands/`. */
@@ -16,7 +16,7 @@ export const BRAND_CONFIG_ENV: 'DSH_BRAND_CONFIG'
 export const BRAND_FILENAME: 'brand.json'
 
 /** Brand shipped without a selection. */
-export const DEFAULT_BRAND_KEY: 'birdcoder'
+export const DEFAULT_BRAND_KEY: 'daxuedazi'
 
 /** Directory holding the repository's brand manifests. */
 export const BRAND_DIRECTORY: string
@@ -94,6 +94,6 @@ export function resolveBrand(env?: Record<string, string | undefined>, directory
 
 /**
  * The repository's shipped brand, read once.
- * @returns Frozen manifest of `brands/birdcoder.json`.
+ * @returns Frozen manifest of `brands/daxuedazi.json`.
  */
 export function shippedBrand(): DesktopBrand

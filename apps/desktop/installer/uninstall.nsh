@@ -24,8 +24,9 @@ Function un.CleanData
   ReadEnvStr $UnHome DSH_HOME
   ClearErrors
   ; FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): Electron derives
-  ; the user-data directory from the packaged manifest's `productName`, so
-  ; BirdCoder owns `%APPDATA%\BirdCoder`.
+  ; the user-data directory from the packaged manifest's `productName`, so the
+  ; shipped daxuedazi brand owns `%APPDATA%\daxuedazi` while the birdcoder brand
+  ; keeps `%APPDATA%\BirdCoder`.
   ;
   ; Upstream's `%APPDATA%\${APP_PACKAGE_NAME}` removal is dropped, not retargeted.
   ; That directory is `%APPDATA%\@deepseek-ai\dsh-desktop` — the scoped package

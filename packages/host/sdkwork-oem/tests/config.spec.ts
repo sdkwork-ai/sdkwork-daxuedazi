@@ -49,7 +49,7 @@ describe('resolveOemConfig', () => {
         iamBaseUrl: 'https://api.birdcoder.com',
         iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',
         iamClientId: 'birdcoder',
-        iamRedirectUri: 'birdcoder://auth/callback',
+        iamRedirectUri: 'daxuedazi://auth/callback',
       },
       deepseek: {
         platformOrigin: 'https://platform.birdcoder.com',
@@ -186,7 +186,7 @@ describe('resolveOemConfig', () => {
       iamBaseUrl: 'https://iam.acme.test',
       iamAuthorizeBaseUrl: 'https://platform.acme.test',
       iamClientId: 'birdcoder',
-      iamRedirectUri: 'birdcoder://auth/callback',
+      iamRedirectUri: 'daxuedazi://auth/callback',
     })
     expect(() => resolveOemConfig({ sdkwork: { iamBaseUrl: 'http://iam.acme.test' } }))
       .toThrow(/sdkwork\.iamBaseUrl/)
@@ -359,7 +359,7 @@ describe('oemBootConfig', () => {
         iamBaseUrl: 'https://api.birdcoder.com',
         iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',
         iamClientId: 'birdcoder',
-        iamRedirectUri: 'birdcoder://auth/callback',
+        iamRedirectUri: 'daxuedazi://auth/callback',
       },
     })
   })

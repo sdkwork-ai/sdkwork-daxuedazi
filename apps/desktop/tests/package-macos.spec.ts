@@ -12,6 +12,9 @@ import {
 } from '../scripts/package-macos.ts'
 import { desktopElectronBuilderArguments, resolveDesktopPackageTarget } from '../scripts/package-target.ts'
 import { writeMacOSAppUpdateConfig } from '../scripts/macos-app-update-config.mjs'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
+
+const ARTIFACT_PREFIX = resolveBrand({}).desktop.artifactPrefix
 
 const environment = {
   DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Example Company (TEAMID1234)',
@@ -34,9 +37,9 @@ async function fixture(arch: 'arm64' | 'x64' = 'arm64') {
   await writeFile(join(appPath, 'payload'), 'signed content')
   await writeMacOSAppUpdateConfig(join(appPath, 'Contents', 'Resources'), {
     publicUrl: `https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/mac-${arch}/`,
-  }, 'deepseek-harness-updater')
+  }, `${ARTIFACT_PREFIX}-updater`)
   const version = '1.2.3-alpha.1'
-  const base = `deepseek-harness-${version}-mac-${arch}`
+  const base = `${ARTIFACT_PREFIX}-${version}-mac-${arch}`
   const request = { arch, artifactsRoot, version, environment }
   const apple: MacOSArtifactOperations = {
     copyApp: async (source, destination) => {

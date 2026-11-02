@@ -184,7 +184,7 @@ export function Welcome({ api }: { api: WelcomeApi }) {
     {expiryNotice && <Toast text={m.welcomeSessionExpired} onDone={() => { setExpiryNotice(false) }} />}
     <div className="titlebar" aria-hidden="true" />
     <main className="welcome" aria-labelledby={heading}>
-      {/* The shipped name and mark are BirdCoder; an OEM build replaces
+      {/* The shipped display name is 学伴AI; an OEM build replaces
           brand.name and the welcome raster together. */}
       <div className="brand">
         <img className="brandMark" src="assets/welcome-bird.png" alt={m.welcomeBrand} width="40" height="40" />

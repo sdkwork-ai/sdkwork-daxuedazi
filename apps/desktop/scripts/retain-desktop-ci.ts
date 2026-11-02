@@ -6,6 +6,7 @@ import type { DesktopBuildTarget } from './desktop-build-paths.d.mts'
 import type { DesktopAutoUpdateTarget } from './desktop-auto-update-environment.d.mts'
 import { desktopBuildRecordFilename, desktopUpdateMetadataFilename, resolveDesktopUpdateChannel } from './desktop-auto-update-environment.mjs'
 import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs'
+import { resolveBrand } from './brand-manifest.mjs'
 import { retainDesktopRelease, type DesktopRetainedSource } from './desktop-release-store.ts'
 import { validateDesktopBuildVersion } from './desktop-build-version.mjs'
 import { desktopPublishQualificationError } from './desktop-publish-qualification.mjs'
@@ -76,7 +77,7 @@ export async function retainDesktopCi(env: NodeJS.ProcessEnv, appRoot = resolve(
   const mode = qualification === 'unsigned' ? 'unsigned-artifacts' : qualification === 'unnotarized' ? 'unnotarized-artifacts' : 'artifacts'
   const artifacts = appRoot === resolve(import.meta.dirname, '..')
     ? join(paths.root, mode) : join(appRoot, '.desktop-build', 'targets', target, mode)
-  const base = `deepseek-harness-${version}-${windows ? 'win-x64' : target}`
+  const base = `${resolveBrand(settings).desktop.artifactPrefix}-${version}-${windows ? 'win-x64' : target}`
   const debugSuffix = qualification === 'unnotarized' ? '-unnotarized' : qualification === 'unsigned' ? '-unsigned' : ''
   const names = windows ? [`${base}${debugSuffix}.exe`] : [`${base}${debugSuffix}.dmg`, `${base}${debugSuffix}.zip`]
   if (qualification === 'signed' || qualification === 'notarized') {

@@ -93,6 +93,7 @@ Decide per file, never per tree:
 | Situation | Resolution |
 | --- | --- |
 | Brand assets, sdkwork components/plugins/routing/vendor, fork-only files | keep this repository's version |
+| A file on the [OEM-owned surface inventory](brands/README.md#oem-owned-surfaces) | take upstream's structure, re-apply the OEM fields; a file that lost them is a merge defect |
 | Upstream core behavior | take upstream |
 | Both sides changed the same surface | merge both behaviors, upstream structure as the baseline |
 | Upstream deleted a file this fork modified | decide per file, and record the outcome in the report |
@@ -112,7 +113,7 @@ push, never `git clean -fdx`.
 2. no conflict markers, no unmerged index entries;
 3. every path deleted since the rollback point is gone from upstream too (no accidental deletion);
 4. **every file this fork never touched is byte-identical to upstream** in the merge result — the one check that catches upstream content being silently swallowed, which a per-file conflict review cannot see;
-5. the brand surfaces, the sdkwork packages and the recorded keep/delete lists still hold.
+5. the brand surfaces, the sdkwork packages and the recorded keep/delete lists still hold — `pnpm run verify-oem-identity` covers the OEM-owned surface inventory in [brands/README.md](brands/README.md#oem-owned-surfaces) (shipped brand values, the `~/.daxuedazi` home rule, the IAM callback scheme, the artifact-name derivations and the docs pointers), and step 5 of `verify` calls it.
 
 It also reports the version family (`package.json` == newest upstream tag ==
 first `CHANGELOG.md` heading). Only after it passes does `anchor` advance the

@@ -116,7 +116,11 @@ export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string
       continue
     }
     const source = versions.get(sourceVersion)
-    if (source === undefined) throw new Error(`${name} has no workspace version ${sourceVersion}`)
+    // FORK DIVERGENCE (SDKWork BirdCoder): plugin workspace members publish their own
+    // historical DSH SDK pins, so the installed store carries DSH names (for example
+    // `@deepseek-ai/dsh-invariants`) that today's release no longer publishes. They sit
+    // outside the dual-release graph; serving their real versions keeps npm resolvable.
+    if (source === undefined) continue
     dshPackages++
     output.set(name, new Map(SYNTHETIC_DSH_VERSIONS.map(version => [
       version,

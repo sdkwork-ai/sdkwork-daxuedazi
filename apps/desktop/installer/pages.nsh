@@ -100,7 +100,7 @@ Function InstallerCreate
     ${NSD_CreateBitmap} 0 0 0 0 ""
     Pop $InstallerEditFrame
     ; FORK DIVERGENCE: this field is sized to fit the real default per-user
-    ; installation path (`%LOCALAPPDATA%\Programs\BirdCoder`, 52 characters),
+    ; installation path (`%LOCALAPPDATA%\Programs\daxuedazi`, 52 characters),
     ; which upstream's 360px width clipped at 150% DPI. Geometry lives in
     ; `theme.nsh`; `installer-packaging.spec.ts` keeps the parts consistent.
     !insertmacro InstallerPlace $InstallerEditFrame ${INSTALLER_PATH_FRAME_X} ${INSTALLER_PATH_FRAME_Y} ${INSTALLER_PATH_FRAME_W} ${INSTALLER_PATH_FRAME_H}

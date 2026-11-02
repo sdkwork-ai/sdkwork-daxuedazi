@@ -45,7 +45,7 @@ export const DEFAULT_IAM_CLIENT_ID = 'birdcoder'
  * the desktop application's registered URL scheme (`desktop.protocol` in the
  * brand manifest), so a brand declares the handler and this URI names the path.
  */
-export const DEFAULT_IAM_REDIRECT_URI = 'birdcoder://auth/callback'
+export const DEFAULT_IAM_REDIRECT_URI = 'daxuedazi://auth/callback'
 
 /** Service domains per SDKWork lifecycle. */
 const ENVIRONMENT_ORIGINS: Readonly<Record<OemEnvironment, {
@@ -132,7 +132,7 @@ export interface OemSdkworkConfig {
   readonly iamClientId: string
   /**
    * Registered deep-link callback the hosted login returns through, e.g.
-   * `birdcoder://auth/callback`. The scheme is the desktop application's URL
+   * `daxuedazi://auth/callback`. The scheme is the desktop application's URL
    * scheme from the brand manifest.
    */
   readonly iamRedirectUri: string
@@ -372,7 +372,7 @@ function iamRedirectUri(value: string | undefined, where: string): string {
   try {
     url = new URL(text)
   } catch {
-    throw new Error(`oem: ${where} must be an absolute URI such as birdcoder://auth/callback`)
+    throw new Error(`oem: ${where} must be an absolute URI such as daxuedazi://auth/callback`)
   }
   if (url.protocol === 'http:' || url.protocol === 'https:') {
     throw new Error(`oem: ${where} must use the desktop application's custom URL scheme, not HTTP(S)`)

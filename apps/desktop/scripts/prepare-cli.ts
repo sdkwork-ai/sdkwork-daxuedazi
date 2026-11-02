@@ -8,7 +8,7 @@ import { resolveBrand, shippedBrand } from './brand-manifest.mjs'
  * Copy the platform launcher into the application's public command directory,
  * renamed and re-pointed for the selected brand.
  *
- * The shipped `cli/birdcoder` and `cli/birdcoder.cmd` files are the templates:
+ * The shipped `cli/daxuedazi` and `cli/daxuedazi.cmd` files are the templates:
  * each names the installed executable once and defaults `DSH_HOME` to the
  * brand's home, so a CLI run from a terminal reads the same home as the shell.
  * A brand build rewrites both values and writes the result under its own command
@@ -16,7 +16,7 @@ import { resolveBrand, shippedBrand } from './brand-manifest.mjs'
  * different homes, which is what keeps each one from replacing the other's PATH
  * entry or reading the other's sessions.
  * FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): the installed
- * launcher answers to `birdcoder`, not upstream's `dsh`.
+ * launcher answers to `daxuedazi`, not upstream's `dsh`.
  * @param destination - Physical runtime/cli directory prepared for the application.
  * @param platform - Target Desktop operating system.
  * @param env - Packaging environment selecting the brand; defaults to `process.env`.

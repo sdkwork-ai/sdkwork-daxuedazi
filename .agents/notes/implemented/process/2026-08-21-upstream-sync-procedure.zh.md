@@ -25,6 +25,7 @@ Status: implemented
 9. **推送前复核 BirdCoder 品牌（2026-09-04 教训）。** 2026-09-03 的同步放任上游的英雄区鱼形特性（`EmptyHero.tsx` 的 `FISH_LOGO_PATH` 游动变形回退）悄悄把产品标换回了鱼。推送合并前，先走一遍 AGENTS.md →"BirdCoder brand assets" 的检查单：`grep -rn "FishLogo" packages/client --include="*.tsx" -l` 只允许命中 `ui-primitives`（上游组件，保持原样）与文案；每个 fork 表面（侧边栏标、官方标、英雄区标）都渲染 `BirdLogo`；`website/` 链接 `favicon.png`（不得出现 `favicon.svg`）；`apps/web/public/favicon.png` 与 `apps/desktop/build/icon.*` 仍是鸟形位图。把任何新的鱼形调用点换成 `BirdLogo`——绝不接受上游鱼形回退落到 fork 表面上。
 10. **重新收敛发布家族版本（2026-09-11 教训）。** `DshFamily.verifyVersions` 要求每个可发布成员（`packages/!(experimental)/*/package.json` 加 `apps/*/package.json`，排除 `private: true`）共用同一个版本，且两个合并父提交都强制这一约束。上游的版本提升只落在上游自己改过的文件上：fork 独有的成员没有上游对应物，因此永不冲突，也就一直保留上一个版本行。2026-09-11 的同步让 49 个 fork manifest 停在 `0.1.5-alpha.1`/`0.1.5-alpha.2`，而上游已把 266 个推进到 `0.1.5-rc.2`；这份漂移被提交进 HEAD，随后每次 `release:pack --family dsh` 都在打包任何产物之前被家族版本门禁中止。解决合并后，读出合并后的根版本写进每个滞后成员的 manifest，再 `pnpm install --lockfile-only` 并确认家族只报出一个版本。
 11. **让兄弟仓 pin 与 lockfile 同步推进（2026-09-11 教训）。** CI 会先把 `scripts/sdkwork-sources.manifest.json` 里 pin 的兄弟仓克隆到 `../sdkwork-*`，再运行 `pnpm install --frozen-lockfile`；但 `pnpm-lock.yaml` 记录的是从**本地**兄弟 checkout 解析出的 specifier。因此 pin 落后于本地 HEAD 时，维护者本机安装一切正常，而所有 CI runner 都会以 `ERR_PNPM_OUTDATED_LOCKFILE` 失败——这个报错看起来像 lockfile 问题，而不像 pin 问题。先推送兄弟仓、把每个 pin 指向已推送的 HEAD，然后才重新记录并校验 lockfile，最后再推送合并。
+12. **解决冲突后重跑 OEM 身份门禁。** `pnpm run verify-oem-identity` 读取 [OEM 自有内容清单](../../../../brands/README.zh.md#oem-owned-surfaces)，并指出失配的具体面：出厂 `daxuedazi` 身份取值、`~/.daxuedazi` home 规则、IAM 回调 scheme、每个打包通道的产物命名派生，以及文档指引。解决 OEM 自有文件时取上游结构、再把 OEM 字段重新落回去。`scripts/sync-upstream.sh verify` 会运行同一门禁（步骤 5c），因此只要合并丢了 OEM 内容，就无法记录 anchor。
 
 ## 冲突决策表
 
@@ -38,6 +39,7 @@ Status: implemented
 | CI 分支名 | 本地（`main`） | fork 的默认分支 |
 | 发布 tag/产品事实 | 本地 | `birdcoder-v*` tag、桌面应用、SDKWork relay |
 | Logo/品牌标表面 | 本地（`BirdLogo`） | fork 产品标识是 BirdCoder 鸟；上游鱼形回退绝不落到 fork 表面 |
+| OEM 自有内容（[清单](../../../../brands/README.zh.md#oem-owned-surfaces)） | 上游结构，重新落上 OEM 字段 | 出厂 `daxuedazi` 身份、home、IAM 回调与产物命名必须与清单一致 |
 | 上游改过的服务接口 | 在 fork 代码里实现新接口 | 回退接口等于 fork 上游契约 |
 
 ## 结果

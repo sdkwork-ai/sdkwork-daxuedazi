@@ -112,8 +112,10 @@ it('leaves a legacy home alone for a brand that does not adopt it, and for unpac
   mkdirSync(join(home, '.dsh'))
   writeFileSync(join(home, '.dsh', 'session'), 'other product')
   const isolated: Record<string, string | undefined> = {}
+  // A non-adopting brand owns its directory outright and never falls back to `~/.dsh`.
   expect(applyBrandHome({ brand: ISOLATED, env: isolated, homeDirectory: home, allowAdoption: true }))
-    .toMatchObject({ home: join(home, '.dsh'), source: 'legacy', adoption: 'skipped' })
+    .toMatchObject({ home: join(home, '.acme'), source: 'brand', adoption: 'none' })
+  expect(isolated.DSH_HOME).toBe(join(home, '.acme'))
 
   const development: Record<string, string | undefined> = {}
   expect(applyBrandHome({ brand: ADOPTING, env: development, homeDirectory: home }))
@@ -126,7 +128,7 @@ it('applies nothing outside an installed application or the development launcher
   const home = operatingSystemHome()
   const env: Record<string, string | undefined> = {}
   const brand = resolveRuntimeBrand({ appPath: 'desktop-test-app', resourcesPath: 'relative-resources', env })
-  expect(brand.key).toBe('birdcoder')
+  expect(brand.key).toBe('daxuedazi')
   expect(applyBrandBootstrap({ brand, packaged: false, env, resourcesPath: 'relative-resources', homeDirectory: home }))
     .toEqual({ brand, home: undefined })
   expect(env.DSH_HOME).toBeUndefined()
@@ -192,7 +194,7 @@ it('renders the installed CLI launchers for a brand command and home', async () 
   const windows = readFileSync(join(directory, 'bin', 'acme.cmd'), 'utf8')
   expect(windows).toContain('acme.exe')
   expect(windows).toContain('%USERPROFILE%\\.acme')
-  expect(windows).not.toContain('birdcoder')
+  expect(windows).not.toContain('daxuedazi')
 
   prepareDesktopCli(directory, 'darwin', { DSH_BRAND_CONFIG: manifest })
   const unix = readFileSync(join(directory, 'bin', 'acme'), 'utf8')

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { load } from 'js-yaml'
 import { createInstalledUpdateRun } from '../scripts/installed-update-qualification.ts'
 import { planInstalledUpdateDistribution } from '../scripts/installed-update-distribution.ts'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
 
 const versions = ['0.1.6-nightly.20260914.1', '0.1.6-nightly.20260914.2'] as const
 
@@ -16,7 +17,9 @@ async function fixture<T>(body: (manifest: string) => Promise<T>): Promise<T> {
     for (const version of versions) {
       const output = join(run.root, version, 'installer')
       await mkdir(output, { recursive: true })
-      const filename = `deepseek-harness-${version}-win-x64.exe`
+      // The installer's file name is the selected brand's artifact stem, which is
+      // also what packaging writes into `nightly.yml`.
+      const filename = `${resolveBrand({}).desktop.artifactPrefix}-${version}-win-x64.exe`
       const body = Buffer.from(`inert fixture ${version}`)
       await writeFile(join(output, filename), body)
       await writeFile(join(output, `${filename}.blockmap`), 'inert map')

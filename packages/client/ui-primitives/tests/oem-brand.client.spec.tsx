@@ -89,7 +89,7 @@ describe('readOemIamRedirectUri', () => {
     }
     expect(readOemIamRedirectUri({ sdkwork: {} })).toBeUndefined()
     expect(readOemIamRedirectUri()).toBeUndefined()
-    expect(DEFAULT_IAM_REDIRECT_URI).toBe('birdcoder://auth/callback')
+    expect(DEFAULT_IAM_REDIRECT_URI).toBe('daxuedazi://auth/callback')
   })
 })
 

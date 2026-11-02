@@ -3,23 +3,26 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write brands/README.md
 /brand-manifests-oem:
-  en: 500a045c2c7d3e70
-  zh: ce09d2e5d41e7df5
+  en: ff479a3c9f8f51bd
+  zh: e5c3ad8688214b51
 /brand-manifests-oem/files:
   en: 6757613e7a712fb9
   zh: ba02cef5fa7574b5
 /brand-manifests-oem/selecting-a-brand:
-  en: e59bdbe08b343863
-  zh: 6c9e1fab9fbfe72b
+  en: 7c89d411f1342fbd
+  zh: 6bf3df744e6b69fa
 /brand-manifests-oem/fields:
-  en: e4fa1bcac97fb79b
-  zh: af992bc433b187b3
+  en: 978c9f4c26665495
+  zh: d72852ce20c9b991
 /brand-manifests-oem/harness-home:
-  en: d9972674f440d3ab
-  zh: 4f2892a7526825a3
+  en: 3fc334620fb3250e
+  zh: a1f335a59aa53f34
 /brand-manifests-oem/adding-a-brand:
-  en: de00284e9e87af8d
-  zh: 180415d45ff5c78f
+  en: 2a08262fb470f5eb
+  zh: 9fb65f087eee0b73
+/brand-manifests-oem/oem-owned-surfaces:
+  en: 7f3e90a448a5c057
+  zh: f90a699328190a50
 /brand-manifests-oem/not-brand-scoped-yet:
-  en: 08b9fec85eace5db
-  zh: 75d135b95a560dac
+  en: 8032a6d197a87fad
+  zh: 66b334ce19ed5b67

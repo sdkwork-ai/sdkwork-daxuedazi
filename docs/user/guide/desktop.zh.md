@@ -12,8 +12,8 @@ GitHub Latest 当前指向 `birdcoder-v0.1.0-rc.13`。在通过全部校验的�
 
 | 平台 | 架构 | 安装包 | 便携归档 |
 |---|---|---|---|
-| Windows | x64 或 arm64 | `BirdCoder-<version>-win-<arch>.exe` | `BirdCoder-<version>-win-<arch>.zip` |
-| macOS | x64 或 arm64 | `BirdCoder-<version>-mac-<arch>.dmg` | `BirdCoder-<version>-mac-<arch>.zip` |
+| Windows | x64 或 arm64 | `daxuedazi-<version>-win-<arch>.exe` | `daxuedazi-<version>-win-<arch>.zip` |
+| macOS | x64 或 arm64 | `daxuedazi-<version>-mac-<arch>.dmg` | `daxuedazi-<version>-mac-<arch>.zip` |
 | Linux | x64 | `*-linux-x86_64.AppImage`、`*-linux-amd64.deb` 或 `*-linux-x86_64.rpm` | `*-linux-x64.tar.gz` |
 | Linux | arm64 | `*-linux-arm64.AppImage`、`*-linux-arm64.deb` 或 `*-linux-aarch64.rpm` | `*-linux-arm64.tar.gz` |
 
@@ -25,7 +25,7 @@ Release 还包含 `SHA256SUMS`、更新元数据、Docker/Kubernetes 部署包�
 
 ```sh
 version='X.Y.Z'
-asset="BirdCoder-${version}-linux-x86_64.AppImage"
+asset="daxuedazi-${version}-linux-x86_64.AppImage"
 awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 ```
 
@@ -33,7 +33,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 
 ```sh
 version='X.Y.Z'
-asset="BirdCoder-${version}-mac-x64.dmg"
+asset="daxuedazi-${version}-mac-x64.dmg"
 awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 ```
 
@@ -41,7 +41,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 
 ```powershell
 $version = 'X.Y.Z'
-$asset = "BirdCoder-$version-win-x64.exe"
+$asset = "daxuedazi-$version-win-x64.exe"
 $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($asset))$" }
 if ($null -eq $line) { throw "No checksum found for $asset" }
@@ -54,7 +54,7 @@ Write-Output "$asset checksum verified"
 
 ## 安装
 
-在 Windows 上运行 `.exe` 完成面向本机所有用户的安装，或解压 `.zip` 并直接启动 `birdcoder.exe`。
+在 Windows 上运行 `.exe` 完成面向本机所有用户的安装，或解压 `.zip` 并直接启动 `daxuedazi.exe`。
 
 在 macOS 上打开 `.dmg`，再将 BirdCoder 移入 Applications，或解压 `.zip`。对于未签名的候选版本，可能需要从 Finder 上下文菜单打开已校验的应用。
 
@@ -63,7 +63,7 @@ Write-Output "$asset checksum verified"
 ```sh
 version='X.Y.Z'
 deb_arch='amd64'
-sudo apt install "./BirdCoder-${version}-linux-${deb_arch}.deb"
+sudo apt install "./daxuedazi-${version}-linux-${deb_arch}.deb"
 ```
 
 在 Fedora、RHEL 或其他基于 RPM 的发行版上安装 `.rpm` 包：
@@ -71,7 +71,7 @@ sudo apt install "./BirdCoder-${version}-linux-${deb_arch}.deb"
 ```sh
 version='X.Y.Z'
 rpm_arch='x86_64'
-sudo rpm -Uvh "./BirdCoder-${version}-linux-${rpm_arch}.rpm"
+sudo rpm -Uvh "./daxuedazi-${version}-linux-${rpm_arch}.rpm"
 ```
 
 AppImage 与 tar 归档是便携安装方式：
@@ -80,20 +80,20 @@ AppImage 与 tar 归档是便携安装方式：
 version='X.Y.Z'
 appimage_arch='x86_64'
 tar_arch='x64'
-chmod +x "BirdCoder-${version}-linux-${appimage_arch}.AppImage"
-"./BirdCoder-${version}-linux-${appimage_arch}.AppImage"
+chmod +x "daxuedazi-${version}-linux-${appimage_arch}.AppImage"
+"./daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 
-mkdir birdcoder
-tar -xzf "BirdCoder-${version}-linux-${tar_arch}.tar.gz" \
-  --strip-components=1 -C birdcoder
-./birdcoder/birdcoder
+mkdir daxuedazi
+tar -xzf "daxuedazi-${version}-linux-${tar_arch}.tar.gz" \
+  --strip-components=1 -C daxuedazi
+./daxuedazi/daxuedazi
 ```
 
 将 `deb_arch` 设为 `amd64` 或 `arm64`，将 `rpm_arch` 设为 `x86_64` 或 `aarch64`，将 `appimage_arch` 设为 `x86_64` 或 `arm64`。将 `tar_arch` 设为 `x64` 或 `arm64`。
 
 ## 首次运行与更新
 
-开始会话前，打开**设置 -> 模型**并配置提供方。本应用把数据保存在 `~/.birdcoder`（可用 `$DSH_HOME` 覆盖），包括 profile、设置、凭据、会话、附件和工作区；与它并排安装的其他 SDKWork 品牌使用各自的 home，因此两者不会互相读取对方的会话或登录状态。首次启动本版本时，已有的 `~/.dsh` 会被移动为 `~/.birdcoder`；若因其他实例仍占用文件而无法移动，则改为在两者之间建立目录联接，仍失败时本次继续使用 `~/.dsh` 并报告该情况。默认关闭窗口后应用会留在系统托盘中；需要关闭窗口即停止进程时，请使用托盘的退出命令，或在通用设置中关闭「关闭到托盘」。
+开始会话前，打开**设置 -> 模型**并配置提供方。本应用把数据保存在 `~/.daxuedazi`（可用 `$DSH_HOME` 覆盖），包括 profile、设置、凭据、会话、附件和工作区。它不会读取 `~/.dsh` 或其他品牌的 home；与它并排安装的其他 SDKWork 品牌使用各自的 home，因此两者不会互相读取对方的会话或登录状态。默认关闭窗口后应用会留在系统托盘中；需要关闭窗口即停止进程时，请使用托盘的退出命令，或在通用设置中关闭「关闭到托盘」。
 
 打包应用会在启动后检查匹配的 GitHub 发布通道。通用设置可以控制自动检查与稳定版/预发布版选择。Windows 与 Linux 构建还支持自动下载和安装程序交接。未签名的 macOS 构建只发现更新并打开 Release 页面；请校验 `SHA256SUMS`，再手动安装匹配资产。
 

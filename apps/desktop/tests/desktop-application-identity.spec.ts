@@ -61,35 +61,35 @@ function packagedApplication(manifest: Record<string, unknown>, updater?: string
 }
 
 it('reads an entry back out of a packaged archive', () => {
-  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder' })
+  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME })
   expect(JSON.parse(readAsarEntry(join(resources, 'app.asar'), 'package.json').toString('utf8')))
-    .toMatchObject({ productName: 'BirdCoder' })
+    .toMatchObject({ productName: 'daxuedazi' })
 })
 
 it('names the updater cache the packaged configuration carries', () => {
-  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder' }, 'birdcoder-updater')
-  expect(readPackagedUpdaterCacheDirName(resources)).toBe('birdcoder-updater')
-  expect(readPackagedUpdaterCacheDirName(packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder' })))
+  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME }, DESKTOP_UPDATER_CACHE_DIR_NAME)
+  expect(readPackagedUpdaterCacheDirName(resources)).toBe(DESKTOP_UPDATER_CACHE_DIR_NAME)
+  expect(readPackagedUpdaterCacheDirName(packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME })))
     .toBeUndefined()
 })
 
 it('rewrites a packaged configuration that names another application\'s cache directory', () => {
-  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder' }, '@deepseek-aidsh-desktop-updater')
+  const resources = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME }, '@deepseek-aidsh-desktop-updater')
   expect(writePackagedUpdaterCacheDir(resources, DESKTOP_UPDATER_CACHE_DIR_NAME)).toBe(true)
   expect(readPackagedUpdaterCacheDirName(resources)).toBe(DESKTOP_UPDATER_CACHE_DIR_NAME)
   // A lane without a packaged configuration has nothing to rewrite.
-  expect(writePackagedUpdaterCacheDir(packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder' }), DESKTOP_UPDATER_CACHE_DIR_NAME))
+  expect(writePackagedUpdaterCacheDir(packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME }), DESKTOP_UPDATER_CACHE_DIR_NAME))
     .toBe(false)
 })
 
 it('accepts the lane identity, and rejects a manifest or updater cache another application owns', () => {
   // The updater configuration names the fork's own cache directory.
   expect(() => { verifyPackagedApplicationIdentity(packagedApplication({
-    name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder',
+    name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME,
   }, DESKTOP_UPDATER_CACHE_DIR_NAME), { productName: DESKTOP_PRODUCT_NAME }) }).not.toThrow()
   // A shell without a packaged updater configuration runs a disabled updater and owns no cache.
   expect(() => { verifyPackagedApplicationIdentity(packagedApplication({
-    name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder',
+    name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME,
   }), { productName: DESKTOP_PRODUCT_NAME }) }).not.toThrow()
 
   // The upstream shape: a scoped package name and no product name.
@@ -99,22 +99,22 @@ it('accepts the lane identity, and rejects a manifest or updater cache another a
   expect(() => { verifyPackagedApplicationIdentity(packagedApplication({
     name: 'dsh-update-test-1',
   }), { productName: 'DSH Update Test 1' }) }).toThrow(/productName/u)
-  // A BirdCoder shell whose updater configuration names the cache directory the
+  // A shell whose updater configuration names the cache directory the
   // scoped package name folds into — the directory an installed upstream
   // application owns.
   expect(() => { verifyPackagedApplicationIdentity(packagedApplication({
-    name: '@deepseek-ai/dsh-desktop', productName: 'BirdCoder',
-  }, '@deepseek-aidsh-desktop-updater'), { productName: 'BirdCoder' }) })
+    name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME,
+  }, '@deepseek-aidsh-desktop-updater'), { productName: DESKTOP_PRODUCT_NAME }) })
     .toThrow(/cache directory/u)
 })
 
 it('ships the product name Electron reads in the application manifest and the builder configuration', async () => {
   const manifest: unknown = JSON.parse(source('package.json'))
-  expect(manifest).toMatchObject({ productName: DESKTOP_PRODUCT_NAME })
+  expect(manifest).toMatchObject({ productName: 'daxuedazi' })
 
   const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
   const config = createElectronBuilderConfig({
-    DSH_DESKTOP_APP_ID: 'com.sdkwork.birdcoder',
+    DSH_DESKTOP_APP_ID: 'com.sdkwork.daxuedazi',
     // The unsigned lane is what the release ships; signing is covered by the macOS specs.
     DSH_DESKTOP_UNSIGNED: '1',
     DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
@@ -138,10 +138,10 @@ it('registers its own URL scheme in the shell and in the development bundle', ()
 
 it('installs its own desktop command, launcher and ownership records', () => {
   // The launchers must name the executable this application ships; upstream's
-  // `DeepSeek Harness.exe` never exists in a BirdCoder installation. Both shipped
+  // `DeepSeek Harness.exe` never exists in a daxuedazi installation. Both shipped
   // launchers are the templates `prepare-cli.ts` rewrites for the selected brand.
-  expect(source('cli/birdcoder')).toContain('MacOS/birdcoder')
-  expect(source(`cli/${DESKTOP_CLI_COMMAND_NAME}.cmd`)).toContain('birdcoder.exe')
+  expect(source('cli/daxuedazi')).toContain('MacOS/daxuedazi')
+  expect(source(`cli/${DESKTOP_CLI_COMMAND_NAME}.cmd`)).toContain('daxuedazi.exe')
   expect(source('scripts/prepare-cli.ts')).toContain('brand.desktop.commandName')
   expect(source('src/command-manager-entry.ts')).toContain('brand.desktop.commandName')
   expect(source('src/command-management.ts')).toContain('this.options.commandName')

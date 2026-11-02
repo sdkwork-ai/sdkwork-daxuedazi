@@ -28,6 +28,7 @@ import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBu
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
+import { resolveBrand } from './brand-manifest.mjs'
 import {
   resolveDesktopDistributionClass,
   SDKWORK_RELEASE_ENV_FILENAME,
@@ -562,13 +563,14 @@ async function main(): Promise<void> {
   }
   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
     const paths = desktopTargetBuildPaths(target.name, environment)
-    // FORK DIVERGENCE: the artifact spelling is the fork's `BirdCoder-<version>-<os>-<arch>`
-    // contract (`scripts/release/assemble-github-release.ts` asserts it), and the
-    // fork appends no `-unsigned` marker — unsigned and signed runs stay apart by
-    // their output directory alone. The directory follows the selected mode, so
-    // `--skip-notarization` reads its own.
+    // FORK DIVERGENCE: the artifact spelling follows the selected brand's
+    // `desktop.artifactPrefix` (`scripts/release/assemble-github-release.ts` asserts
+    // the same stem), and the fork appends no `-unsigned` marker — unsigned and
+    // signed runs stay apart by their output directory alone. The directory follows
+    // the selected mode, so `--skip-notarization` reads its own.
     const output = desktopArtifactOutput(paths, invocation)
-    console.log(`DMG: ${join(output.directory, `BirdCoder-${buildVersion}-mac-${target.arch}.dmg`)}`)
+    const { artifactPrefix } = resolveBrand(environment).desktop
+    console.log(`DMG: ${join(output.directory, `${artifactPrefix}-${buildVersion}-mac-${target.arch}.dmg`)}`)
   }
 }
 
@@ -825,8 +827,8 @@ export async function packageTarget(
     if (target.platform === 'darwin' && invocation.skipNotarization && !invocation.directory) {
       await execute(desktopElectronBuilderArguments(target, true), electronBuilderEnv)
       // FORK DIVERGENCE: upstream names the bundle after its own product, but this
-      // fork's `productFilename` is `birdcoder`, so read the single bundle the
-      // directory build wrote instead of trusting a name upstream assumes.
+      // fork's `productFilename` is the brand's `executableName`, so read the single
+      // bundle the directory build wrote instead of trusting a name upstream assumes.
       const bundle = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac')
       const appPath = join(bundle, resolveMacOSBundleDirectory(bundle))
       for (const format of ['dmg', 'zip'] as const) {

@@ -105,7 +105,8 @@ export function brandHomePath(brand: DesktopBrand, homeDirectory: string = homed
  * session, credential and plugin in place), falls back to a directory link when
  * the rename is refused — an older instance may still hold one of the files — and
  * finally keeps using the legacy home for this launch so the application still
- * starts. An unconfigured brand never touches another product's home.
+ * starts. A brand without the flag always uses its own directory, so two
+ * installed applications never read one home.
  * @param options - Brand, mutable environment, and optional filesystem facade.
  * @returns the home this launch uses, and what happened to the legacy home.
  */
@@ -124,7 +125,13 @@ export function applyBrandHome(options: ApplyBrandHomeOptions): BrandHomeResult 
     env.DSH_HOME = brandHome
     return { home: brandHome, legacyHome, source: 'brand', adoption: 'none' }
   }
-  if (!brand.home.adoptLegacyDshHome || options.allowAdoption !== true) {
+  if (!brand.home.adoptLegacyDshHome) {
+    // This brand owns its directory outright: another product's `~/.dsh` is never
+    // a fallback, so two installed applications cannot read one home.
+    env.DSH_HOME = brandHome
+    return { home: brandHome, legacyHome, source: 'brand', adoption: 'none' }
+  }
+  if (options.allowAdoption !== true) {
     env.DSH_HOME = legacyHome
     return { home: legacyHome, legacyHome, source: 'legacy', adoption: 'skipped' }
   }

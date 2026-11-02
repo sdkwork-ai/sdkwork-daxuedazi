@@ -463,8 +463,8 @@ Open the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-birdcoder2
 
 | Platform | Architecture | Installer | Portable archive |
 |---|---|---|---|
-| Windows | x64 or arm64 | `BirdCoder-<version>-win-<arch>.exe` | `BirdCoder-<version>-win-<arch>.zip` |
-| macOS | Intel x64 or Apple silicon arm64 | `BirdCoder-<version>-mac-<arch>.dmg` | `BirdCoder-<version>-mac-<arch>.zip` |
+| Windows | x64 or arm64 | `daxuedazi-<version>-win-<arch>.exe` | `daxuedazi-<version>-win-<arch>.zip` |
+| macOS | Intel x64 or Apple silicon arm64 | `daxuedazi-<version>-mac-<arch>.dmg` | `daxuedazi-<version>-mac-<arch>.zip` |
 | Linux | x64 | `*-linux-x86_64.AppImage`, `*-linux-amd64.deb`, or `*-linux-x86_64.rpm` | `*-linux-x64.tar.gz` |
 | Linux | arm64 | `*-linux-arm64.AppImage`, `*-linux-arm64.deb`, or `*-linux-aarch64.rpm` | `*-linux-arm64.tar.gz` |
 
@@ -476,7 +476,7 @@ On Linux, verify only the selected asset because `SHA256SUMS` also lists files t
 
 ```sh
 version='0.1.0-rc.13'
-asset="BirdCoder-${version}-linux-x86_64.AppImage"
+asset="daxuedazi-${version}-linux-x86_64.AppImage"
 awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 ```
 
@@ -484,7 +484,7 @@ On macOS:
 
 ```sh
 version='0.1.0-rc.13'
-asset="BirdCoder-${version}-mac-x64.dmg"
+asset="daxuedazi-${version}-mac-x64.dmg"
 awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 ```
 
@@ -492,7 +492,7 @@ On Windows PowerShell:
 
 ```powershell
 $version = '0.1.0-rc.13'
-$asset = "BirdCoder-$version-win-x64.exe"
+$asset = "daxuedazi-$version-win-x64.exe"
 $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($asset))$" }
 if ($null -eq $line) { throw "No checksum found for $asset" }
@@ -518,7 +518,7 @@ On Debian or Ubuntu:
 ```sh
 version='0.1.0-rc.13'
 deb_arch='amd64'
-sudo apt install "./BirdCoder-${version}-linux-${deb_arch}.deb"
+sudo apt install "./daxuedazi-${version}-linux-${deb_arch}.deb"
 ```
 
 Set `deb_arch` to `arm64` on an ARM64 system.
@@ -528,7 +528,7 @@ On Fedora, RHEL, or another RPM-based distribution:
 ```sh
 version='0.1.0-rc.13'
 rpm_arch='x86_64'
-sudo dnf install "./BirdCoder-${version}-linux-${rpm_arch}.rpm"
+sudo dnf install "./daxuedazi-${version}-linux-${rpm_arch}.rpm"
 ```
 
 Set `rpm_arch` to `aarch64` on an ARM64 system.
@@ -539,11 +539,11 @@ The AppImage and tar archive are portable alternatives:
 version='0.1.0-rc.13'
 appimage_arch='x86_64'
 tar_arch='x64'
-chmod +x "BirdCoder-${version}-linux-${appimage_arch}.AppImage"
-"./BirdCoder-${version}-linux-${appimage_arch}.AppImage"
+chmod +x "daxuedazi-${version}-linux-${appimage_arch}.AppImage"
+"./daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 
 mkdir birdcoder
-tar -xzf "BirdCoder-${version}-linux-${tar_arch}.tar.gz" \
+tar -xzf "daxuedazi-${version}-linux-${tar_arch}.tar.gz" \
   --strip-components=1 -C birdcoder
 ./birdcoder/birdcoder
 ```

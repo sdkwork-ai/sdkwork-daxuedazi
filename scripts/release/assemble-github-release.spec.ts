@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import yaml from 'js-yaml'
+import { resolveBrand } from '../../apps/desktop/scripts/brand-manifest.mjs'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   assembleGitHubRelease,
@@ -14,6 +15,9 @@ import {
 } from './assemble-github-release.ts'
 
 const VERSION = '1.2.3-rc.4'
+// Packaging names every desktop artifact after the selected brand's stem, so the
+// fixture and the assembler agree on the manifest instead of a literal here.
+const ARTIFACT_PREFIX = resolveBrand({}).desktop.artifactPrefix
 
 interface FixtureTarget {
   readonly artifact: string
@@ -44,7 +48,7 @@ function filename(target: FixtureTarget, format: string): string {
   } else if (target.os === 'linux' && target.arch === 'arm64' && format === 'rpm') {
     artifactArch = 'aarch64'
   }
-  return `BirdCoder-${VERSION}-${target.os}-${artifactArch}.${format}`
+  return `${ARTIFACT_PREFIX}-${VERSION}-${target.os}-${artifactArch}.${format}`
 }
 
 function hash(content: string, algorithm: 'sha256' | 'sha512', encoding: 'hex' | 'base64'): string {
@@ -105,29 +109,29 @@ describe('GitHub Release assembly', () => {
     expect(expectedReleaseAssetNames(VERSION)).toHaveLength(31)
     const windows = yaml.load(readFileSync(join(output, 'latest.yml'), 'utf8')) as { files: Array<{ url: string }> }
     expect(windows.files.map(file => file.url)).toEqual([
-      `BirdCoder-${VERSION}-win-x64.exe`,
-      `BirdCoder-${VERSION}-win-arm64.exe`,
+      `${ARTIFACT_PREFIX}-${VERSION}-win-x64.exe`,
+      `${ARTIFACT_PREFIX}-${VERSION}-win-arm64.exe`,
     ])
     const mac = yaml.load(readFileSync(join(output, 'latest-mac.yml'), 'utf8')) as { files: Array<{ url: string }> }
     expect(mac.files.map(file => file.url)).toEqual([
-      `BirdCoder-${VERSION}-mac-x64.zip`,
-      `BirdCoder-${VERSION}-mac-arm64.zip`,
-      `BirdCoder-${VERSION}-mac-x64.dmg`,
-      `BirdCoder-${VERSION}-mac-arm64.dmg`,
+      `${ARTIFACT_PREFIX}-${VERSION}-mac-x64.zip`,
+      `${ARTIFACT_PREFIX}-${VERSION}-mac-arm64.zip`,
+      `${ARTIFACT_PREFIX}-${VERSION}-mac-x64.dmg`,
+      `${ARTIFACT_PREFIX}-${VERSION}-mac-arm64.dmg`,
     ])
     const linuxArm = yaml.load(readFileSync(join(output, 'latest-linux-arm64.yml'), 'utf8')) as { files: Array<{ url: string }> }
     expect(linuxArm.files.map(file => file.url)).toEqual([
-      `BirdCoder-${VERSION}-linux-aarch64.rpm`,
-      `BirdCoder-${VERSION}-linux-arm64.AppImage`,
-      `BirdCoder-${VERSION}-linux-arm64.deb`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-aarch64.rpm`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-arm64.AppImage`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-arm64.deb`,
     ])
     expect(expectedReleaseAssetNames(VERSION)).toEqual(expect.arrayContaining([
-      `BirdCoder-${VERSION}-linux-x86_64.AppImage`,
-      `BirdCoder-${VERSION}-linux-amd64.deb`,
-      `BirdCoder-${VERSION}-linux-x86_64.rpm`,
-      `BirdCoder-${VERSION}-linux-x64.tar.gz`,
-      `BirdCoder-${VERSION}-linux-aarch64.rpm`,
-      `BirdCoder-${VERSION}-linux-arm64.tar.gz`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-x86_64.AppImage`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-amd64.deb`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-x86_64.rpm`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-x64.tar.gz`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-aarch64.rpm`,
+      `${ARTIFACT_PREFIX}-${VERSION}-linux-arm64.tar.gz`,
     ]))
     expect(readFileSync(join(output, 'SHA256SUMS'), 'utf8').trim().split('\n')).toHaveLength(30)
   })
@@ -160,13 +164,13 @@ describe('GitHub Release assembly', () => {
     const directory = join(input, 'dsh-desktop-macos-arm64')
     // electron-builder writes the unpacked application beside the installers,
     // and only files are part of the release.
-    mkdirSync(join(directory, 'mac-arm64', 'BirdCoder.app'), { recursive: true })
+    mkdirSync(join(directory, 'mac-arm64', 'birdcoder.app'), { recursive: true })
 
     expect(() => { desktopArtifactFiles('dsh-desktop-macos-arm64', directory, VERSION) }).not.toThrow()
     expect(() => { desktopArtifactFiles('dsh-desktop-macos-arm64', directory, '9.9.9') }).toThrow(/wrong files/)
     // A `.pkg` is a plausible electron-builder macOS artifact the contract does
     // not declare, so it must fail rather than slip into the release.
-    writeFileSync(join(directory, `BirdCoder-${VERSION}-mac-arm64.pkg`), 'undeclared')
+    writeFileSync(join(directory, `${ARTIFACT_PREFIX}-${VERSION}-mac-arm64.pkg`), 'undeclared')
     expect(() => { desktopArtifactFiles('dsh-desktop-macos-arm64', directory, VERSION) }).toThrow(/wrong files/)
     expect(() => { desktopArtifactFiles('dsh-desktop-freebsd-x64', directory, VERSION) }).toThrow(/unknown Desktop target/)
     expect(() => { desktopArtifactFiles('dsh-desktop-macos-arm64', join(input, 'absent'), VERSION) })
@@ -184,7 +188,7 @@ describe('GitHub Release assembly', () => {
     expect(() => { desktopArtifactFiles('dsh-desktop-linux-x64', directory, VERSION, DESKTOP_BUILDER_BOOKKEEPING) })
       .not.toThrow()
     // Tolerating bookkeeping must not tolerate a real, undeclared release file.
-    writeFileSync(join(directory, `BirdCoder-${VERSION}-linux-x86_64.pacman`), 'undeclared')
+    writeFileSync(join(directory, `${ARTIFACT_PREFIX}-${VERSION}-linux-x86_64.pacman`), 'undeclared')
     expect(() => {
       desktopArtifactFiles('dsh-desktop-linux-x64', directory, VERSION, DESKTOP_BUILDER_BOOKKEEPING)
     }).toThrow(/wrong files/)

@@ -54,8 +54,8 @@ describe('desktop locale dictionaries', () => {
     expect(branded.messages.aboutProduct).toBe('Acme Coder')
     expect(branded.messages.quitTitle).toBe('Quit Acme Coder?')
     expect(branded.messages.welcomeKeyDescription).toBe('Configure official DeepSeek models to start using Acme Coder')
-    // The shared terminal command keeps its own spelling.
-    expect(branded.messages.cliCommandMenu).toBe('Manage birdcoder Command…')
+    // The terminal command is build-time identity, not the display brand.
+    expect(branded.messages.cliCommandMenu).toBe('Manage daxuedazi Command…')
     expect(resolveDesktopStartupLocale('zh', [], 'Acme Coder').messages.aboutMenu).toBe('关于 Acme Coder')
   })
 })

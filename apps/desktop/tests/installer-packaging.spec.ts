@@ -118,7 +118,7 @@ describe('installer preparation preserves application dependencies', () => {
     // FORK DIVERGENCE (upstream appends `-unsigned` here): the release contract asserts
     // these exact names on all six lanes, so an unsigned run shares the spelling and stays
     // apart only through its `unsigned-artifacts/` output directory.
-    expect(config.artifactName).toBe('BirdCoder-${version}-${os}-${arch}.${ext}')
+    expect(config.artifactName).toBe('daxuedazi-${version}-${os}-${arch}.${ext}')
   })
 
   it('packages every preload entry point the shell loads', async () => {
@@ -433,7 +433,7 @@ describe('Windows installer brand rasters', () => {
 
 // FORK DIVERGENCE: upstream sized the path field to 360 logical pixels, which
 // clips the *real* default per-user installation path
-// (`%LOCALAPPDATA%\Programs\BirdCoder`, 52 characters, ~364px at this font) once
+// (`%LOCALAPPDATA%\Programs\daxuedazi`, 52 characters, ~364px at this font) once
 // Windows scales the dialog — the field's right edge cut the tail off with no
 // affordance. The row now spans the 504px band the status label already occupies.
 // Every part derives from `theme.nsh`, because a bitmap static centres its image

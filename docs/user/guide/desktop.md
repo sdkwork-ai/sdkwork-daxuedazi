@@ -12,8 +12,8 @@ GitHub Latest currently points to `birdcoder-v0.1.0-rc.13`. Among fully verified
 
 | Platform | Architecture | Installer | Portable archive |
 |---|---|---|---|
-| Windows | x64 or arm64 | `BirdCoder-<version>-win-<arch>.exe` | `BirdCoder-<version>-win-<arch>.zip` |
-| macOS | x64 or arm64 | `BirdCoder-<version>-mac-<arch>.dmg` | `BirdCoder-<version>-mac-<arch>.zip` |
+| Windows | x64 or arm64 | `daxuedazi-<version>-win-<arch>.exe` | `daxuedazi-<version>-win-<arch>.zip` |
+| macOS | x64 or arm64 | `daxuedazi-<version>-mac-<arch>.dmg` | `daxuedazi-<version>-mac-<arch>.zip` |
 | Linux | x64 | `*-linux-x86_64.AppImage`, `*-linux-amd64.deb`, or `*-linux-x86_64.rpm` | `*-linux-x64.tar.gz` |
 | Linux | arm64 | `*-linux-arm64.AppImage`, `*-linux-arm64.deb`, or `*-linux-aarch64.rpm` | `*-linux-arm64.tar.gz` |
 
@@ -25,7 +25,7 @@ Download `SHA256SUMS` beside the selected asset. Verify only the selected line b
 
 ```sh
 version='X.Y.Z'
-asset="BirdCoder-${version}-linux-x86_64.AppImage"
+asset="daxuedazi-${version}-linux-x86_64.AppImage"
 awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 ```
 
@@ -33,7 +33,7 @@ On macOS, use the platform-provided `shasum` command:
 
 ```sh
 version='X.Y.Z'
-asset="BirdCoder-${version}-mac-x64.dmg"
+asset="daxuedazi-${version}-mac-x64.dmg"
 awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 ```
 
@@ -41,7 +41,7 @@ On Windows PowerShell, fail when the selected checksum is absent or different:
 
 ```powershell
 $version = 'X.Y.Z'
-$asset = "BirdCoder-$version-win-x64.exe"
+$asset = "daxuedazi-$version-win-x64.exe"
 $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($asset))$" }
 if ($null -eq $line) { throw "No checksum found for $asset" }
@@ -54,7 +54,7 @@ Release candidates are unsigned. Windows SmartScreen, macOS Gatekeeper, or a Lin
 
 ## Install
 
-On Windows, run the `.exe` for an assisted installation that installs for every user of the computer, or extract the `.zip` and launch `birdcoder.exe` without installing it.
+On Windows, run the `.exe` for an assisted installation that installs for every user of the computer, or extract the `.zip` and launch `daxuedazi.exe` without installing it.
 
 On macOS, open the `.dmg` and move BirdCoder to Applications, or extract the `.zip`. An unsigned candidate may require opening the verified application from Finder's context menu.
 
@@ -63,7 +63,7 @@ On Debian or Ubuntu, install the `.deb` package:
 ```sh
 version='X.Y.Z'
 deb_arch='amd64'
-sudo apt install "./BirdCoder-${version}-linux-${deb_arch}.deb"
+sudo apt install "./daxuedazi-${version}-linux-${deb_arch}.deb"
 ```
 
 On Fedora, RHEL, or another RPM-based distribution, install the `.rpm` package:
@@ -71,7 +71,7 @@ On Fedora, RHEL, or another RPM-based distribution, install the `.rpm` package:
 ```sh
 version='X.Y.Z'
 rpm_arch='x86_64'
-sudo rpm -Uvh "./BirdCoder-${version}-linux-${rpm_arch}.rpm"
+sudo rpm -Uvh "./daxuedazi-${version}-linux-${rpm_arch}.rpm"
 ```
 
 The AppImage and tar archive are portable alternatives:
@@ -80,20 +80,20 @@ The AppImage and tar archive are portable alternatives:
 version='X.Y.Z'
 appimage_arch='x86_64'
 tar_arch='x64'
-chmod +x "BirdCoder-${version}-linux-${appimage_arch}.AppImage"
-"./BirdCoder-${version}-linux-${appimage_arch}.AppImage"
+chmod +x "daxuedazi-${version}-linux-${appimage_arch}.AppImage"
+"./daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 
-mkdir birdcoder
-tar -xzf "BirdCoder-${version}-linux-${tar_arch}.tar.gz" \
-  --strip-components=1 -C birdcoder
-./birdcoder/birdcoder
+mkdir daxuedazi
+tar -xzf "daxuedazi-${version}-linux-${tar_arch}.tar.gz" \
+  --strip-components=1 -C daxuedazi
+./daxuedazi/daxuedazi
 ```
 
 Set `deb_arch` to `amd64` or `arm64`, `rpm_arch` to `x86_64` or `aarch64`, and `appimage_arch` to `x86_64` or `arm64`. Set `tar_arch` to `x64` or `arm64`.
 
 ## First run and updates
 
-Open **Settings -> Models** and configure a provider before starting a session. This application keeps its data in `~/.birdcoder` (`$DSH_HOME` overrides it), including profiles, settings, credentials, sessions, attachments, and workspaces; another SDKWork brand installed beside it uses its own home, so the two never read each other's sessions or sign-in state. The first launch of this version moves an existing `~/.dsh` into `~/.birdcoder`; if the move is refused because another instance still holds a file, the launch links the two instead, and if that also fails it keeps using `~/.dsh` and reports it. Closing the window keeps the app in the system tray by default; use the tray's Quit command or disable close-to-tray in General settings when a window close must stop the process.
+Open **Settings -> Models** and configure a provider before starting a session. This application keeps its data in `~/.daxuedazi` (`$DSH_HOME` overrides it), including profiles, settings, credentials, sessions, attachments, and workspaces. It never reads `~/.dsh` or another brand's home, and another SDKWork brand installed beside it uses its own home, so the two never read each other's sessions or sign-in state. Closing the window keeps the app in the system tray by default; use the tray's Quit command or disable close-to-tray in General settings when a window close must stop the process.
 
 Packaged applications check the matching GitHub release channel after startup. General settings controls automatic checks and stable/prerelease selection. Windows and Linux builds also support automatic download and installer handoff. Unsigned macOS builds only discover updates and open the Release page; verify `SHA256SUMS` and install the matching asset manually.
 

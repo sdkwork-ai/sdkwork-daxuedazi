@@ -142,11 +142,12 @@ export function createElectronBuilderConfig(
   // must not share — product name, scheme, command, updater cache, artifact
   // spelling, home directory — comes from the selected brand manifest, so one
   // packaging lane per brand yields a shell that cannot collide with another
-  // installed brand. `DSH_BRAND` selects it; `brands/birdcoder.json` is the
+  // installed brand. `DSH_BRAND` selects it; `brands/daxuedazi.json` is the
   // shipped brand.
   const brand = resolveBrand(env)
   const brandManifest = brandManifestPath(env)
   const shippedOemProfile = brandManifest.replace(/\.json$/u, '.oem.json')
+  const linuxPackageName = brand.desktop.artifactPrefix.toLowerCase().replaceAll(/[^a-z0-9+.-]+/gu, '-')
   const appId = resolveDesktopAppId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
@@ -530,8 +531,11 @@ export function createElectronBuilderConfig(
       // the three that also carry updater metadata.
       target: ['AppImage', 'deb', 'rpm', 'tar.gz'],
     },
-    deb: { packageName: 'birdcoder' },
-    rpm: { packageName: 'birdcoder' },
+    // The installed Debian/RPM package carries the same name as the file it ships
+    // in. Package names admit no spaces and no upper case, so the artifact stem is
+    // folded into that alphabet instead of spelling a second brand constant here.
+    deb: { packageName: linuxPackageName },
+    rpm: { packageName: linuxPackageName },
     nsis: {
       uninstallDisplayName: '${productName}',
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),

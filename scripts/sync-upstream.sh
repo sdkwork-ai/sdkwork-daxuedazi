@@ -653,6 +653,20 @@ cmd_verify() {
     info "  skipped (no rollback tag)"
   fi
 
+  info "5c) OEM-owned surfaces are still the fork's (brands/README.md: OEM-owned surfaces)"
+  if [ -d node_modules ] && command -v pnpm >/dev/null 2>&1; then
+    local oem_output
+    if oem_output=$(pnpm run --silent verify-oem-identity 2>&1); then
+      check "OEM brand identity gate (pnpm run verify-oem-identity)" 1
+    else
+      printf '%s\n' "$oem_output" | sed 's/^/    /'
+      check "OEM brand identity gate (pnpm run verify-oem-identity)" 0
+    fi
+  else
+    info "  skipped: install dependencies first (pnpm install), then run pnpm run verify-oem-identity"
+    check "OEM brand identity gate (pnpm run verify-oem-identity)" 0
+  fi
+
   info "6) release bookkeeping (version family + CHANGELOG)"
   local ver tagv first
   ver=$(root_version)

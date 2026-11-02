@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
+import { resolveBrand } from './brand-manifest.mjs'
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
@@ -108,10 +109,11 @@ const output = join(artifacts, directory)
 const application = macOS ? join(output, resolveMacOSBundleDirectory(output)) : output
 const resources = macOS ? join(application, 'Contents', 'Resources') : join(application, 'resources')
 assertWindowsEnginePath(resources, target)
-// electron-builder names the executable from `executableName` ('birdcoder') and the mac
-// bundle from the same name; see the builder config.
-const executable = macOS ? join(application, 'Contents', 'MacOS', 'birdcoder')
-  : join(application, windows ? 'birdcoder.exe' : 'birdcoder')
+// electron-builder names the executable from the selected brand's `executableName`
+// and the mac bundle from the same name; see the builder config.
+const { executableName } = resolveBrand().desktop
+const executable = macOS ? join(application, 'Contents', 'MacOS', executableName)
+  : join(application, windows ? `${executableName}.exe` : executableName)
 const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
   resolveDesktopPackageTarget(target))
 if (windows && !values.unsigned) await verifyWindowsCode(application)

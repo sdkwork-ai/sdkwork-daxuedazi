@@ -17,7 +17,7 @@
 ; FORK DIVERGENCE (AGENTS.md, "Windows installer brand and path row"): upstream
 ; sized the path field to 360 logical pixels. That clips the *real* default
 ; per-user installation path — the 52-character
-; `C:\Users\<user>\AppData\Local\Programs\BirdCoder` measures 381 logical pixels
+; `C:\Users\<user>\AppData\Local\Programs\daxuedazi` measures 381 logical pixels
 ; of glyphs at the installer's font — so the field's right edge cut the tail off
 ; (`…\Programs\BirdCc` in the shipped build) with no visual affordance. The row
 ; now spans 504 logical pixels with a 404px field, and the browse button gives up

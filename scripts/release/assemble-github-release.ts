@@ -17,6 +17,7 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { isDeepStrictEqual, parseArgs } from 'node:util'
 import yaml from 'js-yaml'
+import { resolveBrand } from '../../apps/desktop/scripts/brand-manifest.mjs'
 import { isEntry } from './process.ts'
 
 type DesktopOs = 'win' | 'mac' | 'linux'
@@ -141,8 +142,15 @@ function artifactArch(target: DesktopTarget, format: string): string {
   return 'x64'
 }
 
+/** Artifact stem the selected brand manifest gives its desktop installers. */
+let desktopArtifactPrefix: string | undefined
+
+function artifactPrefix(): string {
+  return desktopArtifactPrefix ??= resolveBrand().desktop.artifactPrefix
+}
+
 function desktopFilename(target: DesktopTarget, version: string, format: string): string {
-  return `BirdCoder-${version}-${target.os}-${artifactArch(target, format)}.${format}`
+  return `${artifactPrefix()}-${version}-${target.os}-${artifactArch(target, format)}.${format}`
 }
 
 function containerArtifactNames(version: string): string[] {

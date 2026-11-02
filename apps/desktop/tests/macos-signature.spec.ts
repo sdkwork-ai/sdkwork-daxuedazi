@@ -52,7 +52,7 @@ describe('desktop macOS release signature', () => {
   it('loads release identifiers from the environment and requires code signing', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
-    expect(config.protocols).toEqual([{ name: 'BirdCoder', schemes: ['birdcoder'] }])
+    expect(config.protocols).toEqual([{ name: 'daxuedazi', schemes: ['daxuedazi'] }])
     expect(portablePath(config.directories.output)).toContain('/.desktop-build/targets/mac-arm64/artifacts')
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription).toContain('microphone')
     expect(config.mac.extendInfo.CFBundleLocalizations).toEqual(SHIPPED_LOCALE_IDS.map(id => id === 'zh' ? 'zh_CN' : id))
@@ -62,7 +62,9 @@ describe('desktop macOS release signature', () => {
       'com.apple.security.cs.disable-library-validation', 'com.apple.security.device.audio-input']) {
       expect(entitlements).toContain(`<key>${key}</key>\n    <true/>`)
     }
-    expect(config.extraResources).toHaveLength(2)
+    // FORK DIVERGENCE: the fork ships the About-panel raster beside the runtime and
+    // the brand manifest; upstream's list carries only the first two.
+    expect(config.extraResources).toHaveLength(3)
     expect(config.extraResources[0]?.to).toBe('runtime')
     expect(portablePath(config.extraResources[0]?.from ?? '')).toContain('/.desktop-build/targets/mac-arm64/runtime')
     // FORK DIVERGENCE: the fork appends its externalised-runtime patch mappings after
@@ -93,7 +95,7 @@ describe('desktop macOS release signature', () => {
         sign: true,
         // FORK DIVERGENCE: upstream sets this false, which makes dmg-builder skip
         // the blockmap and the DMG's `latest-mac.yml` entry. The release contract
-        // requires `BirdCoder-<version>-mac-<arch>.dmg.blockmap` and a DMG entry
+        // requires `daxuedazi-<version>-mac-<arch>.dmg.blockmap` and a DMG entry
         // in the macOS channel file, so the fork keeps both.
         writeUpdateInfo: true,
       },
@@ -167,7 +169,7 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.nsis.include)).toMatch(/\/installer-ui\/installer-include\.nsh$/u)
     // The assembly job asserts this exact spelling, and the arch token is
     // electron-builder's per-format one (x64, x86_64, amd64).
-    expect(config.artifactName).toBe('BirdCoder-${version}-${os}-${arch}.${ext}')
+    expect(config.artifactName).toBe('daxuedazi-${version}-${os}-${arch}.${ext}')
     // Updater metadata is written only when a publish provider is configured,
     // and the release contract requires all four `latest*.yml` channel files.
     expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-birdcoder2' }])
@@ -191,7 +193,7 @@ describe('desktop macOS release signature', () => {
     expect(portablePath(config.directories.output)).toContain(`/targets/mac-${arch}/unsigned-artifacts`)
     // The fork appends no `-unsigned` marker: the assembly job asserts this exact
     // spelling on all six release lanes (see the builder config).
-    expect(config.artifactName).toBe('BirdCoder-${version}-${os}-${arch}.${ext}')
+    expect(config.artifactName).toBe('daxuedazi-${version}-${os}-${arch}.${ext}')
     expect(config.mac.identity).toBe('-')
     expect(config.mac).toMatchObject({ forceCodeSigning: false, notarize: false, target: ['dmg', 'zip'] })
     expect(config.dmg).toMatchObject({ sign: false, writeUpdateInfo: true })

@@ -2,9 +2,9 @@
   "dialogs": [
     {
       "type": "info",
-      "title": "Manage birdcoder Command",
+      "title": "Manage daxuedazi Command",
       "message": "Add the Desktop command to your terminal.",
-      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd",
+      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd",
       "buttons": [
         "Install",
         "Cancel"
@@ -14,9 +14,9 @@
     },
     {
       "type": "info",
-      "title": "Manage birdcoder Command",
+      "title": "Manage daxuedazi Command",
       "message": "The Desktop command is installed.",
-      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd\n\nCurrent birdcoder command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd",
+      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd\n\nCurrent daxuedazi command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd",
       "buttons": [
         "Close",
         "Repair",
@@ -27,9 +27,9 @@
     },
     {
       "type": "info",
-      "title": "Manage birdcoder Command",
+      "title": "Manage daxuedazi Command",
       "message": "The Desktop command needs repair.",
-      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd",
+      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd",
       "buttons": [
         "Close",
         "Repair",
@@ -40,9 +40,9 @@
     },
     {
       "type": "warning",
-      "title": "Manage birdcoder Command",
+      "title": "Manage daxuedazi Command",
       "message": "The Desktop command is installed.",
-      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd\n\nCurrent birdcoder command: C:\\Program Files\\nodejs\\birdcoder.cmd\n\nAnother birdcoder takes precedence. Remove or reorder that installation to use the Desktop command by default. You can also run the Desktop command by its full path.",
+      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd\n\nCurrent daxuedazi command: C:\\Program Files\\nodejs\\daxuedazi.cmd\n\nAnother daxuedazi takes precedence. Remove or reorder that installation to use the Desktop command by default. You can also run the Desktop command by its full path.",
       "buttons": [
         "Close",
         "Repair",
@@ -53,9 +53,9 @@
     },
     {
       "type": "info",
-      "title": "Manage birdcoder Command",
+      "title": "Manage daxuedazi Command",
       "message": "Add the Desktop command to your terminal.",
-      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\BirdCoder\\resources\\runtime\\cli\\bin\\birdcoder.cmd\n\nYour shell command could not be verified. An alias or another birdcoder installation may take precedence.",
+      "detail": "Desktop command: C:\\Users\\user\\AppData\\Local\\Programs\\daxuedazi\\resources\\runtime\\cli\\bin\\daxuedazi.cmd\n\nYour shell command could not be verified. An alias or another daxuedazi installation may take precedence.",
       "buttons": [
         "Install",
         "Cancel"

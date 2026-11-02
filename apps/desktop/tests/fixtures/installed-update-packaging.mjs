@@ -2,6 +2,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
+import { resolveBrand } from '../../scripts/brand-manifest.mjs'
 
 const [manifest, version] = process.argv.slice(2)
 const run = JSON.parse(await readFile(manifest, 'utf8'))
@@ -10,7 +11,7 @@ if (process.env.DSH_TEST_PACKAGING_FAIL === '1') process.exitCode = 2
 else {
   const directory = join(run.root, version, 'installer')
   await mkdir(directory, { recursive: true })
-  const filename = `deepseek-harness-${version}-win-x64.exe`
+  const filename = `${resolveBrand().desktop.artifactPrefix}-${version}-win-x64.exe`
   const bytes = Buffer.from('inert test bytes, not an installer')
   await writeFile(join(directory, filename), bytes)
   await writeFile(join(directory, `${filename}.blockmap`), 'inert test map')

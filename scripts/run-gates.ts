@@ -385,6 +385,7 @@ function ciSharedStaticGates(): Gate[] {
   return [
     pnpmScript('runtime-closure', 'verify-runtime-closure', { label: 'runtime closure' }),
     pnpmScript('default-product-isolation', 'verify-default-product-isolation', { label: 'default product isolation' }),
+    pnpmScript('oem-identity', 'verify-oem-identity', { label: 'OEM brand identity' }),
     pnpmScript('sdkwork-dependencies', 'verify-sdkwork-dependencies', { label: 'SDKWork dependencies' }),
     pnpmScript('react-types-convergence', 'verify-react-types-convergence', { label: 'react types convergence' }),
     pnpmScript('product-use', 'verify-product-use', { label: 'product package classification' }),

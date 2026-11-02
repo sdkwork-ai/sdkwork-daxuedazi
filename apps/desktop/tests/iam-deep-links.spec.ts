@@ -5,7 +5,7 @@ import {
 import { exposeSdkworkDesktopBridge } from '../src/iam-preload.ts'
 
 /** The registered callback the shipped brand and OEM profile both use. */
-const REDIRECT = 'birdcoder://auth/callback'
+const REDIRECT = 'daxuedazi://auth/callback'
 
 type OpenUrlListener = (event: { preventDefault(): void }, url: string) => void
 type SecondInstanceListener = (event: unknown, argv: readonly string[]) => void
@@ -59,17 +59,17 @@ describe('createIamDeepLinkBridge', () => {
       getWindow: () => ({ webContents: { send } }) as never,
       assertSender: vi.fn(),
       registerScheme: true,
-      argv: ['birdcoder.exe', `${REDIRECT}?code=launch&state=s`],
+      argv: ['daxuedazi.exe', `${REDIRECT}?code=launch&state=s`],
     })
 
-    expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith('birdcoder')
+    expect(app.setAsDefaultProtocolClient).toHaveBeenCalledWith('daxuedazi')
     expect(bridge.getInitialUrl()).toBe(`${REDIRECT}?code=launch&state=s`)
 
     app.emitOpenUrl(`${REDIRECT}?code=live&state=s`)
     expect(send).toHaveBeenCalledWith(SDKWORK_DESKTOP_BRIDGE.deepLinksOpenEvent,
       `${REDIRECT}?code=live&state=s`)
 
-    app.emitSecondInstance(['birdcoder.exe', `${REDIRECT}?code=second&state=s`])
+    app.emitSecondInstance(['daxuedazi.exe', `${REDIRECT}?code=second&state=s`])
     expect(send).toHaveBeenLastCalledWith(SDKWORK_DESKTOP_BRIDGE.deepLinksOpenEvent,
       `${REDIRECT}?code=second&state=s`)
 
@@ -91,7 +91,7 @@ describe('createIamDeepLinkBridge', () => {
       getWindow: () => undefined,
       assertSender: vi.fn(),
       registerScheme: false,
-      argv: ['birdcoder.exe', callback],
+      argv: ['daxuedazi.exe', callback],
     })
     const initial = ipcMain.handlers.get(SDKWORK_DESKTOP_BRIDGE.deepLinksGetInitialUrl)!
     expect(initial({})).toBe(callback)
@@ -112,13 +112,13 @@ describe('createIamDeepLinkBridge', () => {
       getWindow: () => ({ webContents: { send } }) as never,
       assertSender: vi.fn(),
       registerScheme: true,
-      argv: ['birdcoder.exe', 'birdcoder://open'],
+      argv: ['daxuedazi.exe', 'daxuedazi://open'],
     })
 
     expect(bridge.getInitialUrl()).toBeNull()
     // The product link and the retired `sdkwork-birdcoder` scheme are not the
     // registered callback, so the bridge neither claims nor forwards them.
-    const product = app.emitOpenUrl('birdcoder://open')
+    const product = app.emitOpenUrl('daxuedazi://open')
     expect(product.preventDefault).not.toHaveBeenCalled()
     const retired = app.emitOpenUrl('sdkwork-birdcoder://auth/callback?code=c&state=s')
     expect(retired.preventDefault).not.toHaveBeenCalled()
@@ -180,10 +180,10 @@ describe('createIamDeepLinkBridge', () => {
 describe('matchesIamRedirectUri', () => {
   it('compares the scheme, authority, and path of the registered callback', () => {
     expect(matchesIamRedirectUri(`${REDIRECT}?code=c&state=s`, REDIRECT)).toBe(true)
-    expect(matchesIamRedirectUri('birdcoder://auth/callback/', REDIRECT)).toBe(true)
-    expect(matchesIamRedirectUri('BIRDCODER://AUTH/callback?code=c', REDIRECT)).toBe(true)
-    expect(matchesIamRedirectUri('birdcoder://open', REDIRECT)).toBe(false)
-    expect(matchesIamRedirectUri('birdcoder://auth/other', REDIRECT)).toBe(false)
+    expect(matchesIamRedirectUri('daxuedazi://auth/callback/', REDIRECT)).toBe(true)
+    expect(matchesIamRedirectUri('DAXUEDAZI://AUTH/callback?code=c', REDIRECT)).toBe(true)
+    expect(matchesIamRedirectUri('daxuedazi://open', REDIRECT)).toBe(false)
+    expect(matchesIamRedirectUri('daxuedazi://auth/other', REDIRECT)).toBe(false)
     expect(matchesIamRedirectUri('sdkwork-birdcoder://auth/callback?code=c', REDIRECT)).toBe(false)
     expect(matchesIamRedirectUri('not a uri', REDIRECT)).toBe(false)
     expect(matchesIamRedirectUri(`${REDIRECT}?code=c`, 'not a uri')).toBe(false)
@@ -192,11 +192,11 @@ describe('matchesIamRedirectUri', () => {
 
 describe('findIamDeepLink', () => {
   it('returns the last matching URL and ignores the rest', () => {
-    expect(findIamDeepLink(['birdcoder://open', `${REDIRECT}?code=first`], REDIRECT))
+    expect(findIamDeepLink(['daxuedazi://open', `${REDIRECT}?code=first`], REDIRECT))
       .toBe(`${REDIRECT}?code=first`)
     expect(findIamDeepLink([`${REDIRECT}?code=first`, `${REDIRECT}?code=second`], REDIRECT))
       .toBe(`${REDIRECT}?code=second`)
-    expect(findIamDeepLink(['birdcoder://open'], REDIRECT)).toBeNull()
+    expect(findIamDeepLink(['daxuedazi://open'], REDIRECT)).toBeNull()
     expect(findIamDeepLink([], REDIRECT)).toBeNull()
   })
 })

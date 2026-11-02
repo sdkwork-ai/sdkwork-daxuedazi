@@ -10,8 +10,8 @@
  *
  * The callback is the deployment's registered redirect URI
  * (`sdkwork.iamRedirectUri` in the OEM profile, shipped as
- * `birdcoder://auth/callback`). Every other URL delivered to the application —
- * the product's own `birdcoder://open` link, for example — is left alone.
+ * `daxuedazi://auth/callback`). Every other URL delivered to the application —
+ * the product's own `daxuedazi://open` link, for example — is left alone.
  */
 
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from 'electron'
@@ -96,7 +96,7 @@ function deepLinkShape(uri: string): DeepLinkShape | null {
  * Whether one URL is the registered IAM callback.
  *
  * The product and the hosted login share the application's URL scheme
- * (`birdcoder://open` is the product link, `birdcoder://auth/callback` the
+ * (`daxuedazi://open` is the product link, `daxuedazi://auth/callback` the
  * login return), so the scheme alone cannot identify a callback; the authority
  * and path must match the registered redirect too.
  * @param candidate - URL delivered by the OS or found in the launch arguments.

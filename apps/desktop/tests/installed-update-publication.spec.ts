@@ -8,6 +8,9 @@ import { planInstalledUpdateDistribution } from '../scripts/installed-update-dis
 import { installedUpdateFileHash } from '../scripts/installed-update-signature.mjs'
 import { executeInstalledUpdatePublication, verifiedInstalledUpdateDistribution,
   type InstalledUpdatePublicationStore } from '../scripts/installed-update-publication.ts'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
+
+const ARTIFACT_PREFIX = resolveBrand({}).desktop.artifactPrefix
 
 const digest = (bytes: Buffer) => ({ sha512: createHash('sha512').update(bytes).digest('base64'), size: bytes.length })
 afterEach(() => { vi.restoreAllMocks() })
@@ -52,7 +55,7 @@ async function fixture(body: (context: {
     for (const version of run.versions) {
       const directory = join(run.root, version, 'installer')
       await mkdir(directory, { recursive: true })
-      const name = `deepseek-harness-${version}-win-x64.exe`
+      const name = `${ARTIFACT_PREFIX}-${version}-win-x64.exe`
       const bytes = Buffer.from(`inert installer ${version}`)
       await writeFile(join(directory, name), bytes)
       await writeFile(join(directory, `${name}.blockmap`), 'inert map')

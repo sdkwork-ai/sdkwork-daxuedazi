@@ -11,7 +11,7 @@
  * resources as `brand.json`, which is the runtime source.
  *
  * Precedence: `DSH_BRAND_CONFIG` (an explicit manifest path) wins, then
- * `DSH_BRAND` (a key under `brands/`), then `birdcoder`.
+ * `DSH_BRAND` (a key under `brands/`), then `daxuedazi`.
  *
  * @module brand-manifest
  */
@@ -27,7 +27,7 @@ export const BRAND_CONFIG_ENV = 'DSH_BRAND_CONFIG'
 /** File name a packaged application carries its brand manifest under, inside `resources/`. */
 export const BRAND_FILENAME = 'brand.json'
 /** Brand shipped without a selection. */
-export const DEFAULT_BRAND_KEY = 'birdcoder'
+export const DEFAULT_BRAND_KEY = 'daxuedazi'
 /** Directory holding the repository's brand manifests. */
 export const BRAND_DIRECTORY = fileURLToPath(new URL('../../../brands/', import.meta.url))
 
@@ -266,7 +266,7 @@ let shipped
 
 /**
  * The repository's shipped brand, read once.
- * @returns {DesktopBrand} Frozen manifest of `brands/birdcoder.json`.
+ * @returns {DesktopBrand} Frozen manifest of `brands/daxuedazi.json`.
  */
 export function shippedBrand() {
   return shipped ??= readBrandManifest(join(BRAND_DIRECTORY, `${DEFAULT_BRAND_KEY}.json`))

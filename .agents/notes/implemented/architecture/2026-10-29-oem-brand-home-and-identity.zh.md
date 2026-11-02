@@ -12,7 +12,7 @@ Status: implemented
 
 `brands/<key>.json` 成为两个已安装品牌不能共用的每一项身份值的唯一归属：home 目录名、Electron 产品名与可执行文件名、URL scheme、桌面命令及其归属回执名、Windows 注册表键与互斥体名、更新缓存目录、产物前缀。`apps/desktop/scripts/brand-manifest.mjs` 负责校验，并拒绝上游身份（`~/.dsh`、`DeepSeek Harness`、`dsh`、`com.deepseek.harness`）。打包用 `DSH_BRAND`（或 `DSH_BRAND_CONFIG`）选择它，写成 `resources/brand.json`；若存在 `brands/<key>.oem.json`，则同时复制为 `oem.json`。electron-builder 的 `productName`、`extraMetadata.productName`、`executableName`、`artifactName`、协议、appId 兜底与更新缓存都由它派生。
 
-`apps/desktop/src/brand.ts` 在外壳启动时读取该清单，解析出 `~/.<home.dirName>`，并在任何使用方解析 home 之前导出为 `DSH_HOME`——上游包仍然保留 `~/.dsh` 默认值，因为新值通过它们本就读取的环境变量到达。优先级为：显式 `DSH_HOME`、品牌 home、声明了 `home.adoptLegacyDshHome` 的品牌才考虑的旧 `~/.dsh`。打包后的首次启动会重命名旧目录；重命名被拒时退化为目录联接；两者都失败时本次启动继续使用旧 home 并报告。源码启动从不重命名，未声明该标志的品牌从不读取 `~/.dsh`。
+`apps/desktop/src/brand.ts` 在外壳启动时读取该清单，解析出 `~/.<home.dirName>`，并在任何使用方解析 home 之前导出为 `DSH_HOME`——上游包仍然保留 `~/.dsh` 默认值，因为新值通过它们本就读取的环境变量到达。优先级为：显式 `DSH_HOME`、品牌 home、声明了 `home.adoptLegacyDshHome` 的品牌才考虑的旧 `~/.dsh`。打包后的首次启动会重命名旧目录；重命名被拒时退化为目录联接；两者都失败时本次启动继续使用旧 home 并报告。源码启动从不重命名，未声明该标志的品牌始终使用自己的目录，`~/.dsh` 从不作为回退，因此两个已安装应用不可能共用一个 home。
 
 ## 考虑过的替代方案
 
@@ -28,6 +28,8 @@ Status: implemented
 
 ## 后果
 
-出厂品牌在首次打包启动时迁移到 `~/.birdcoder`，而 `npm dsh` 仍用 `~/.dsh`；希望两者共用 home 的用户显式设置 `DSH_HOME`。显示文案仍来自 `resolveDesktopLocale` 与 OEM profile，因此 `brand.name` 与清单的 `displayName` 可以不同——清单管身份与路径，OEM profile 管端点与面向用户的品牌文案。
+出厂品牌是 `daxuedazi`：Harness home 为 `~/.daxuedazi`，Electron 数据在 `%APPDATA%\daxuedazi`，深链为 `daxuedazi://`，命令为 `daxuedazi`，发布文件为 `daxuedazi-<version>-<os>-<arch>`。`birdcoder` 保留为第二个品牌，使用 `~/.birdcoder` 与自己的身份值，`npm dsh` 仍用 `~/.dsh`；希望两个品牌共用 home 的用户显式设置 `DSH_HOME`。显示文案仍来自 `resolveDesktopLocale` 与 OEM profile，因此 `brand.name` 与清单的 `displayName` 可以不同——清单管身份与路径，OEM profile 管端点与面向用户的品牌文案。
+
+OEM 自有文件与合并规则清单见 [brands/README.zh.md](../../../../brands/README.zh.md#oem-owned-surfaces)；每次 upstream 合并后，`pnpm run verify-oem-identity` 会复核出厂品牌取值、home 规则、IAM 回调 scheme、产物命名派生与文档指引，`scripts/sync-upstream.sh verify` 也会调用它。
 
 图标、安装器文案与原生窗口字符串仍是构建期资产：OEM 构建必须像现在一样替换位图，`brands/README.md` 记录了该限制。新品牌还需要一个与其 `executableName` 同名的可执行文件，electron-builder 由同一字段派生出它。

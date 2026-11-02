@@ -1,5 +1,5 @@
 /**
- * Fork-owned Electron application identity of the packaged BirdCoder desktop shell.
+ * Fork-owned Electron application identity of the packaged daxuedazi desktop shell.
  *
  * FORK DIVERGENCE (upstream ships `DeepSeek Harness`): Electron derives `app.name`
  * from the packaged manifest's `productName`, and an absent `productName` falls

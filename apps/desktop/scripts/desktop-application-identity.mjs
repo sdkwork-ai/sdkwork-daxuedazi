@@ -1,5 +1,5 @@
 /**
- * Fork-owned Electron application identity of the packaged BirdCoder desktop shell.
+ * Fork-owned Electron application identity of the packaged daxuedazi desktop shell.
  *
  * FORK DIVERGENCE (upstream ships `DeepSeek Harness`): Electron names a packaged
  * application after the `productName` of the manifest inside `app.asar`, and falls
@@ -74,7 +74,7 @@ export function readAsarEntry(archive, name) {
  * Name the single `.app` bundle electron-builder wrote into one macOS output directory.
  *
  * The bundle is named from the packaging lane's `productFilename`, which is
- * `executableName` (`birdcoder`) on this fork. Reading the directory keeps a
+ * `executableName` (`daxuedazi`) on this fork. Reading the directory keeps a
  * renaming from silently pointing a packaging lane at a bundle that is not there:
  * upstream's `DeepSeek Harness.app` has already drifted out of this fork once.
  *

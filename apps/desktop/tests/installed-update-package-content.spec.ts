@@ -13,6 +13,10 @@ import { verifyInstalledUpdatePackageContent } from '../scripts/installed-update
 import { readDesktopRuntime, writeDesktopRuntime } from '../src/runtime-tree.ts'
 import { runtimeFixture } from './runtime-fixture.ts'
 import { validateInstalledUpdateArchivePaths, verifyInstalledUpdatePackage } from '../scripts/verify-installed-update-package.ts'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
+
+// Packaging names the qualification installer after the selected brand's stem.
+const ARTIFACT_PREFIX = resolveBrand({}).desktop.artifactPrefix
 
 type ArchiveExecute = (tool: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => Promise<{
   stdout: string
@@ -225,7 +229,7 @@ describe('installed update verification records', () => {
         const root = join(manifest, '..')
         const output = join(root, version, 'installer')
         await mkdir(output)
-        const name = `deepseek-harness-${version}-win-x64.exe`
+        const name = `${ARTIFACT_PREFIX}-${version}-win-x64.exe`
         const bytes = Buffer.from('inert installer fixture, never executed')
         const installer = join(output, name)
         await writeFile(installer, bytes)

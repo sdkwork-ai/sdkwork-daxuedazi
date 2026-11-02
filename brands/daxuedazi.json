@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "key": "daxuedazi",
+  "displayName": "学伴AI",
+  "companyName": "SDKWork",
+  "home": {
+    "dirName": ".daxuedazi",
+    "adoptLegacyDshHome": false
+  },
+  "desktop": {
+    "appId": "com.sdkwork.daxuedazi",
+    "productName": "daxuedazi",
+    "executableName": "daxuedazi",
+    "protocol": "daxuedazi",
+    "commandName": "daxuedazi",
+    "registryKey": "DaXueDaZi",
+    "updaterCacheDirName": "daxuedazi-updater",
+    "artifactPrefix": "daxuedazi"
+  }
+}

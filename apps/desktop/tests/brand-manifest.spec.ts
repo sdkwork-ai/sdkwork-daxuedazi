@@ -48,21 +48,21 @@ function temporaryDirectory(): string {
   return directory
 }
 
-it('ships the BirdCoder brand the fork builds today', () => {
+it('ships the daxuedazi brand this application builds today', () => {
   const brand = shippedBrand()
-  expect(brand.key).toBe('birdcoder')
-  expect(brand.home).toEqual({ dirName: '.birdcoder', adoptLegacyDshHome: true })
+  expect(brand.key).toBe('daxuedazi')
+  expect(brand.home).toEqual({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
   expect(brand.desktop).toEqual({
-    appId: 'com.sdkwork.birdcoder',
-    productName: 'BirdCoder',
-    executableName: 'birdcoder',
-    protocol: 'birdcoder',
-    commandName: 'birdcoder',
-    registryKey: 'BirdCoder',
-    updaterCacheDirName: 'birdcoder-updater',
-    artifactPrefix: 'BirdCoder',
+    appId: 'com.sdkwork.daxuedazi',
+    productName: 'daxuedazi',
+    executableName: 'daxuedazi',
+    protocol: 'daxuedazi',
+    commandName: 'daxuedazi',
+    registryKey: 'DaXueDaZi',
+    updaterCacheDirName: 'daxuedazi-updater',
+    artifactPrefix: 'daxuedazi',
   })
-  expect(readBrandManifest(join(BRAND_DIRECTORY, 'birdcoder.json'))).toEqual(brand)
+  expect(readBrandManifest(join(BRAND_DIRECTORY, 'daxuedazi.json'))).toEqual(brand)
 })
 
 it('accepts a second brand with its own home and desktop identity', () => {
@@ -80,10 +80,10 @@ it('selects one manifest by key, by explicit path, and by default', () => {
 
   expect(resolveBrand({ DSH_BRAND: 'acme' }, directory).key).toBe('acme')
   expect(resolveBrand({ DSH_BRAND_CONFIG: explicit }).key).toBe('acme')
-  expect(resolveBrand({}).key).toBe('birdcoder')
-  expect(brandManifestPath({}, directory)).toBe(join(directory, 'birdcoder.json'))
+  expect(resolveBrand({}).key).toBe('daxuedazi')
+  expect(brandManifestPath({}, directory)).toBe(join(directory, 'daxuedazi.json'))
   // A blank selection is the shipped brand, never the working directory.
-  expect(resolveBrand({ DSH_BRAND: '  ' }).key).toBe('birdcoder')
+  expect(resolveBrand({ DSH_BRAND: '  ' }).key).toBe('daxuedazi')
 })
 
 it('rejects an identity that belongs to the upstream application', () => {
