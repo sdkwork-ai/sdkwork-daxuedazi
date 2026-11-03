@@ -2,7 +2,7 @@
   "name": "@deepseek-ai/dsh-desktop",
   "productName": "daxuedazi",
   "description": "Electron desktop shell for a bundled dsh runtime and external plugins",
-  "version": "0.2.2-alpha.5",
+  "version": "0.2.2-alpha.7",
   "private": true,
   "license": "MIT",
   "author": {
@@ -25,6 +25,7 @@
     "dev": "tsx scripts/dev.ts",
     "dev:online": "tsx scripts/dev.ts --online",
     "start": "tsx scripts/dev.ts --skip-build",
+    "test:updates:channels": "pnpm run build && node scripts/test-update-channels.mjs",
     "test:updates:local": "pnpm run build && node scripts/test-local-updater.mjs",
     "prepare:runtime": "tsx scripts/prepare-runtime.ts",
     "render:tray-icon": "tsx scripts/render-tray-icon.ts",

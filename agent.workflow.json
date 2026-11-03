@@ -165,7 +165,7 @@
     {
       "id": "sdkwork-appbase",
       "repository": "sdkwork-ai/sdkwork-appbase",
-      "ref": "2a44105fb4162c744b8814b1fd9281ad672cb27f",
+      "ref": "1fc30502a5018e26817073b191e720e8183b49b9",
       "refInput": "SDKWORK_APPBASE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
