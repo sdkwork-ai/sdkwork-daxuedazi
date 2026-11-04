@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { applyBrandHome } from '../apps/desktop/src/brand.ts'
-import type { DesktopBrand } from '../apps/desktop/scripts/brand-manifest.mjs'
+import { brandPortCollisions, readBrands, type DesktopBrand } from '../apps/desktop/scripts/brand-manifest.mjs'
 
 /** Brand key the repository ships when nothing selects another manifest. */
 const SHIPPED_KEY = 'daxuedazi'
@@ -37,13 +37,14 @@ const SHIPPED_IDENTITY = Object.freeze({
   registryKey: 'DaXueDaZi',
   updaterCacheDirName: 'daxuedazi-updater',
   artifactPrefix: 'daxuedazi',
+  webPort: 19400,
 })
 
 /** Harness home the shipped brand owns outright. */
 const SHIPPED_HOME = Object.freeze({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
 
 /** Identity values two installed brands must never share. */
-const SHARED_IDENTITY = ['appId', 'productName', 'executableName', 'protocol', 'commandName', 'registryKey', 'updaterCacheDirName', 'artifactPrefix'] as const
+const SHARED_IDENTITY = ['appId', 'productName', 'executableName', 'protocol', 'commandName', 'registryKey', 'updaterCacheDirName', 'artifactPrefix', 'webPort'] as const
 
 /** Packaging and publication modules that must derive names from the selected brand. */
 const BRAND_DERIVED = [
@@ -65,6 +66,8 @@ export const OEM_OWNED_FILES = [
   `brands/${OTHER_KEY}.json`,
   'apps/desktop/package.json',
   'apps/desktop/scripts/brand-manifest.mjs',
+  'apps/desktop/scripts/dev.ts',
+  'apps/desktop/scripts/development-identity.ts',
   'apps/desktop/scripts/electron-builder-config.mjs',
   'apps/desktop/cli/daxuedazi',
   'apps/desktop/cli/daxuedazi.cmd',
@@ -200,6 +203,10 @@ function checkShell(root: string, brand: DesktopBrand | undefined, failures: str
   if (!main.includes('setAsDefaultProtocolClient(brand.desktop.protocol)')) {
     failures.push('oem identity: apps/desktop/src/main.ts no longer registers brand.desktop.protocol; the shell would claim the wrong URL scheme')
   }
+  if (!main.includes('DSH_DESKTOP_HOST_WEB_PORT: hostWebPort(brand, hostEnvironment)')) {
+    failures.push('oem identity: apps/desktop/src/main.ts no longer hands the Desktop Host the brand Web port; '
+      + 'two installed brands would contend for one listener and the second launch would fail with EADDRINUSE')
+  }
   if (main.includes(`${SHIPPED_IDENTITY.protocol}://`)) {
     failures.push(`oem identity: apps/desktop/src/main.ts spells ${JSON.stringify(`${SHIPPED_IDENTITY.protocol}://`)} literally; the scheme must come from the brand manifest`)
   }
@@ -269,6 +276,49 @@ function checkUninstaller(root: string, failures: string[]): void {
 }
 
 /**
+ * Check the development lanes derive their ports and home from the brand.
+ * @param root - Repository root.
+ * @param failures - Receives every lane that lost its brand derivation.
+ */
+function checkDevelopmentLane(root: string, failures: string[]): void {
+  const dev = read(root, 'apps/desktop/scripts/dev.ts')
+  for (const token of ['developmentLanePorts(brand)', 'developmentLaneHome({', 'lanePorts.inspectors[lane]']) {
+    if (!dev.includes(token)) {
+      failures.push(`oem identity: apps/desktop/scripts/dev.ts no longer derives its lanes (${JSON.stringify(token)}); `
+        + 'a development shell would bind an installed brand\'s Web port or inspector port, or write into another brand\'s Harness home')
+    }
+  }
+  const lane = read(root, 'apps/desktop/scripts/development-identity.ts')
+  for (const token of ['brand.desktop.webPort', 'BRAND_PORT_BLOCK']) {
+    if (!lane.includes(token)) {
+      failures.push(`oem identity: apps/desktop/scripts/development-identity.ts no longer takes the lane ports from the brand block (no ${JSON.stringify(token)})`)
+    }
+  }
+}
+
+/**
+ * Check every brand the repository ships claims a disjoint block of loopback ports.
+ *
+ * Two installed brands, their two source lanes and each lane's three inspectors
+ * draw from one block per brand, so an overlap would surface as the second
+ * application failing to start rather than as a test failure.
+ * @param root - Repository root.
+ * @param failures - Receives every overlapping pair and every manifest the check cannot read.
+ */
+function checkBrandPorts(root: string, failures: string[]): void {
+  let brands: DesktopBrand[]
+  try {
+    brands = readBrands(join(root, 'brands'))
+  } catch (error) {
+    failures.push(`oem identity: brands/ is not readable as a manifest set: ${error instanceof Error ? error.message : String(error)}`)
+    return
+  }
+  for (const collision of brandPortCollisions(brands)) {
+    failures.push(`oem identity: ${collision}; give each brand its own desktop.webPort block so both installed applications can listen at once`)
+  }
+}
+
+/**
  * Check the home implementation never falls back to another product's home.
  * @param brand - Parsed shipped manifest.
  * @param failures - Receives the home the shipped brand resolved instead of its own.
@@ -320,8 +370,10 @@ export function verifyOemIdentity(root: string = resolve(dirname(fileURLToPath(i
   const other = manifest(root, OTHER_KEY, failures)
   checkShipped(shipped, failures)
   checkSecondBrand(shipped, other, failures)
+  checkBrandPorts(root, failures)
   checkDerivation(root, failures)
   checkShell(root, shipped, failures)
+  checkDevelopmentLane(root, failures)
   checkIamCallback(root, shipped, failures)
   checkUninstaller(root, failures)
   checkHomeIsolation(shipped, failures)

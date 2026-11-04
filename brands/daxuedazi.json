@@ -15,6 +15,7 @@
     "commandName": "daxuedazi",
     "registryKey": "DaXueDaZi",
     "updaterCacheDirName": "daxuedazi-updater",
-    "artifactPrefix": "daxuedazi"
+    "artifactPrefix": "daxuedazi",
+    "webPort": 19400
   }
 }

@@ -15,6 +15,7 @@
     "commandName": "birdcoder",
     "registryKey": "BirdCoder",
     "updaterCacheDirName": "birdcoder-updater",
-    "artifactPrefix": "BirdCoder"
+    "artifactPrefix": "BirdCoder",
+    "webPort": 19387
   }
 }

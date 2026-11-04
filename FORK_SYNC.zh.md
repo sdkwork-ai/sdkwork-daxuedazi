@@ -102,7 +102,7 @@ scripts/sync-upstream.sh anchor     # 记录新的上游 tip，随合并一起�
 2. 没有残留冲突标记、没有未解决的索引条目；
 3. 相对回滚点消失的路径，上游也已不再提供（没有误删）；
 4. **本 fork 从未改动过的文件，在合并结果里必须与上游逐字节一致**——这一项才抓得住「上游内容被静默吞掉」，逐文件看冲突清单永远看不出来；
-5. 品牌表面、sdkwork 包与锚点里记录的保留/删除清单仍然成立——`pnpm run verify-oem-identity` 覆盖 [brands/README.zh.md](brands/README.zh.md#oem-owned-surfaces) 里的 OEM 自有内容（出厂品牌取值、`~/.daxuedazi` home 规则、IAM 回调 scheme、产物命名派生与文档指引），`verify` 的第 5 步会调用它。
+5. 品牌表面、sdkwork 包与锚点里记录的保留/删除清单仍然成立——`pnpm run verify-oem-identity` 覆盖 [brands/README.zh.md](brands/README.zh.md#oem-owned-surfaces) 里的 OEM 自有内容（出厂品牌取值、`~/.daxuedazi` home 规则、品牌之间互不重叠的[端口块](brands/README.zh.md#ports)以及保持该布局的源码通道派生、IAM 回调 scheme、产物命名派生与文档指引），`verify` 的第 5 步会调用它。
 
 它同时报告版本家族（`package.json` == 上游最新 tag == `CHANGELOG.md` 首个标题）。
 只有全部通过，`anchor` 才会推进锚点。

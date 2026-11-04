@@ -21,6 +21,13 @@ export const DEFAULT_BRAND_KEY: 'daxuedazi'
 /** Directory holding the repository's brand manifests. */
 export const BRAND_DIRECTORY: string
 
+/**
+ * Loopback ports one brand owns, starting at `desktop.webPort`: the packaged shell
+ * serves the first, the two source lanes the next two, and each lane's main,
+ * renderer and Host inspectors the remaining six.
+ */
+export const BRAND_PORT_BLOCK: 9
+
 /** Harness home and legacy-adoption behavior of one brand. */
 export interface DesktopBrandHome {
   /** Directory name under the operating-system home; dot-prefixed and lower case so two brands cannot collide. */
@@ -47,6 +54,8 @@ export interface DesktopBrandDesktop {
   readonly updaterCacheDirName: string
   /** Release artifact stem before `-<version>-<os>-<arch>`. */
   readonly artifactPrefix: string
+  /** First of the {@link BRAND_PORT_BLOCK} loopback ports this brand owns: the packaged shell serves it, the source lanes and their inspectors take the rest. */
+  readonly webPort: number
 }
 
 /** One validated brand manifest. */
@@ -97,3 +106,18 @@ export function resolveBrand(env?: Record<string, string | undefined>, directory
  * @returns Frozen manifest of `brands/daxuedazi.json`.
  */
 export function shippedBrand(): DesktopBrand
+
+/**
+ * Read every brand manifest in one directory.
+ * @param directory - Directory holding `<key>.json` manifests; defaults to the repository's `brands/`.
+ * @returns Manifests sorted by file name; `<key>.oem.json` profiles are skipped.
+ * @throws Error when a manifest cannot be read, parsed or validated.
+ */
+export function readBrands(directory?: string): DesktopBrand[]
+
+/**
+ * Port blocks two brands would contend for.
+ * @param brands - Manifests that end up installed on one machine.
+ * @returns One message per colliding pair, naming both blocks.
+ */
+export function brandPortCollisions(brands: readonly DesktopBrand[]): string[]

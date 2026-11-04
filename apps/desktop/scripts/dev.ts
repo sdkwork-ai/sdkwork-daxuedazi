@@ -12,6 +12,8 @@ import type { DesktopRelease } from '../src/release.ts'
 import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
+import { developmentLaneHome, developmentLanePorts } from './development-identity.ts'
+import { resolveBrand } from './brand-manifest.mjs'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { KEEP_INHERITED_SDKWORK_ENV, developmentLaunchEnvironment } from './development-sdkwork-env.ts'
 import { applyDevelopmentGateway, resolveDevelopmentGateway } from './development-gateway.ts'
@@ -23,10 +25,6 @@ const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
 const DEVELOPMENT_ROOT = join(BUILD_ROOT, 'development')
 /** Home, npm project and browser data of the `--online` debug lane, kept out of the development state. */
 const ONLINE_ROOT = join(BUILD_ROOT, 'online')
-/** Web port the development shell serves; the packaged shell keeps the default, so both run at once. */
-const DEVELOPMENT_HOST_WEB_PORT = 19388
-/** Web port the `--online` debug shell serves, so it runs beside a development shell. */
-const ONLINE_HOST_WEB_PORT = 19389
 /** Request logger preloaded into the `--online` Electron child through `NODE_OPTIONS`. */
 const ONLINE_REQUEST_LOG_MODULE = join(APP_ROOT, 'scripts', 'online-request-log.cjs')
 
@@ -102,23 +100,41 @@ async function launchElectron(sdkworkEnvironment: NodeJS.ProcessEnv, online: boo
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
   if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
-  const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', 9229)
-  const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', 9222)
-  const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
+  // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): ports and home
+  // follow the brand this checkout ships, so this lane runs beside every installed
+  // brand, beside the other lane and beside another checkout's lanes. The brand
+  // owns nine consecutive ports: the installed shell serves the first, the two
+  // lanes the next two, and each lane's main, renderer and Host inspectors the
+  // rest.
+  const brand = resolveBrand(process.env)
+  const lanePorts = developmentLanePorts(brand)
+  const lane = online ? 'online' : 'development'
+  const inspectors = lanePorts.inspectors[lane]
+  const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', inspectors.main)
+  const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', inspectors.renderer)
+  const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', inspectors.host)
   // The online lane keeps its own Harness home and browser data so production
   // credentials and sessions never mix with the development state.
   const stateRoot = online ? ONLINE_ROOT : DEVELOPMENT_ROOT
-  const home = resolve(process.env.DSH_HOME ?? join(stateRoot, 'home'))
+  // An installed brand serves `desktop.webPort`, this lane the next port, and the
+  // online lane the one after that.
+  const webPort = process.env.DSH_DESKTOP_HOST_WEB_PORT ?? String(lanePorts.web[lane])
+  const laneHome = developmentLaneHome({
+    brand,
+    environment: process.env,
+    defaultHome: join(stateRoot, 'home'),
+    warn: (line) => { console.warn(line) },
+  })
   const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(stateRoot, 'electron-user-data'))
   const environment: NodeJS.ProcessEnv = {
     ...sdkworkEnvironment,
-    DSH_HOME: home,
+    DSH_HOME: laneHome.home,
     DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     // The Host reads its Web port from this variable; without it the development
-    // shell would bind the packaged default and fail while a packaged app runs.
-    DSH_DESKTOP_HOST_WEB_PORT: process.env.DSH_DESKTOP_HOST_WEB_PORT
-      ?? String(online ? ONLINE_HOST_WEB_PORT : DEVELOPMENT_HOST_WEB_PORT),
+    // shell would bind the brand's packaged port and lose startup to the installed
+    // application of that brand.
+    DSH_DESKTOP_HOST_WEB_PORT: webPort,
     DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
     // A shell inside an Electron host inherits ELECTRON_RUN_AS_NODE; left set, this Electron
@@ -136,13 +152,13 @@ async function launchElectron(sdkworkEnvironment: NodeJS.ProcessEnv, online: boo
       + 'NODE_EXTRA_CA_CERTS with the gateway certificate for real use')
   }
   const launchEnvironment = insecureTls ? insecureTlsLaunchEnvironment(environment) : environment
-  console.log(`desktop development: DSH_HOME=${home}`)
+  console.log(`desktop development: brand=${brand.key} DSH_HOME=${laneHome.home} web port=${webPort}`)
   console.log(`desktop development: userData=${userData}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`
     + (online ? '; attach the debugger through chrome://inspect (renderer console) or your IDE inspector (main and host)' : ''))
   if (process.platform === 'darwin') {
-    const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: stateRoot, home, userData,
-      mainPort, rendererPort, hostPort, openDevtools: launchEnvironment.DSH_DESKTOP_OPEN_DEVTOOLS! })
+    const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: stateRoot, home: laneHome.home,
+      userData, webPort, mainPort, rendererPort, hostPort, openDevtools: launchEnvironment.DSH_DESKTOP_OPEN_DEVTOOLS! })
     await run(executable, [], APP_ROOT, launchEnvironment)
     return
   }

@@ -5,10 +5,12 @@
  * The manifest owns every value two applications on one machine must not share:
  * the Harness home directory name (so two brands keep separate sessions,
  * credentials, plugins and workspaces), the Electron product name (userData,
- * single-instance lock, logs), the URL scheme and desktop command, the updater
- * cache directory, and the artifact spelling. `brands/<key>.json` is the
- * build-time source; packaging copies the selected file into the application's
- * resources as `brand.json`, which is the runtime source.
+ * single-instance lock, logs), the loopback port the Desktop Host serves the Web
+ * application on (two installed shells would otherwise lose startup to
+ * `EADDRINUSE`), the URL scheme and desktop command, the updater cache
+ * directory, and the artifact spelling. `brands/<key>.json` is the build-time
+ * source; packaging copies the selected file into the application's resources as
+ * `brand.json`, which is the runtime source.
  *
  * Precedence: `DSH_BRAND_CONFIG` (an explicit manifest path) wins, then
  * `DSH_BRAND` (a key under `brands/`), then `daxuedazi`.
@@ -16,7 +18,7 @@
  * @module brand-manifest
  */
 
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -30,6 +32,14 @@ export const BRAND_FILENAME = 'brand.json'
 export const DEFAULT_BRAND_KEY = 'daxuedazi'
 /** Directory holding the repository's brand manifests. */
 export const BRAND_DIRECTORY = fileURLToPath(new URL('../../../brands/', import.meta.url))
+/**
+ * Loopback ports one brand owns, starting at `desktop.webPort`: the packaged
+ * shell serves the first, the two source lanes the next two, and each lane's
+ * main, renderer and Host inspectors the remaining six. Two brands stay distinct
+ * only when their first ports differ by at least this many ports, which
+ * {@link brandPortCollisions} enforces.
+ */
+export const BRAND_PORT_BLOCK = 9
 
 /** Values that belong to the upstream application and can never be a fork brand's own. */
 const UPSTREAM_IDENTITY = Object.freeze({
@@ -48,6 +58,10 @@ const APP_ID_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/u
 const REGISTRY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u
 const ARTIFACT_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$/u
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
+/** Lowest loopback port a brand may own; the operating system reserves everything below it. */
+const WEB_PORT_MINIMUM = 1024
+/** Highest brand port, leaving every port of the brand's block usable. */
+const WEB_PORT_MAXIMUM = 65_535 - (BRAND_PORT_BLOCK - 1)
 
 /**
  * @typedef {object} DesktopBrandHome
@@ -65,6 +79,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
  * @property {string} registryKey - Windows PATH-ownership registry key and mutex stem.
  * @property {string} updaterCacheDirName - electron-updater cache directory the packaged shell owns.
  * @property {string} artifactPrefix - Release artifact stem before `-<version>-<os>-<arch>`.
+ * @property {number} webPort - First of the {@link BRAND_PORT_BLOCK} loopback ports this brand owns: the packaged shell serves it, the source lanes and their inspectors take the rest.
  */
 
 /**
@@ -117,6 +132,26 @@ function optionalBoolean(source, key, where) {
   const value = source[key]
   if (value === undefined) return undefined
   if (typeof value !== 'boolean') throw new Error(`brand: ${where} must be a boolean`)
+  return value
+}
+
+/**
+ * Read one required TCP port.
+ * @param {Record<string, unknown>} source - Manifest object holding the field.
+ * @param {string} key - Field name.
+ * @param {string} where - Manifest field path used in the message.
+ * @param {number} minimum - Lowest accepted port.
+ * @param {number} maximum - Highest accepted port.
+ * @returns {number} Declared port.
+ */
+function requiredPort(source, key, where, minimum, maximum) {
+  const value = source[key]
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
+    throw new Error(`brand: ${where} must be an integer TCP port; found ${JSON.stringify(value ?? null)}`)
+  }
+  if (value < minimum || value > maximum) {
+    throw new Error(`brand: ${where} must be an integer from ${minimum} through ${maximum}; found ${value}`)
+  }
   return value
 }
 
@@ -201,6 +236,8 @@ export function parseBrandManifest(raw, source = 'brand manifest') {
   const artifactPrefix = requiredString(desktop, 'artifactPrefix', 'desktop.artifactPrefix')
   matches(artifactPrefix, ARTIFACT_PREFIX_PATTERN, 'desktop.artifactPrefix', 'an artifact-name prefix')
 
+  const webPort = requiredPort(desktop, 'webPort', 'desktop.webPort', WEB_PORT_MINIMUM, WEB_PORT_MAXIMUM)
+
   return Object.freeze({
     schemaVersion: /** @type {1} */ (1),
     key,
@@ -211,7 +248,7 @@ export function parseBrandManifest(raw, source = 'brand manifest') {
       adoptLegacyDshHome: optionalBoolean(home, 'adoptLegacyDshHome', 'home.adoptLegacyDshHome') ?? false,
     }),
     desktop: Object.freeze({
-      appId, productName, executableName, protocol, commandName, registryKey, updaterCacheDirName, artifactPrefix,
+      appId, productName, executableName, protocol, commandName, registryKey, updaterCacheDirName, artifactPrefix, webPort,
     }),
   })
 }
@@ -270,4 +307,42 @@ let shipped
  */
 export function shippedBrand() {
   return shipped ??= readBrandManifest(join(BRAND_DIRECTORY, `${DEFAULT_BRAND_KEY}.json`))
+}
+
+/**
+ * Read every brand manifest in one directory.
+ * @param {string} [directory] - Directory holding `<key>.json` manifests; defaults to the repository's `brands/`.
+ * @returns {DesktopBrand[]} Manifests sorted by file name; `<key>.oem.json` is a deployment profile, not a manifest, and is skipped.
+ * @throws {Error} when a manifest cannot be read, parsed or validated.
+ */
+export function readBrands(directory = BRAND_DIRECTORY) {
+  return readdirSync(directory)
+    .filter(name => name.endsWith('.json') && !name.endsWith('.oem.json'))
+    .sort()
+    .map(name => readBrandManifest(join(directory, name)))
+}
+
+/**
+ * Port blocks two brands would contend for.
+ *
+ * Each brand claims {@link BRAND_PORT_BLOCK} consecutive loopback ports, so two
+ * brands collide unless their first ports differ by at least that many. The
+ * repository cannot check this per manifest — only the manifests that will share a
+ * machine can — so packaging and the OEM merge gate call this with every manifest
+ * the repository ships.
+ * @param {readonly DesktopBrand[]} brands - Manifests that end up installed on one machine.
+ * @returns {string[]} One message per colliding pair, naming both blocks and the first colliding port.
+ */
+export function brandPortCollisions(brands) {
+  const last = (brand) => brand.desktop.webPort + BRAND_PORT_BLOCK - 1
+  const collisions = []
+  for (const [index, first] of brands.entries()) {
+    for (const second of brands.slice(index + 1)) {
+      if (Math.abs(first.desktop.webPort - second.desktop.webPort) >= BRAND_PORT_BLOCK) continue
+      collisions.push(`${first.key} serves ports ${first.desktop.webPort}-${last(first)} and `
+        + `${second.key} serves ${second.desktop.webPort}-${last(second)}; `
+        + `two installed brands must claim disjoint blocks of ${BRAND_PORT_BLOCK} ports`)
+    }
+  }
+  return collisions
 }

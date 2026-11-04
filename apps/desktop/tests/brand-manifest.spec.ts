@@ -1,7 +1,7 @@
 /**
  * The brand manifest is the single source of every identity two installed
  * applications must not share: home directory, product name, scheme, command,
- * updater cache and artifact spelling.
+ * updater cache, artifact spelling and the block of loopback ports.
  */
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -11,8 +11,10 @@ import { expect, it, onTestFinished } from 'vitest'
 import {
   BRAND_DIRECTORY,
   brandManifestPath,
+  brandPortCollisions,
   parseBrandManifest,
   readBrandManifest,
+  readBrands,
   resolveBrand,
   shippedBrand,
 } from '../scripts/brand-manifest.mjs'
@@ -33,6 +35,7 @@ const ACME = Object.freeze({
     registryKey: 'Acme',
     updaterCacheDirName: 'acme-updater',
     artifactPrefix: 'Acme-Harness',
+    webPort: 19500,
   },
 })
 
@@ -61,8 +64,20 @@ it('ships the daxuedazi brand this application builds today', () => {
     registryKey: 'DaXueDaZi',
     updaterCacheDirName: 'daxuedazi-updater',
     artifactPrefix: 'daxuedazi',
+    webPort: 19400,
   })
   expect(readBrandManifest(join(BRAND_DIRECTORY, 'daxuedazi.json'))).toEqual(brand)
+})
+
+it('gives every shipped brand its own port block', () => {
+  const brands = readBrands(BRAND_DIRECTORY)
+  expect(brands.map(brand => brand.key)).toEqual(['birdcoder', 'daxuedazi'])
+  expect(brandPortCollisions(brands)).toEqual([])
+  const shipped = shippedBrand()
+  const moved = (webPort: number): typeof shipped => ({ ...shipped, key: 'moved', desktop: { ...shipped.desktop, webPort } })
+  // A block is nine ports wide: a brand three ports away overlaps it, one nine away does not.
+  expect(brandPortCollisions([shipped, moved(shipped.desktop.webPort + 3)])).toHaveLength(1)
+  expect(brandPortCollisions([shipped, moved(shipped.desktop.webPort + 9)])).toEqual([])
 })
 
 it('accepts a second brand with its own home and desktop identity', () => {
@@ -111,6 +126,10 @@ it('rejects malformed fields instead of falling back', () => {
     ['desktop.appId', (manifest) => { (manifest.desktop as Record<string, unknown>).appId = 'acme' }],
     ['desktop.protocol', (manifest) => { (manifest.desktop as Record<string, unknown>).protocol = 'Acme Scheme' }],
     ['desktop.productName', (manifest) => { (manifest.desktop as Record<string, unknown>).productName = 'Acme/Harness' }],
+    ['desktop.webPort', (manifest) => { (manifest.desktop as Record<string, unknown>).webPort = '19390' }],
+    ['desktop.webPort', (manifest) => { (manifest.desktop as Record<string, unknown>).webPort = 80 }],
+    ['desktop.webPort', (manifest) => { (manifest.desktop as Record<string, unknown>).webPort = 65_528 }],
+    ['desktop.webPort', (manifest) => { delete (manifest.desktop as Record<string, unknown>).webPort }],
     ['displayName', (manifest) => { manifest.displayName = 'Acme\u0000' }],
     ['desktop', (manifest) => { delete manifest.desktop }],
   ]

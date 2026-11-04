@@ -3,7 +3,7 @@ import { officePackageDirectories } from '../../../scripts/libreoffice-packages.
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -37,7 +37,7 @@ import {
   verifyPackagedApplicationIdentity,
   writePackagedUpdaterCacheDir,
 } from './desktop-application-identity.mjs'
-import { DEFAULT_BRAND_KEY, brandManifestPath, resolveBrand } from './brand-manifest.mjs'
+import { DEFAULT_BRAND_KEY, brandManifestPath, brandPortCollisions, readBrands, resolveBrand } from './brand-manifest.mjs'
 import {
   resolveMacOSAppUpdateFeed,
   verifyMacOSAppUpdateConfig,
@@ -146,6 +146,15 @@ export function createElectronBuilderConfig(
   // shipped brand.
   const brand = resolveBrand(env)
   const brandManifest = brandManifestPath(env)
+  // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): each brand owns a
+  // disjoint block of loopback ports (packaged shell, two source lanes, six
+  // inspector ports). Packaging refuses a manifest set whose blocks overlap,
+  // because the runtime symptom is the second application failing to start.
+  const brandCollisions = brandPortCollisions([
+    ...readBrands(dirname(brandManifest)).filter(candidate => candidate.key !== brand.key),
+    brand,
+  ])
+  if (brandCollisions.length > 0) throw new Error(`desktop package: ${brandCollisions.join('; ')}`)
   const shippedOemProfile = brandManifest.replace(/\.json$/u, '.oem.json')
   const linuxPackageName = brand.desktop.artifactPrefix.toLowerCase().replaceAll(/[^a-z0-9+.-]+/gu, '-')
   const appId = resolveDesktopAppId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })

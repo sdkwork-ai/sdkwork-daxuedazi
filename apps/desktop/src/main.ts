@@ -92,7 +92,7 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
-import { applyBrandBootstrap, resolveRuntimeBrand } from './brand.ts'
+import { applyBrandBootstrap, hostWebPort, resolveRuntimeBrand } from './brand.ts'
 import {
   INSECURE_TLS_ARGUMENT,
   applyDesktopTlsTrust,
@@ -668,6 +668,10 @@ async function main(): Promise<void> {
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, {
         ...hostEnvironment,
+        // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): the loopback
+        // port belongs to the brand, so an installed copy of another brand keeps
+        // its own listener instead of failing this launch with EADDRINUSE.
+        DSH_DESKTOP_HOST_WEB_PORT: hostWebPort(brand, hostEnvironment),
         DSH_CLIENT_VERSION: desktopClientVersion(),
       }, onFailure,
       primaryRuntime,

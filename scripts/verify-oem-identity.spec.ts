@@ -93,6 +93,18 @@ it('fails when a brand may take over the legacy home again', () => {
   expect(verifyOemIdentity(root).failures.some(failure => failure.includes('adoptLegacyDshHome'))).toBe(true)
 })
 
+it('fails when two brands claim overlapping port blocks', () => {
+  const root = fixture()
+  edit(root, 'brands/birdcoder.json', text => text.replace('"webPort": 19387', '"webPort": 19395'))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('disjoint blocks'))).toBe(true)
+})
+
+it('fails when a brand declares no port at all', () => {
+  const root = fixture()
+  edit(root, 'brands/birdcoder.json', text => text.replace(',\n    "webPort": 19387', ''))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('desktop.webPort'))).toBe(true)
+})
+
 it('fails when the merge instructions point nowhere', () => {
   const root = fixture()
   edit(root, 'FORK_SYNC.md', text => text.replaceAll('verify-oem-identity', 'nothing-here'))

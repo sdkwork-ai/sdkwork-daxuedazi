@@ -21,7 +21,7 @@ const ADOPTING = parseBrandManifest({
   home: { dirName: '.birdcoder', adoptLegacyDshHome: true },
   desktop: {
     appId: 'com.sdkwork.birdcoder', productName: 'BirdCoder', executableName: 'birdcoder', protocol: 'birdcoder',
-    commandName: 'birdcoder', registryKey: 'BirdCoder', updaterCacheDirName: 'birdcoder-updater', artifactPrefix: 'BirdCoder',
+    commandName: 'birdcoder', registryKey: 'BirdCoder', updaterCacheDirName: 'birdcoder-updater', artifactPrefix: 'BirdCoder', webPort: 19387,
   },
 })
 const ISOLATED = parseBrandManifest({
@@ -32,7 +32,7 @@ const ISOLATED = parseBrandManifest({
   home: { dirName: '.acme', adoptLegacyDshHome: false },
   desktop: {
     appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-    commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
+    commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
   },
 })
 
@@ -146,7 +146,7 @@ it('reads a packaged brand manifest, applies its home, and defaults the OEM prof
     home: { dirName: '.acme' },
     desktop: {
       appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))
   writeFileSync(join(resources, 'oem.json'), JSON.stringify({ brand: { name: 'Acme' } }))
@@ -169,7 +169,7 @@ it('lets a home oem.json win over the shipped profile', () => {  const home = op
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
       appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))
   writeFileSync(join(resources, 'oem.json'), JSON.stringify({ brand: { name: 'Shipped' } }))
@@ -186,7 +186,7 @@ it('renders the installed CLI launchers for a brand command and home', async () 
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
       appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))
   const { prepareDesktopCli } = await import('../scripts/prepare-cli.ts')

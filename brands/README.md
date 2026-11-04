@@ -3,10 +3,11 @@
 English | [中文](README.zh.md)
 
 One JSON file per application brand. A brand is the complete identity of one
-installed application: the Harness home it owns, the Electron product name, the
-URL scheme, the desktop command, the updater cache directory and the artifact
-spelling. Two brands built from this repository install, run, update and
-uninstall side by side because none of those values is shared.
+installed application: the Harness home it owns, the Electron product name, its
+block of loopback ports, the URL scheme, the desktop command, the updater cache
+directory and the artifact spelling. Two brands built from this repository
+install, run, update and uninstall side by side because none of those values is
+shared.
 
 `daxuedazi.json` is the shipped brand; everything the packaging scripts and the Electron shell derive by default comes from it. `birdcoder.json` remains the second brand this repository can still package, and the two share no installed identity. The [OEM-owned surface inventory](#oem-owned-surfaces) below lists every file an upstream merge must preserve, and `pnpm run verify-oem-identity` checks it after each merge.
 
@@ -50,17 +51,48 @@ it exists. At runtime the shell reads `resources/brand.json`; a source checkout
 | `desktop.registryKey` | Windows PATH-ownership key and mutex stem | `DaXueDaZi` |
 | `desktop.updaterCacheDirName` | electron-updater cache directory | `daxuedazi-updater` |
 | `desktop.artifactPrefix` | Artifact stem before `-<version>-<os>-<arch>` | `daxuedazi` |
+| `desktop.webPort` | First of the brand's nine loopback ports; the packaged shell serves it, and the source lanes and their inspectors take the rest | `19400` |
 
 `parseBrandManifest` rejects malformed values and the upstream identity
 (`~/.dsh`, `DeepSeek Harness`, scheme and command `dsh`, `com.deepseek.harness`).
 A typo fails the build instead of silently splitting one application's data
-across two homes.
+across two homes. `desktop.webPort` accepts 1024 through 65527, because the whole
+[port block](#ports) has to stay usable; a value that leaves no room for it is a
+build error rather than a lane that starts on a truncated port.
 
 `desktop.protocol` also carries the SDKWork IAM browser-login callback: an OEM
 brand that changes it must set `sdkwork.iamRedirectUri` in its OEM profile to
 `<scheme>://auth/callback` (see
 [the OEM profile](../packages/host/sdkwork-oem/README.md)), because the packaged
 shell can only receive schemes the operating system was told about.
+
+## Ports
+
+Loopback ports are as brand-scoped as the home. One brand owns nine consecutive
+ports starting at `desktop.webPort`, so two installed applications, their two
+source lanes and each lane's debuggers never contend for one listener or one
+debugger port:
+
+| Offset | Owner | Shipped brand | Second brand |
+|---|---|---|---|
+| `+0` | Installed shell, Web application | `19400` | `19387` |
+| `+1` | `pnpm dev:desktop` Web application | `19401` | `19388` |
+| `+2` | `pnpm dev:desktop:online` Web application | `19402` | `19389` |
+| `+3`-`+5` | `dev:desktop` main, renderer and Host inspectors | `19403`-`19405` | `19390`-`19392` |
+| `+6`-`+8` | `dev:desktop:online` main, renderer and Host inspectors | `19406`-`19408` | `19393`-`19395` |
+
+Two brands therefore have to be at least nine ports apart. That is not a
+convention a reviewer has to remember: `brandPortCollisions` reads every manifest
+in `brands/` and fails packaging when two blocks overlap, `verify-oem-identity`
+fails an upstream sync with the colliding pair and both ranges, and
+`apps/desktop/tests/development-identity.spec.ts` pins the shipped set. A lane moves
+off its block only when a launch names the port: `DSH_DESKTOP_HOST_WEB_PORT`,
+`DSH_DESKTOP_MAIN_INSPECT_PORT`, `DSH_DESKTOP_RENDERER_DEBUG_PORT` and
+`DSH_DESKTOP_HOST_INSPECT_PORT`.
+
+A checkout that still runs upstream's unmodified development launcher keeps
+upstream's fixed ports; this block describes the manifests and the launcher in this
+repository, which is what the gates can prove.
 
 ## Harness home
 
@@ -84,12 +116,20 @@ A shipped `resources/oem.json` becomes the default `DSH_OEM_CONFIG` only when th
 home carries no `oem.json` of its own, so a deployment ships its endpoints
 read-only and a user can still override them from `~/.<brand>/oem.json`.
 
+A packaged application exports its home as `DSH_HOME` into every child process it
+spawns, so a terminal started from one brand carries that brand's home. The
+development launcher therefore refuses an inherited `DSH_HOME` that another brand
+(or the upstream `~/.dsh`) owns, uses its own state root under
+`apps/desktop/.desktop-build/`, and reports the refused path; any other explicit
+`DSH_HOME` still replaces the lane's home.
+
 ## Adding a brand
 
 1. Copy `brands/daxuedazi.json` to `brands/<key>.json` and change `key`,
-   `displayName`, `companyName`, `home.dirName` and every `desktop` value.
-   Leave `home.adoptLegacyDshHome` false unless the new brand replaces an
-   existing `~/.dsh` installation.
+   `displayName`, `companyName`, `home.dirName` and every `desktop` value, giving
+   the new brand its own [`desktop.webPort`](#ports) block at least nine ports
+   away from every existing one. Leave `home.adoptLegacyDshHome` false unless the
+   new brand replaces an existing `~/.dsh` installation.
 2. Replace the build-time rasters for that brand: `build/icon.{ico,icns,png}`,
    `resources/icon{,-windows,-macos}.png`, the installer brand images
    (`pnpm --dir apps/desktop run generate-icons` and
@@ -100,7 +140,9 @@ read-only and a user can still override them from `~/.<brand>/oem.json`.
 4. Verify: `pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts
    apps/desktop/tests/brand-home.spec.ts apps/desktop/tests/desktop-application-identity.spec.ts`,
    then install both brands and confirm two homes (`~/.daxuedazi`, `~/.<key>`),
-   two userData directories, two URL schemes and two commands.
+   two userData directories, two URL schemes, two commands and two disjoint port
+   blocks — starting one while the other runs is the collision this manifest set
+   exists to prevent.
 
 <a id="oem-owned-surfaces"></a>
 
@@ -110,13 +152,14 @@ Everything listed here is OEM content: upstream owns the surrounding code, this 
 
 | Surface | OEM content | Merge rule |
 |---|---|---|
-| `brands/<key>.json` | Every identity value two installed brands must not share: app id, product name, executable, URL scheme, command, Windows PATH key, updater cache, artifact stem, home directory | Keep both manifests; upstream has no equivalent identity to take |
-| `apps/desktop/scripts/brand-manifest.mjs` + `.d.mts` | Manifest loader and validator, `DEFAULT_BRAND_KEY`, rejection of the upstream identity | Keep the fork implementation; a changed manifest shape is a product change, not a sync |
+| `brands/<key>.json` | Every identity value two installed brands must not share: app id, product name, executable, URL scheme, command, Windows PATH key, updater cache, artifact stem, nine-port loopback block, home directory | Keep both manifests and keep their port blocks disjoint; upstream has no equivalent identity to take |
+| `apps/desktop/scripts/brand-manifest.mjs` + `.d.mts` | Manifest loader and validator, `DEFAULT_BRAND_KEY`, `BRAND_PORT_BLOCK`, `brandPortCollisions`, rejection of the upstream identity | Keep the fork implementation; a changed manifest shape is a product change, not a sync |
 | `apps/desktop/package.json` (`productName`) | Electron application name behind userData, logs, the single-instance lock and the Windows install directory | Keep `daxuedazi`; the builder refuses a mismatch with the shipped brand |
-| `apps/desktop/scripts/electron-builder-config.mjs` | `productName`, `extraMetadata.productName`, `executableName`, `artifactName`, protocols, app-id fallback, updater cache directory, `resources/brand.json` | Keep every brand-derived field and upstream's new builder fields |
+| `apps/desktop/scripts/electron-builder-config.mjs` | `productName`, `extraMetadata.productName`, `executableName`, `artifactName`, protocols, app-id fallback, updater cache directory, `resources/brand.json`, the port-block collision refusal | Keep every brand-derived field and upstream's new builder fields |
 | `apps/desktop/cli/daxuedazi` + `daxuedazi.cmd` | Installed launcher templates (`@BRAND_HOME@`, executable name, command name) | Keep these launchers; upstream's `dsh` launcher belongs to another application |
-| `apps/desktop/src/brand.ts` | Resolves the launch brand, owns `~/.<home.dirName>`, exports `DSH_HOME`; a brand without `adoptLegacyDshHome` never reads `~/.dsh` | Keep the module and its isolation branch; re-resolve it onto upstream's startup changes |
-| `apps/desktop/src/main.ts` | Registers `brand.desktop.protocol`, names the About panel from the OEM brand, applies the brand window icon and tray identity | Keep these call sites inside upstream's restructured `main.ts` |
+| `apps/desktop/scripts/dev.ts` + `apps/desktop/scripts/development-identity.ts` | The source lanes' Web and inspector ports from the brand block, and the refusal of an inherited `DSH_HOME` that another brand exports into the environment | Keep the derivation; a fixed lane or inspector port, or a taken-over home, is a merge defect |
+| `apps/desktop/src/brand.ts` | Resolves the launch brand, owns `~/.<home.dirName>`, exports `DSH_HOME`, and hands the Host the brand Web port; a brand without `adoptLegacyDshHome` never reads `~/.dsh` | Keep the module and its isolation branches; re-resolve it onto upstream's startup changes |
+| `apps/desktop/src/main.ts` | Registers `brand.desktop.protocol`, names the About panel from the OEM brand, applies the brand window icon and tray identity, and passes `desktop.webPort` to the Desktop Host | Keep these call sites inside upstream's restructured `main.ts` |
 | `apps/desktop/src/locale.ts` command copy | The `cliCommand*` strings name the shipped `daxuedazi` command and terminal invocation | Keep the shipped command spelling; other brand builds re-spell them |
 | `apps/desktop/src/command-*.ts` + `scripts/command-path.ps1` | Command ownership receipt, Windows PATH key and mutex stem, all from the manifest | Keep the manifest-derived names; never hardcode a brand |
 | `apps/desktop/installer/*` + `scripts/installer.nsh` | Installer artwork and copy, path row, run/launch checks, removal targets; the uninstaller retires only `%APPDATA%<productName>` | Keep the fork installer files and merge upstream's NSIS fixes by meaning |
@@ -130,6 +173,7 @@ Merge rules:
 
 - Resolve per file, never per tree: no `git checkout --ours .`, `--theirs .`, `-X ours`, `-X theirs`, and never delete a file to silence a conflict.
 - When upstream rewrote a file this fork owns, take upstream's structure and re-apply the OEM fields above; a file that lost them is a merge defect, not a resolution.
+- When upstream's launcher or builder reintroduces a fixed port, re-apply the brand-block derivation. A merge that leaves `19388`, `19389`, `9222`, `9229` or `9230` as a default in `apps/desktop/scripts/dev.ts` is a merge defect, even if every other OEM value survived.
 - Run the verification below before `scripts/sync-upstream.sh anchor`; the sync's `verify` step calls the same gate.
 - Snapshot and fixture updates are legitimate only when the contract changes; never regenerate them to turn a red OEM check green.
 
@@ -138,6 +182,7 @@ Re-verify after every upstream merge:
 ```sh
 pnpm run verify-oem-identity
 pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/brand-home.spec.ts \
+  apps/desktop/tests/brand-host-port.spec.ts apps/desktop/tests/development-identity.spec.ts \
   apps/desktop/tests/desktop-application-identity.spec.ts apps/desktop/tests/installer-packaging.spec.ts \
   scripts/verify-oem-identity.spec.ts
 ```
