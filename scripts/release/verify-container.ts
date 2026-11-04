@@ -210,7 +210,7 @@ function main(): void {
   assert(composeVolumes.length === 2 && composeVolumes[0] === '${DSH_DATA_DIR:-dsh-data}:/data' && composeVolumes[1] === '${DSH_WORKSPACE_DIR:-dsh-workspace}:/workspace', 'Compose must let an installation bind /data and /workspace to host paths and default to the managed named volumes')
   const composeHealthcheck = objectValue(composeService.healthcheck, 'docker-compose.services.dsh.healthcheck')
   const composeHealthcheckTest = scalarArray(composeHealthcheck.test, 'docker-compose.services.dsh.healthcheck.test')
-  assert(composeHealthcheckTest.some(entry => entry.includes('127.0.0.1:${DSH_WEB_PORT:-4080}')), 'Compose healthcheck must probe the port DSH_WEB_PORT selects')
+  assert(composeHealthcheckTest.some(entry => typeof entry === 'string' && entry.includes('127.0.0.1:${DSH_WEB_PORT:-4080}')), 'Compose healthcheck must probe the port DSH_WEB_PORT selects')
 
   assert(deployment.kind === 'Deployment', 'deployment.yaml must contain a Deployment')
   const podSpec = objectValue(objectValue(objectValue(deployment.spec, 'deployment.spec').template, 'deployment.spec.template').spec, 'deployment.spec.template.spec')
