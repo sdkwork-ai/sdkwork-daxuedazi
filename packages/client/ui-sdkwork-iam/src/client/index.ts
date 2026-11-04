@@ -27,18 +27,19 @@ import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-env/client'
 import type { ThemeRuntime } from '@deepseek-ai/dsh-client-ui-theme/client'
 // Type-only: pulls ctx.theme into this program.
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
+import { readOemShowApiKeyEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import { UI_IAM_NAMESPACE, type UiIamSettings } from '../iam-settings.ts'
 import { createIamAccountSource } from './account-source.ts'
 import { createIamUiStore } from './iam-ui-store.ts'
 import { IamService } from './iam-service.ts'
 import { AccountModePage, toSdkworkLocale, type AccountModePageInjected } from './AccountModePage.tsx'
+import { readDesktopSignInPage } from './desktop-sign-in-page.ts'
 import { SignInOverlay, type SignInOverlayInjected } from './SignInOverlay.tsx'
 import { en, zh, type UiIamKey } from './locales.ts'
 
 export {
   AuthenticatedModeShell,
   type AuthenticatedModeShellProps,
-  type SdkworkModeSignInPolicy,
 } from './AuthenticatedModeShell.tsx'
 export {
   AuthenticatedSdkworkModePage,
@@ -94,12 +95,22 @@ export function apply(ctx: ClientContext): void {
 
   // Restore a stored session once the environment reports a base URL. Retries
   // until the controller finishes bootstrap so a late env projection or a
-  // transient validation failure does not strand the user signed out.
+  // transient validation failure does not strand the user signed out. The
+  // welcome's one-shot sign-in request is answered only after restore settles:
+  // an already signed-in launch must not raise the login surface.
+  let restoring: Promise<void> | undefined
   const tryBootstrap = (): void => {
     if (!service.isConfigured()) return
-    void service.startPendingBrowserSignIn()
-    if (service.controller.getState().isBootstrapped) return
-    void service.bootstrap()
+    const answerPending = (): void => { void service.startPendingSignIn() }
+    if (service.controller.getState().isBootstrapped) { answerPending(); return }
+    // One restore at a time: an environment change during bootstrap joins it.
+    const pending = restoring ?? service.bootstrap()
+    restoring = pending
+    const settle = (): void => {
+      if (restoring === pending) restoring = undefined
+      answerPending()
+    }
+    void pending.then(settle, settle)
   }
   tryBootstrap()
   ctx.effect(() => env.subscribe(tryBootstrap), 'ui-sdkwork-iam: session bootstrap')
@@ -109,12 +120,14 @@ export function apply(ctx: ClientContext): void {
   const uiStore = createIamUiStore()
   let boundModal: BoundActions<typeof uiStore> | undefined
   service.attachModal({
-    open: () => { boundModal?.openModal() },
+    openEntry: () => { boundModal?.openEntry() },
+    openLogin: () => { boundModal?.openLogin() },
+    openBrowser: () => { boundModal?.openBrowser() },
     close: () => { boundModal?.closeModal() },
   })
-  // The welcome window asks the workspace to run the IAM browser login; the
-  // overlay exists by this point, so the hosted authorize page opens at once.
-  void service.startPendingBrowserSignIn()
+  // Answer a pending welcome request now that the overlay can mount; the call
+  // is a no-op once the request was consumed or no session restore is pending.
+  tryBootstrap()
 
   // The account mode page: full-page auth while signed out, the account
   // summary while signed in, the config notice while unconfigured.
@@ -128,14 +141,6 @@ export function apply(ctx: ClientContext): void {
       runtimeConfig: service.authRuntimeConfig(),
       onSignOut: () => { void service.controller.signOut() },
       locale: localeOf(),
-      browserSignIn: () => service.browserSignInAvailable() && service.isConfigured()
-        ? {
-          begin: () => service.beginBrowserSignIn(),
-          cancel: () => { service.cancelBrowserSignIn() },
-          isWaiting: () => service.browserSignInWaiting(),
-          subscribe: (listener: () => void) => service.subscribeBrowserSignIn(listener),
-        }
-        : undefined,
       hooks: {
         available: {
           getSnapshot: () => service.isConfigured(),
@@ -167,15 +172,17 @@ export function apply(ctx: ClientContext): void {
       return {
         controller: service.controller,
         onClose: () => { service.dismissSignIn() },
+        // The entry's Sign in runs the configured gesture: the browser
+        // hand-off by default, the in-app method form when configured.
+        onStartLogin: () => { service.startSignIn() },
+        onRetryBrowser: () => { service.startBrowserSignIn() },
+        // A plain browser page has no key page to open, and the deployment
+        // keeps the API-key fallback hidden unless it opts in.
+        ...readDesktopSignInPage() === undefined || !readOemShowApiKeyEntry()
+          ? {}
+          : { startApiKey: () => { void service.openApiKeyPage() } },
         locale: localeOf(),
-        browserSignIn: () => service.browserSignInAvailable() && service.isConfigured()
-          ? {
-            begin: () => service.beginBrowserSignIn(),
-            cancel: () => { service.cancelBrowserSignIn() },
-            isWaiting: () => service.browserSignInWaiting(),
-            subscribe: (listener: () => void) => service.subscribeBrowserSignIn(listener),
-          }
-          : undefined,
+        runtimeConfig: service.authRuntimeConfig(),
         hooks: {
           configured: {
             getSnapshot: () => service.isConfigured(),
@@ -184,6 +191,10 @@ export function apply(ctx: ClientContext): void {
           theme: {
             getSnapshot: () => theme.getTheme(),
             subscribe: listener => ctx.on('theme/change', listener),
+          },
+          browserFailed: {
+            getSnapshot: () => service.browserSignInFailed(),
+            subscribe: listener => service.subscribe(listener),
           },
         },
       }

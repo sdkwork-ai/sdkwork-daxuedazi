@@ -23,6 +23,8 @@ import { createWorkspaceShortcutControls } from '../src/client/shortcuts.ts'
 import { createWorkspaceViewStore, FLAT_SESSION_ORDER_KEY } from '../src/client/stores.ts'
 import { UNGROUPED_KEY } from '../src/client/tree.ts'
 import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
+import { renderMenuButton } from './menu-button.tsx'
+import rowCss from '../src/client/rows/Rows.module.css'
 import { zh } from '../src/client/locales.ts'
 
 // Every fixture carries the resource hook the resources plugin merges into GlobalStandardProps.
@@ -117,10 +119,8 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
   const request = createSnapshotStore<WorkspaceActionRequest | null>(null)
   const store = createWorkspaceViewStore().create()
   const props: WorkspaceBrowserProps = {
-    openWorkspaceMenu: vi.fn(),
     useWorkspaceActionRequest: bindSnapshotSelector(request),
     settleWorkspaceAction: () => { request.set(null) },
-    openSessionMenu: vi.fn(),
     useContextMenuTarget: selector => selector(null),
     useShortcuts: select => select([]),
     useWorkspaceShortcuts: bindSnapshotSelector(controls.state),
@@ -162,6 +162,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     // built-in upstream menus (plugin-menu tests supply their own stubs).
     useRowMenus: bindSnapshotSelector({ getSnapshot: () => false, subscribe: () => () => {} }),
     renderSlot: renderDirectoryFlowOnly,
+    renderFactorySlot: renderMenuButton,
     t,
     ...overrides,
   }
@@ -179,18 +180,45 @@ function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrows
 }
 
 describe('WorkspaceBrowser', () => {
+  it.each(['workspace', 'flat', 'ungrouped'] as const)('passes the standard menu factory through the %s list', (mode) => {
+    const preferences = createWorkspaceViewStore().create()
+    preferences.actions.setGroupBy(mode === 'flat' ? 'flat' : 'workspace')
+    preferences.actions.setGroupExpanded(mode === 'ungrouped' ? UNGROUPED_KEY : 'alpha', true)
+    const renderFactorySlot = vi.fn(renderMenuButton)
+    mount({
+      useSessions: hook(sessionState([summary('session-one', 10)])),
+      useWorkspaces: hook(workspaceState(mode === 'ungrouped' ? [] : [workspace('alpha', ['session-one'])])),
+      renderFactorySlot,
+    })
+    expect(renderFactorySlot).toHaveBeenCalledWith('contextMenu.button', {
+      target: { kind: 'session', value: { sessionId: sid('session-one'), displayTitle: 'session-one' } },
+      label: '会话“session-one”的操作', className: rowCss.iconButton,
+    })
+    if (mode === 'workspace') {
+      expect(renderFactorySlot).toHaveBeenCalledWith('contextMenu.button', {
+        target: { kind: 'workspace', value: { workspaceId: wid('alpha'), path: '/projects/alpha', displayTitle: 'alpha' } },
+        label: '工作区“alpha”的操作', className: rowCss.iconButton,
+      })
+    }
+  })
+
   it('binds the list area as the section scroller only while the sidebar is wide', () => {
     const bindScrollerRef = vi.fn()
+    // FORK DIVERGENCE (React 19): this fork pins React 19, which invokes a ref
+    // cleanup as `ref(null, undefined, undefined, undefined, undefined)`. Assert
+    // the bound node itself, so the expectation covers the scroller handoff
+    // rather than the number of trailing arguments React happens to pass.
+    const bound = (): unknown => bindScrollerRef.mock.lastCall?.[0]
     const browser = mount({ useSectionScroller: () => ({ bindScrollerRef }) })
     const list = browser.view.container.querySelector<HTMLElement>('[data-sidebar-list-area]')!
-    expect(bindScrollerRef).toHaveBeenLastCalledWith(list)
+    expect(bound()).toBe(list)
     rerender(browser, { wide: false })
-    expect(bindScrollerRef).toHaveBeenLastCalledWith(null)
+    expect(bound()).toBe(null)
     expect(browser.view.container.querySelector('[data-sidebar-list-area]')).toBe(list)
     rerender(browser, { wide: true })
-    expect(bindScrollerRef).toHaveBeenLastCalledWith(list)
+    expect(bound()).toBe(list)
     browser.view.unmount()
-    expect(bindScrollerRef).toHaveBeenLastCalledWith(null)
+    expect(bound()).toBe(null)
   })
 
   it.each(['workspace', 'flat', 'ungrouped'] as const)('keeps %s recency independent of arrival order and saved manual positions', (mode) => {

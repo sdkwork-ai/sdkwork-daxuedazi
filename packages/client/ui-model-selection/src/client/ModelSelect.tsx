@@ -27,7 +27,7 @@
  * chevron, and each row whose value that selection carries shows one in place
  * of its check mark.
  */
-import { MenuGroup, MenuSurface, observeStickyMenuGroups, useAnchoredPosition } from '@deepseek-ai/dsh-client-ui-primitives'
+import { MenuGroup, MenuSurface, observeStickyMenuGroups } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore,
   type CSSProperties, type KeyboardEvent, type FocusEvent,
@@ -54,9 +54,6 @@ interface EffortChoice {
   label: string
 }
 
-/** Unplaced portal card: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real (Menu primitive's measure pass). */
-const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
-
 /**
  * Render the composer model seat.
  * @param props - owner share (locked) + injected face (shared directory
@@ -64,7 +61,9 @@ const MEASURE_STYLE: CSSProperties = { visibility: 'hidden', left: 0, top: 0 }
  * @returns the trigger and, while open, the two-level menu.
  */
 export function ModelSelect(
-  { locked, available, directory, load, select, resolveText, t, renderSlot }:
+  {
+    locked, available, directory, load, select, requestSignIn, waitForSignedInModel, resolveText, t, renderSlot,
+  }:
   ModelSelectInjected & Pick<PropsRuntime<'conversation.input.model'>, 'locked'> & PropsLocale<'model'>
     & Omit<PropsRenderSlots<'conversation.input.model.label' | 'conversation.input.model.options'>, 'SessionProvider'>,
 ) {
@@ -77,6 +76,9 @@ export function ModelSelect(
   const [query, setQuery] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null)
   const [selectionFocus, setSelectionFocus] = useState(false)
+  // Whether a pick is waiting on the product's sign-in surface and the
+  // credential it installs; the trigger shows the working state meanwhile.
+  const [signInPending, setSignInPending] = useState(false)
   // The in-menu error strip serves catalog loads (its Retry re-runs the
   // load); a rejected SELECTION announces through the transient toast
   // instead, so the strip renders only while the latest failure-capable
@@ -89,18 +91,11 @@ export function ModelSelect(
   const searchRef = useRef<HTMLInputElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const groupsRef = useRef<HTMLDivElement | null>(null)
-  const menuPos = useAnchoredPosition({
-    open: open && available,
-    anchorRef: triggerRef,
-    panelRef: menuRef,
-    side: 'top',
-    align: 'end',
-    gap: 8,
-    margin: 12,
-    layoutKey: pane,
-  })
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const id = useId()
+  const anchorStyle: CSSProperties & Record<'--dsh-model-anchor', string> = {
+    '--dsh-model-anchor': `--dsh-model-${id.replaceAll(':', '')}`,
+  }
 
   const accountProviderName = t('provider.account')
   const groups = useMemo(() => orderModelProviders(state.groups).map(group => ({
@@ -158,7 +153,11 @@ export function ModelSelect(
       })),
     ], [reasoning, t])
   const { pending } = state
-  const busy = pending !== null
+  const busy = pending !== null || signInPending
+  const report = (text: string): void => {
+    toastSeq.current += 1
+    setToast({ seq: toastSeq.current, text })
+  }
 
   const reload = (): void => {
     lastActionRef.current = 'load'
@@ -363,13 +362,9 @@ export function ModelSelect(
       return
     }
     const { error } = result
-    toastSeq.current += 1
-    setToast({
-      seq: toastSeq.current,
-      text: error.code === 'session/writer-held'
-        ? t('error.sessionInUse')
-        : t('error.action', { message: `${error.code}: ${error.message}` }),
-    })
+    report(error.code === 'session/writer-held'
+      ? t('error.sessionInUse')
+      : t('error.action', { message: `${error.code}: ${error.message}` }))
   }
 
   const submit = (selection: ModelSelection): void => {
@@ -380,12 +375,46 @@ export function ModelSelect(
     void select(selection).then(settleSelection)
   }
 
-  const choose = (selection: ModelSelection): void => {
+  /**
+   * A provider group the Host advertises before its credential exists: ask for
+   * the product sign-in, wait for the route to become selectable, then submit.
+   * Compositions without a sign-in surface fall through to the Host's refusal.
+   * @param selection - the picked model.
+   */
+  const chooseAfterSignIn = (selection: ModelSelection): void => {
+    if (requestSignIn === undefined || waitForSignedInModel === undefined) {
+      submit(selection)
+      return
+    }
+    setSelectionFocus(true)
+    triggerRef.current?.focus()
+    setSignInPending(true)
+    void (async () => {
+      try {
+        const signedIn = await requestSignIn()
+        // A welcome page can end with a stored credential instead of a session,
+        // so a declined login still gets a short window for the route to appear.
+        const ready = await waitForSignedInModel(selection, signedIn ? undefined : 3_000)
+        if (!ready) {
+          report(signedIn ? t('error.signInUnavailable') : t('error.signInCancelled'))
+          return
+        }
+        submit(selection)
+      } catch (error) {
+        report(t('error.action', { message: error instanceof Error ? error.message : String(error) }))
+      } finally {
+        setSignInPending(false)
+      }
+    })()
+  }
+
+  const choose = (selection: ModelSelection, requiresSignIn = false): void => {
     if (state.current?.provider === selection.provider && state.current.model === selection.model) {
       closeAfterSelection()
       return
     }
-    submit(selection)
+    if (requiresSignIn) chooseAfterSignIn(selection)
+    else submit(selection)
   }
 
   const chooseEffort = (effort: string | undefined): void => {
@@ -399,7 +428,8 @@ export function ModelSelect(
       model: state.current.model,
       ...effort === undefined ? {} : { reasoningEffort: effort },
     }
-    submit(selection)
+    if (currentChoice?.group.requiresSignIn === true) chooseAfterSignIn(selection)
+    else submit(selection)
   }
 
   const waiting = currentChoice === undefined && state.status === 'loading'
@@ -455,6 +485,7 @@ export function ModelSelect(
         ref={triggerRef}
         type="button"
         className={css.trigger}
+        style={anchorStyle}
         aria-label={triggerAria}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -490,7 +521,7 @@ export function ModelSelect(
           ref={menuRef}
           id={`${id}-menu`}
           className={css.menu}
-          style={menuPos ?? MEASURE_STYLE}
+          style={anchorStyle}
           role={pane === 'model' ? 'group' : 'menu'}
           aria-label={t('menu.aria')}
           aria-busy={state.status === 'loading' || busy}
@@ -602,10 +633,13 @@ export function ModelSelect(
                             key={model.id}
                             title={model.name}
                             disabled={busy}
-                            onClick={() => { choose({ provider: group.id, model: model.id }) }}
+                            onClick={() => { choose({ provider: group.id, model: model.id }, group.requiresSignIn === true) }}
                           >
                             <span className={css.optionCopy}>
                               <span className={css.modelName}>{renderModelLabel(group.provider, model, 'option', selected)}</span>
+                              {group.requiresSignIn === true && requestSignIn !== undefined
+                                ? <Tag className={css.badge} tone="info">{t('option.signInRequired')}</Tag>
+                                : null}
                             </span>
                             <span className={css.check}>
                               {pending?.provider === group.id && pending.model === model.id

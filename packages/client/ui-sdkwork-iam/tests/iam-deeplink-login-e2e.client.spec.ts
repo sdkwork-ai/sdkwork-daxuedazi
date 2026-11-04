@@ -101,6 +101,7 @@ function scopeOf(): SettingsScope<UiIamSettings> {
   return {
     getSnapshot: () => ({
       status: 'ready' as const,
+      // The shipped default gesture is the hosted browser login.
       value: DEFAULT_UI_IAM_SETTINGS,
       base: undefined,
       user: undefined,
@@ -159,6 +160,7 @@ describe('deeplink login end to end', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(globalThis as Record<string, unknown>, 'sdkworkDesktop')
+    Reflect.deleteProperty(globalThis as Record<string, unknown>, 'dshDesktop')
     vi.clearAllMocks()
   })
 
@@ -231,6 +233,37 @@ describe('deeplink login end to end', () => {
       Authorization: `Bearer ${SESSION.authToken}`,
       'Access-Token': SESSION.accessToken,
     })
+  })
+
+  it('opens the desktop product page and then the hosted browser login', async () => {
+    const openSignIn = vi.fn(async () => 'login' as const)
+    ;(globalThis as Record<string, unknown>).dshDesktop = { auth: { openSignIn } }
+    const service = new IamService(scopeOf(), envOf(), layoutOf())
+    const openBrowser = vi.fn()
+    const openLogin = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin, openBrowser, close: vi.fn() })
+
+    const heldCall = service.requestSignIn()
+    await vi.waitFor(() => { expect(openBrowser).toHaveBeenCalledOnce() })
+    expect(openSignIn).toHaveBeenCalledOnce()
+    // The login gesture runs the configured flow: the hosted page in the
+    // system browser, not the in-app account methods.
+    await vi.waitFor(() => { expect(openedUrls).toHaveLength(1) })
+    expect(openLogin).not.toHaveBeenCalled()
+
+    const state = new URL(openedUrls[0]).searchParams.get('state')
+    emitDeepLink(`${REDIRECT}?code=code-3&state=${state}`)
+    await expect(heldCall).resolves.toBe(true)
+    expect(service.isSignedIn()).toBe(true)
+  })
+
+  it.each(['dismissed', 'credential'] as const)('answers "no" when the welcome page ends with %s', async (outcome) => {
+    ;(globalThis as Record<string, unknown>).dshDesktop = { auth: { openSignIn: async () => outcome } }
+    const service = new IamService(scopeOf(), envOf(), layoutOf())
+
+    await expect(service.requestSignIn()).resolves.toBe(false)
+    // Neither gesture starts the hosted login.
+    expect(openedUrls).toHaveLength(0)
   })
 
   it('signs out of both stores and releases the shared credentials', async () => {

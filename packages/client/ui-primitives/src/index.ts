@@ -47,11 +47,16 @@ export type {
   SubmenuPlacement, SubmenuPlacementOptions, SubmenuRect, SubmenuSide, SubmenuSize, SubmenuViewport,
 } from './submenu-placement.ts'
 export { useAnchoredMaxHeight } from './useAnchoredMaxHeight.ts'
+// Fork-owned JS anchoring: upstream replaced `useAnchoredPosition` with CSS
+// anchor positioning in dsh-v0.2.2-rc.1, but the fork's custom portaled panels
+// (ui-sdkwork-automation, ui-sdkwork-git) still place themselves with it. Keep
+// our own copy so those imports survive the next upstream sync unchanged.
 export { useAnchoredPosition } from './useAnchoredPosition.ts'
 export type { AnchoredPositionOptions } from './useAnchoredPosition.ts'
 export { useDismissOnOutsidePointer } from './useDismissOnOutsidePointer.ts'
 export { HoverCard } from './HoverCard.tsx'
 export { HoverCardGroup } from './HoverCardGroup.tsx'
+export { usePointerGrace } from './pointer-grace.ts'
 export { ShortcutKeys } from './ShortcutKeys.tsx'
 export { observeComposition } from './keyboard-composition.ts'
 export { focusWithoutRing, isMobileDevice } from './focus.ts'
@@ -67,11 +72,16 @@ export { FishLogo, FISH_LOGO_PATH, FISH_LOGO_VIEWBOX } from './FishLogo.tsx'
 export { BirdLogo } from './BirdLogo.tsx'
 export { BirdWordmark } from './BirdWordmark.tsx'
 export type { BirdWordmarkProps } from './BirdWordmark.tsx'
+// Fork-owned login surface: the desktop welcome window and the web account
+// dialog render this one component, so every login entry has identical brand,
+// welcome copy, and action layout (AGENTS.md, "BirdCoder brand assets").
+export { LoginPanel } from './LoginPanel.tsx'
+export type { LoginAction, LoginPanelProps, LoginWelcomeCopy } from './LoginPanel.tsx'
 export {
   DEFAULT_BRAND_NAME, DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, DEFAULT_IAM_CLIENT_ID,
   DEFAULT_IAM_REDIRECT_URI, OEM_BOOT_GLOBAL,
   readOemBrandName, readOemEnvironment, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl, readOemIamClientId,
-  readOemIamRedirectUri,
+  readOemIamRedirectUri, readOemShowApiKeyEntry,
 } from './oem-brand.ts'
 export { BrandWordmark } from './BrandWordmark.tsx'
 export type { BrandWordmarkProps } from './BrandWordmark.tsx'

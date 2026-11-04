@@ -389,6 +389,81 @@ describe('ModelSelect reasoning effort', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitemradio', { name: 'DeepSeek-V4-Flash' }))
   })
 
+  it('asks for sign-in before submitting a preview-group model and applies it afterwards', async () => {
+    const preview = [{
+      id: 'birdcoder',
+      name: 'BirdCoder',
+      requiresSignIn: true,
+      models: [
+        { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek-V4-Flash' },
+        { id: 'deepseek/deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+      ],
+    }]
+    const { requiresSignIn: _preview, ...routableGroup } = preview[0]!
+    const routable = [routableGroup]
+    const directory = createSnapshotStore<ModelDirectoryState>(state({
+      current: { provider: 'birdcoder', model: 'deepseek/deepseek-v4-flash' },
+      groups: preview,
+    }))
+    const requestSignIn = vi.fn(async () => true)
+    const waitForSignedInModel = vi.fn(async () => {
+      directory.set(state({ current: null, groups: routable }))
+      return true
+    })
+    const select = vi.fn(async (selection: ModelSelection) => {
+      directory.set(state({ current: selection, groups: routable }))
+      return { ok: true as const, value: undefined }
+    })
+    render(<ModelSelect renderSlot={renderLabel} locked={false} available directory={directory} load={vi.fn()}
+      resolveText={resolveText} select={select} t={t} requestSignIn={requestSignIn}
+      waitForSignedInModel={waitForSignedInModel} />)
+
+    const trigger = screen.getByRole('button', { name: '选择模型，当前 DeepSeek-V4-Flash' })
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    expect(screen.getAllByText(zh['option.signInRequired'])).toHaveLength(2)
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
+
+    await waitFor(() => {
+      expect(select).toHaveBeenCalledWith({ provider: 'birdcoder', model: 'deepseek/deepseek-v4-pro' })
+    })
+    expect(requestSignIn).toHaveBeenCalledOnce()
+    expect(waitForSignedInModel).toHaveBeenCalledWith(
+      { provider: 'birdcoder', model: 'deepseek/deepseek-v4-pro' }, undefined,
+    )
+    // The applied selection closes the menu like an ordinary pick.
+    expect(screen.queryByRole('group', { name: '模型与推理等级' })).toBeNull()
+  })
+
+  it('leaves the model unchanged and reports an incomplete sign-in', async () => {
+    const preview = [{
+      id: 'birdcoder',
+      name: 'BirdCoder',
+      requiresSignIn: true,
+      models: [
+        { id: 'deepseek/deepseek-v4-flash', name: 'DeepSeek-V4-Flash' },
+        { id: 'deepseek/deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+      ],
+    }]
+    const directory = createSnapshotStore<ModelDirectoryState>(state({
+      current: { provider: 'birdcoder', model: 'deepseek/deepseek-v4-flash' },
+      groups: preview,
+    }))
+    const select = vi.fn()
+    render(<ModelSelect renderSlot={renderLabel} locked={false} available directory={directory} load={vi.fn()}
+      resolveText={resolveText} select={select} t={t}
+      requestSignIn={vi.fn(async () => false)} waitForSignedInModel={vi.fn(async () => false)} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '选择模型，当前 DeepSeek-V4-Flash' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /模型/ }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /DeepSeek-V4-Pro/ }))
+
+    const toast = await screen.findByRole('alert')
+    expect(toast.textContent).toBe(zh['error.signInCancelled'])
+    expect(select).not.toHaveBeenCalled()
+    expect(directory.getSnapshot().current).toEqual({ provider: 'birdcoder', model: 'deepseek/deepseek-v4-flash' })
+  })
+
   it('spins on the trigger and the chosen model row until the selection settles, across pane changes', async () => {
     const groups = [{
       id: 'deepseek-official',
@@ -450,41 +525,36 @@ describe('ModelSelect reasoning effort', () => {
       .map(row => row.textContent)).toEqual(['Max'])
   })
 
-  it('portals the placed menu card to body and closes only on truly-outside mousedown', () => {
-    const offsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')!
-    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!
-    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 200 })
-    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 300 })
-    try {
-      const { container } = render(<ModelSelect renderSlot={renderLabel}
-        locked={false}
-        available
-        directory={createSnapshotStore(state())}
-        load={vi.fn()} resolveText={resolveText}
-        select={vi.fn().mockResolvedValue({ ok: true, value: undefined })}
-        t={t}
-      />)
-      const trigger = screen.getByRole('button', { name: /选择模型/ })
-      fireEvent.click(trigger)
-      const menu = screen.getByRole('menu')
-      // Outside the composer subtree — column overflow clips cannot crop it.
-      expect(container.contains(menu)).toBe(false)
-      expect(menu.parentElement).toBe(document.body)
-      // jsdom anchor rects are all zero, so the measured 200x300 card clamps
-      // to the 12px viewport margin on both axes.
-      expect(menu.style.left).toBe('12px')
-      expect(menu.style.top).toBe('12px')
-      // Interactions inside the trigger subtree or the portaled card stay open.
-      expect(fireEvent.mouseDown(menu)).toBe(true)
-      expect(fireEvent.mouseDown(trigger)).toBe(false)
-      fireEvent.blur(trigger, { relatedTarget: menu })
-      expect(screen.getByRole('menu')).toBeTruthy()
-      fireEvent.mouseDown(document.body)
-      expect(screen.queryByRole('menu')).toBeNull()
-    } finally {
-      Object.defineProperty(HTMLElement.prototype, 'offsetWidth', offsetWidth)
-      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight)
-    }
+  it('anchors the body portal with CSS and closes only on truly-outside mousedown', () => {
+    const measure = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+    onTestFinished(() => { measure.mockRestore() })
+    const { container } = render(<ModelSelect renderSlot={renderLabel}
+      locked={false}
+      available
+      directory={createSnapshotStore(state())}
+      load={vi.fn()} resolveText={resolveText}
+      select={vi.fn().mockResolvedValue({ ok: true, value: undefined })}
+      t={t}
+    />)
+    const trigger = screen.getByRole('button', { name: /选择模型/ })
+    fireEvent.click(trigger)
+    const menu = screen.getByRole('menu')
+    // Outside the composer subtree — column overflow clips cannot crop it.
+    expect(container.contains(menu)).toBe(false)
+    expect(menu.parentElement).toBe(document.body)
+    const anchor = trigger.style.getPropertyValue('--dsh-model-anchor')
+    expect(anchor).toMatch(/^--dsh-model-/)
+    expect(menu.style.getPropertyValue('--dsh-model-anchor')).toBe(anchor)
+    expect(menu.style.left).toBe('')
+    expect(menu.style.top).toBe('')
+    expect(measure).not.toHaveBeenCalled()
+    // Interactions inside the trigger subtree or the portaled card stay open.
+    expect(fireEvent.mouseDown(menu)).toBe(true)
+    expect(fireEvent.mouseDown(trigger)).toBe(false)
+    fireEvent.blur(trigger, { relatedTarget: menu })
+    expect(screen.getByRole('menu')).toBeTruthy()
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('menu')).toBeNull()
   })
 
   it('renders no Agent-bound control for an addressed subagent session', () => {

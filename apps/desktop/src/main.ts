@@ -40,11 +40,12 @@ import { installDesktopFileDrag } from './file-drag.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
-import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
+import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopSignInOutcome, type DesktopUpdateState } from './ipc.ts'
 import { createIamDeepLinkBridge, findIamDeepLink } from './iam-deep-links.ts'
 import { createIamSessionBridge } from './iam-session.ts'
 import { readDeviceInfo } from './device-info.ts'
 import { DESKTOP_DEFAULT_BRAND, desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
+import type { DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -968,6 +969,11 @@ async function main(): Promise<void> {
     return { injections: bootInjections, streamBaseUrl: new URL(hostUrl).origin }
   })
 
+  ipcMain.handle(DESKTOP_IPC.authSignInPage, async (event) => {
+    assertProductSender(event)
+    return openSignInPage()
+  })
+
   ipcMain.handle(DESKTOP_IPC.bootFailed, (event, message: unknown) => {
     assertDesktopSender(event, ['app'])
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== event.sender.mainFrame) {
@@ -1327,8 +1333,31 @@ async function main(): Promise<void> {
   // its standard menus and application hide commands declared explicitly.
   // Keep app.name stable: Electron derives its default userData directory from it.
   const darwin = process.platform === 'darwin'
+  // A copy of Electron 44's macOS Edit menu that binds Paste and Match Style to Shift+Command+V
+  // (#7782) and keeps Electron's Option+Shift+Command+V as a hidden alias.
+  const macEditMenu = (messages: DesktopMessages): MenuItemConstructorOptions => ({ role: 'editMenu', submenu: [
+    { role: 'undo' },
+    { role: 'redo' },
+    { type: 'separator' },
+    { role: 'cut' },
+    { role: 'copy' },
+    { role: 'paste' },
+    { role: 'pasteAndMatchStyle', accelerator: 'Shift+Command+V' },
+    { role: 'pasteAndMatchStyle', accelerator: 'Option+Shift+Command+V', visible: false, acceleratorWorksWhenHidden: true },
+    { role: 'delete' },
+    { role: 'selectAll' },
+    { type: 'separator' },
+    { label: messages.substitutionsMenu, submenu: [
+      { role: 'showSubstitutions' },
+      { type: 'separator' },
+      { role: 'toggleSmartQuotes' },
+      { role: 'toggleSmartDashes' },
+      { role: 'toggleTextReplacement' },
+    ] },
+    { label: messages.speechMenu, submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
+  ] })
   const platformMenus = (): MenuItemConstructorOptions[] => darwin
-    ? [shortcuts.fileMenu(currentDesktopLocale().messages), { role: 'editMenu' }, { role: 'windowMenu' }]
+    ? [shortcuts.fileMenu(currentDesktopLocale().messages), macEditMenu(currentDesktopLocale().messages), { role: 'windowMenu' }]
     : [{ role: 'editMenu' }]
   const hideCommands: MenuItemConstructorOptions[] = darwin
     ? [{ role: 'hide', label: currentDesktopLocale().messages.hideApplication },
@@ -1534,7 +1563,61 @@ async function main(): Promise<void> {
     }
   }
   let openingWelcome: Promise<void> | undefined
-  const showWelcome = (): Promise<void> => {
+  /** Which gesture the open welcome page serves: first launch or an in-workspace sign-in demand. */
+  let welcomePurpose: 'startup' | 'sign-in' = 'startup'
+  /** Settles the renderer's pending `auth.openSignIn` request. */
+  let settleSignInPage: ((outcome: DesktopSignInOutcome) => void) | undefined
+  let pendingSignInPage: Promise<DesktopSignInOutcome> | undefined
+  /** Whether the current sign-in page request settled before its window finished loading. */
+  let signInPageSettled = false
+  /**
+   * Close the welcome sign-in page and hand the workspace back its focus.
+   * Resolves the renderer request exactly once.
+   * @param outcome - the gesture the page ended with.
+   */
+  const finishSignInPage = (outcome: DesktopSignInOutcome): void => {
+    signInPageSettled = true
+    const settle = settleSignInPage
+    settleSignInPage = undefined
+    const window = welcomeWindow
+    if (window !== undefined && !window.isDestroyed()) window.close()
+    if (welcomeWindow === window) welcomeWindow = undefined
+    if (mainWindow !== undefined && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+    settle?.(outcome)
+  }
+  /**
+   * Open the product sign-in page over the running workspace. One page serves
+   * every caller until it settles.
+   * @returns the gesture the page ended with.
+   */
+  const openSignInPage = (): Promise<DesktopSignInOutcome> => {
+    if (quitting || backend.state.phase !== 'ready') return Promise.resolve('dismissed')
+    if (pendingSignInPage !== undefined) {
+      if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) {
+        welcomeWindow.show()
+        welcomeWindow.focus()
+      }
+      return pendingSignInPage
+    }
+    const request = new Promise<DesktopSignInOutcome>((resolve) => {
+      signInPageSettled = false
+      settleSignInPage = resolve
+      showWelcome('sign-in').catch((error: unknown) => {
+        reportFatal(error, 'main')
+        finishSignInPage('dismissed')
+      })
+    })
+    pendingSignInPage = request
+    void request.finally(() => {
+      if (pendingSignInPage === request) pendingSignInPage = undefined
+    })
+    return request
+  }
+  const showWelcome = (purpose: 'startup' | 'sign-in' = 'startup'): Promise<void> => {
+    welcomePurpose = purpose
     if (quitting) return Promise.resolve()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) {
       if (!welcomeWindow.isVisible()) void track('auth_page_view', {})
@@ -1570,15 +1653,32 @@ async function main(): Promise<void> {
           if (backend.host === undefined || welcomeBackend === undefined) return { ok: false }
           const saved = await welcomeBackend.save(apiKey)
           if (!saved.ok) return saved
+          if (welcomePurpose === 'sign-in') {
+            // The workspace reads the stored reference through the Host, so
+            // the page hands control back instead of opening a fresh window.
+            finishSignInPage('credential')
+            return { ok: true }
+          }
           await enterWorkspace()
           return { ok: true }
         },
         iamSignIn: async () => {
+          if (welcomePurpose === 'sign-in') {
+            // The live workspace opens its own in-app login surface; this page
+            // must not reload it, which would drop the pending surface state.
+            finishSignInPage('login')
+            return
+          }
           pendingIamSignIn = true
-          await enterWorkspace({ activate: false })
+          // The workspace now shows the login form itself, so it takes focus
+          // instead of leaving it with the closing welcome page.
+          await enterWorkspace()
         },
-        skip: enterWorkspace,
-      }, true)
+        skip: async () => {
+          if (welcomePurpose === 'sign-in') finishSignInPage('dismissed')
+          else await enterWorkspace()
+        },
+      }, true, oem().brand.showApiKeyEntry)
       const window = welcomeWindow
       window.once('closed', () => {
         void welcomeBackend?.account.state().then((state) => {
@@ -1588,14 +1688,20 @@ async function main(): Promise<void> {
       })
       window.once('closed', () => {
         if (welcomeWindow === window) welcomeWindow = undefined
+        // A workspace sign-in page that closes without a gesture is a dismissal.
+        if (welcomePurpose === 'sign-in') finishSignInPage('dismissed')
         if (enteredWorkspace || recovery.active) return
         // Nothing runs before the workspace opens. macOS keeps the Dock convention and drops the
         // unused main window so the next activation rebuilds the welcome; elsewhere the close quits.
         if (process.platform === 'darwin') mainWindow?.destroy()
         else app.quit()
       })
-      if (isQuitting() || recovery.active || enteredWorkspace) window.close()
-      else mainWindow?.hide()
+      if (isQuitting() || recovery.active || (enteredWorkspace && purpose === 'startup')) window.close()
+      else if (purpose === 'sign-in' && signInPageSettled) {
+        // The request settled while this window was still loading.
+        window.close()
+        if (welcomeWindow === window) welcomeWindow = undefined
+      } else mainWindow?.hide()
     })().finally(() => { openingWelcome = undefined })
     return openingWelcome
   }

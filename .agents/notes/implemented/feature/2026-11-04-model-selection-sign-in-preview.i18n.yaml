@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-04-model-selection-sign-in-preview.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-04-model-selection-sign-in-preview.md
+/agent-note-model-selection-before-sign-in:
+  en: 34459aa9f2f7103c
+  zh: 6545c8eb01a37f88
+/agent-note-model-selection-before-sign-in/problem:
+  en: 45f94e5bae331d46
+  zh: 0495d7f798e0e460
+/agent-note-model-selection-before-sign-in/decision:
+  en: 985d4160fe0618f5
+  zh: 86f46ec0c07ad126
+/agent-note-model-selection-before-sign-in/alternatives-considered:
+  en: 834a3ca15225ad1f
+  zh: ad5e87d0c335436e
+/agent-note-model-selection-before-sign-in/consequences:
+  en: 1daea4d0c5489f09
+  zh: a75c14732531d5fb
+/agent-note-model-selection-before-sign-in/testing:
+  en: 6bcea5567b60b0ca
+  zh: b48d20b18988a03f

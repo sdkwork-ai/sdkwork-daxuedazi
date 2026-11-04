@@ -1,4 +1,16 @@
-/** Synchronous placement for body-portaled panels with a viewport fixed-position containing block. */
+/**
+ * Synchronous placement for body-portaled panels with a viewport fixed-position containing block.
+ *
+ * FORK DIVERGENCE (merge of dsh-v0.2.2-rc.1, upstream fcc0ad4621): upstream
+ * removed this hook and `AnchoredPositionOptions` in favour of CSS anchor
+ * positioning (`docs/upgrade-guide/v0.2.2-alpha.2/css-anchored-menus`). The
+ * fork's own client surfaces (`ui-sdkwork-automation`'s picker and task menu and
+ * `ui-sdkwork-git`'s branch pill) still place custom portaled panels with it,
+ * and CSS anchors would change their behaviour in browsers without anchor
+ * positioning support. Keeping the implementation here — next to the fork-owned
+ * `SubmenuMenu` — lets those consumers keep their existing imports, and the next
+ * upstream sync deletes nothing this file needs.
+ */
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
 import { overlayTopMargin } from './overlay-top-margin.ts'
 
