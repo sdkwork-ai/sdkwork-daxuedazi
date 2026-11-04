@@ -49,6 +49,17 @@ const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
 const NODE = join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe'
   : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron' : 'electron')
 const PNPM = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
+/**
+ * Windows-only runtime patch for the pnpm bundled in the desktop runtime.
+ *
+ * The store registers every project that uses it as `store/v11/projects/<hash>`,
+ * a directory junction on Windows. pnpm 11 removes the previous entry with
+ * `fs.promises.unlink`, which Windows answers with `EPERM` for a reparse point,
+ * so the second `install` in this script aborts before it reads the lockfile.
+ * The patch removes the junction with `rmSync` instead, which unlinks the
+ * reparse point without touching its target.
+ */
+const PNPM_JUNCTION_UNLINK_PATCH = join(import.meta.dirname, 'pnpm-windows-junction-unlink.cjs')
 
 function manifestVersion(path: string, subject: string): string {
   const manifest = JSON.parse(readFileSync(path, 'utf8')) as { version?: unknown }
@@ -83,6 +94,7 @@ function runPnpm(args: readonly string[]): Promise<void> {
     writeFileSync(userConfig, '')
     const child = spawn(NODE, [
       '--expose-internals',
+      ...(process.platform === 'win32' ? ['--require', PNPM_JUNCTION_UNLINK_PATCH] : []),
       PNPM,
       `--config.registry=${registry}`,
       `--config.store-dir=${STORE_ROOT}`,

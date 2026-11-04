@@ -64,6 +64,12 @@
 * 36 个 SDKWork 兄弟仓 pin 一次性前进到各自已推送的 `origin/main`（`sdkwork-appbase` → `1fc30502`），两条 pin 记录逐字一致。
 * `plugins/dsh-im` 子模块跟到 `v5.10.0`（`c826bfa4`）。
 
+#### 发布前依赖与安装期配置（本次发布）
+
+* 32 个 SDKWork 兄弟仓 pin 再次前进到各自 `origin/main` 的最新提交（`sdkwork-iam` → `920b01af`、`sdkwork-web-framework` → `11baa767`、`sdkwork-agents` → `052b9185`、`sdkwork-account` → `e12912b6` 等），`sdkwork-core`、`sdkwork-ui`、`sdkwork-utils`、`sdkwork-appbase`、`sdkwork-catalog`、`sdkwork-database` 已在最新处未动；本地仍由 `pnpm-workspace.yaml` 以 `../sdkwork-*` 相对路径解析，发布车道由 `scripts/sdkwork-sources.manifest.json` 的 pin 克隆同名兄弟仓，两种形态共用同一份 pin 记录。
+* 容器部署的安装期配置全部改为环境变量可覆盖，安装时不必改 Compose 文件：`DSH_WEB_PORT` 同时决定容器内监听端口与发布端口，健康检查读取同一变量；`DSH_PUBLISH_HOST`/`DSH_PUBLISH_PORT` 调整宿主机侧；`DSH_DATA_DIR`/`DSH_WORKSPACE_DIR` 接受宿主路径，把 `/data`、`/workspace` 从托管命名卷改为绑定挂载。`verify-container` 逐项断言这些变量，`release:verify-container-bundle` 在发布包上复核同一套定义。
+* `plugins/dsh-im`（v5.10.0，`c826bfa4`）、`plugins/dsh-mcp-connector`（v0.2.93，`80f61822`）、`plugins/dsh-skill-market`（v2.0.7，`4cda9309`）已在其跟踪分支最新处；`plugins/dsh-better-sidebar` 保持 `bd6cfa5`（v0.29.0）。dev 分支的 v0.30.0 把 DSH 基线抬到 0.2.2-rc.1 并开始使用 `ctx.settings`，但它在 workspace 混合布局下与宿主 vendor Cordis 4.1.0 的 module augmentation 不合并（`Property 'settings' does not exist on type 'Context'`），且其 React 18 的 `RefObject<T>` 用法与宿主的 React 19 类型冲突；插件源码属上游仓库，主仓无法在 CI 侧修正，故本版不采纳，待上游按宿主 toolchain 出包后再跟进。
+
 #### 桌面端品牌身份与开发车道（`3c74f3f3ba`）
 
 * **每个品牌独占一个 loopback Web 端口**：品牌清单新增 `desktop.webPort`（BirdCoder `19387`、学伴AI `19400`），外壳经 `hostWebPort()` 把它交给 Desktop Host（`DSH_DESKTOP_HOST_WEB_PORT`），两个品牌同时安装不再抢同一个监听而启动失败；显式指定端口仍然优先，畸形值原样下传由 Host 自己报错。

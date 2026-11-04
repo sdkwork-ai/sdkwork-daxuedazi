@@ -61,7 +61,7 @@ docker build -t localhost/deepseek-harness:local .
 
 ### Run with Compose
 
-Set `DEEPSEEK_API_KEY` in the shell and optionally set `DSH_TRUSTED_HOSTS` before starting Compose. The direct listener defaults to `127.0.0.1:4080`; change `DSH_PUBLISH_PORT` only when another process already owns that host port. Keep `DSH_PUBLISH_HOST` on loopback unless an authenticated reverse proxy protects the published listener.
+Set `DEEPSEEK_API_KEY` in the shell and optionally set `DSH_TRUSTED_HOSTS` before starting Compose. The direct listener defaults to `127.0.0.1:4080`. The installation-time knobs are environment variables, so a deployment never needs to edit the Compose file: `DSH_PUBLISH_HOST` and `DSH_PUBLISH_PORT` move the host side, `DSH_WEB_PORT` moves the listener inside the container (the healthcheck probes the same variable), and `DSH_DATA_DIR` and `DSH_WORKSPACE_DIR` take a host path to bind-mount `/data` and `/workspace` instead of the managed named volumes. Change `DSH_PUBLISH_PORT` only when another process already owns that host port. Keep `DSH_PUBLISH_HOST` on loopback unless an authenticated reverse proxy protects the published listener.
 
 ```sh
 DEEPSEEK_API_KEY=your-key DSH_TRUSTED_HOSTS=localhost,127.0.0.1 docker compose up -d --no-build --wait --wait-timeout 180
@@ -84,7 +84,7 @@ cd "birdcoder-container-${version}"
 DEEPSEEK_API_KEY=your-key docker compose up -d --wait --wait-timeout 180
 ```
 
-Open `http://127.0.0.1:4080`. The named `dsh-data` volume stores `$DSH_HOME`; `dsh-workspace` stores the default agent workspace. The image health check requests `/`, which is served after the Web profile has mounted.
+Open `http://127.0.0.1:4080`. The named `dsh-data` volume stores `$DSH_HOME`; `dsh-workspace` stores the default agent workspace. Setting `DSH_DATA_DIR` or `DSH_WORKSPACE_DIR` to a host path replaces the corresponding named volume with a bind mount, which is how an installation keeps its data outside Docker's volume root. The image health check requests `/`, which is served after the Web profile has mounted.
 
 ## Kubernetes
 

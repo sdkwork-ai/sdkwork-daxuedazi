@@ -61,7 +61,7 @@ docker build -t localhost/deepseek-harness:local .
 
 ### 使用 Compose 运行
 
-在 shell 中设置 `DEEPSEEK_API_KEY`，并可在启动 Compose 前设置 `DSH_TRUSTED_HOSTS`。直接监听地址默认为 `127.0.0.1:4080`；只有在宿主机已有进程占用该端口时才修改 `DSH_PUBLISH_PORT`。除非已发布的监听地址受到具备身份验证的反向代理保护，否则应让 `DSH_PUBLISH_HOST` 保持在环回地址。
+在 shell 中设置 `DEEPSEEK_API_KEY`，并可在启动 Compose 前设置 `DSH_TRUSTED_HOSTS`。直接监听地址默认为 `127.0.0.1:4080`。安装期可调项全部是环境变量，部署时无需改动 Compose 文件：`DSH_PUBLISH_HOST` 与 `DSH_PUBLISH_PORT` 调整宿主机侧，`DSH_WEB_PORT` 调整容器内监听端口（健康检查读取同一变量），`DSH_DATA_DIR` 与 `DSH_WORKSPACE_DIR` 接受宿主路径，把 `/data` 与 `/workspace` 改为绑定挂载、不再使用托管命名卷。只有在宿主机已有进程占用该端口时才修改 `DSH_PUBLISH_PORT`。除非已发布的监听地址受到具备身份验证的反向代理保护，否则应让 `DSH_PUBLISH_HOST` 保持在环回地址。
 
 ```sh
 DEEPSEEK_API_KEY=your-key DSH_TRUSTED_HOSTS=localhost,127.0.0.1 docker compose up -d --no-build --wait --wait-timeout 180
@@ -84,7 +84,7 @@ cd "birdcoder-container-${version}"
 DEEPSEEK_API_KEY=your-key docker compose up -d --wait --wait-timeout 180
 ```
 
-打开 `http://127.0.0.1:4080`。命名卷 `dsh-data` 保存 `$DSH_HOME`；`dsh-workspace` 保存默认 agent（智能体）的工作区。镜像健康检查请求 `/`，Web profile 挂载完成后该路径才会提供服务。
+打开 `http://127.0.0.1:4080`。命名卷 `dsh-data` 保存 `$DSH_HOME`；`dsh-workspace` 保存默认 agent（智能体）的工作区。把 `DSH_DATA_DIR` 或 `DSH_WORKSPACE_DIR` 设为宿主路径，就会用绑定挂载替代对应的命名卷，这也是安装时把数据放在 Docker 卷根目录之外的方式。镜像健康检查请求 `/`，Web profile 挂载完成后该路径才会提供服务。
 
 ## Kubernetes
 
