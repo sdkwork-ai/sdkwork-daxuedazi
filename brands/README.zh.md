@@ -46,7 +46,7 @@
 
 `parseBrandManifest` 拒绝畸形取值与上游身份（`~/.dsh`、`DeepSeek Harness`、scheme 与命令 `dsh`、`com.deepseek.harness`）。拼写错误会让构建失败，而不是静默地把一个应用的数据拆到两个 home。`desktop.webPort` 接受 1024 到 65527，因为整个[端口块](#ports)都必须可用；取值不给端口块留空间的属于构建错误，而不是让某条通道落到被截断的端口上。
 
-`desktop.protocol` 同时承载 SDKWork IAM 浏览器登录回调：更换该 scheme 的 OEM 品牌必须在其 OEM profile 中把 `sdkwork.iamRedirectUri` 设为 `<scheme>://auth/callback`（见[OEM profile](../packages/host/sdkwork-oem/README.zh.md)），因为打包外壳只能接收操作系统已登记 scheme 的 URL。
+`desktop.protocol` 同时承载 SDKWork IAM 浏览器登录回调：更换该 scheme 的 OEM 品牌必须在其 OEM profile 中把 `sdkwork.iamRedirectUri` 设为 `<scheme>://auth/callback`（见[OEM profile](../packages/host/sdkwork-oem/README.zh.md)），因为打包外壳只能接收操作系统已登记 scheme 的 URL。OAuth 客户端 id 默认取同一个 scheme，因此租户为每个安装品牌注册各自的公共客户端，不会复用其他品牌的。
 
 <a id="ports"></a>
 

@@ -16,8 +16,8 @@ export const DEFAULT_BRAND_NAME = '学伴AI'
 export const DEFAULT_IAM_BASE_URL = 'https://api.birdcoder.com'
 /** Hosted SDKWork IAM authorization origin shipped when the page carries no OEM projection. */
 export const DEFAULT_IAM_AUTHORIZE_BASE_URL = 'https://platform.birdcoder.com'
-/** OAuth client the desktop browser login presents when the page carries no OEM projection. */
-export const DEFAULT_IAM_CLIENT_ID = 'birdcoder'
+/** OAuth client the desktop browser login presents when the page carries no OEM projection: the shipped brand's deep-link scheme. */
+export const DEFAULT_IAM_CLIENT_ID = 'daxuedazi'
 /** Deep-link callback the hosted IAM login returns through when the page carries no OEM projection. */
 export const DEFAULT_IAM_REDIRECT_URI = 'daxuedazi://auth/callback'
 

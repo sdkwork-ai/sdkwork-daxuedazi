@@ -80,6 +80,13 @@ it('fails when the OEM IAM callback leaves the shipped brand scheme', () => {
   expect(verifyOemIdentity(root).failures.some(failure => failure.includes('sdkwork-oem/src/config.ts'))).toBe(true)
 })
 
+it('fails when the OEM IAM client stops naming the shipped brand', () => {
+  const root = fixture()
+  edit(root, 'packages/client/ui-primitives/src/oem-brand.ts',
+    text => text.replace("DEFAULT_IAM_CLIENT_ID = 'daxuedazi'", "DEFAULT_IAM_CLIENT_ID = 'birdcoder'"))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('OAuth client'))).toBe(true)
+})
+
 it('fails when the uninstaller targets another brand data directory', () => {
   const root = fixture()
   edit(root, 'apps/desktop/installer/uninstall.nsh',

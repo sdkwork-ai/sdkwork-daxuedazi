@@ -37,7 +37,7 @@ IAM baseUrl 与租户应用 id 来自共享的 [ui-sdkwork-env](../ui-sdkwork-en
 
 页面内的 sdkwork 认证表面位于产品登录入口之后，是它的账号登录方式表单。它提供 IAM 租户支持的账号登录方式——密码、手机验证码、邮箱验证码与扫码（`qrLoginEnabled` 设置，默认开启）——并通过共享 TokenStore 提交每一次成功登录，把双 Token 会话经 `sdkworkDesktop.iamSession` 桥镜像到 `<DSH_HOME>/iam/session.json`。后续启动会恢复该会话，因此已登录用户不再看到登录界面，触发登录的操作直接继续。
 
-托管浏览器登录是桌面端出厂的登录手势，它要求租户应用完成 OAuth relying party 注册：`runtimeConfig.oauth.relyingParty` 中 `clientId: birdcoder`、`redirectUris: ["birdcoder://auth/callback"]`、`confidential: false`，以及 `openid profile email offline_access` scope。`agent.app.config.json` 已经声明了这一块，租户通过 PC 管理端的 relying party 界面或应用清单把它应用上去。未注册的租户会让 `<iamAuthorizeBaseUrl>/iam/v3/oauth/authorize` 返回 `invalid_client`，而该页面在应用之外，工作区无法检测或修复它——这类部署在注册落地前应设置 `signInMethod: modal`。注册完成后，卡片能观察到的只有启动失败，此时显示重试。该流程依赖标准 `sdkworkDesktop` preload 桥（`deepLinks` / `shellOpen`），待处理的 PKCE 流程保存在页面内存中，因此若回调启动的是全新进程，则没有待处理流程，该启动回调只被消费一次并被静默忽略，不会把登录界面留在失败状态。重定向 scheme 是桌面品牌自己的 URL scheme，由打包外壳向操作系统注册处理器（BirdCoder 品牌出厂为 `birdcoder://auth/callback`，学伴AI 品牌为 `daxuedazi://auth/callback`），因此品牌定制构建应从各自的 OEM profile 覆盖 `sdkwork.iamRedirectUri`；授权路径、参数与深链结构保持上游一致。
+托管浏览器登录是桌面端出厂的登录手势，它要求租户应用完成 OAuth relying party 注册：`runtimeConfig.oauth.relyingParty` 中 `clientId: daxuedazi`、`redirectUris: ["daxuedazi://auth/callback"]`、`confidential: false`，以及 `openid profile email offline_access` scope。`agent.app.config.json` 已经声明了这一块，租户通过 PC 管理端的 relying party 界面或应用清单把它应用上去。未注册的租户会让 `<iamAuthorizeBaseUrl>/iam/oauth/authorize` 返回 `invalid_client`，而该页面在应用之外，工作区无法检测或修复它——这类部署在注册落地前应设置 `signInMethod: modal`。待处理流程有截止时间，浏览器端的授权或完成失败会通过同一个 deep link 回传（`error` + `error_description` + `state`），交接卡片因此能显示失败并重试，而不是一直等到超时。兑换会携带稳定的安装级 device id，新登录只替换该设备在同一应用下的旧会话：完成授权的浏览器会话和用户的其他设备保持登录。该流程依赖标准 `sdkworkDesktop` preload 桥（`deepLinks` / `shellOpen`）。待处理的 PKCE 流程持久化在渲染进程存储中（仅 verifier 与 state，兑换成功或过期即清除），因此浏览器登录在桌面应用退出后才完成时，deep link 重新拉起应用仍能完成登录；没有待处理流程的回调会被忽略，而不是报成登录失败。重定向 scheme 是桌面品牌自己的 URL scheme，由打包外壳向操作系统注册处理器；OAuth 客户端 id 默认就是该 scheme（profile 未声明 `sdkwork.iamClientId` 时由 `sdkwork.iamRedirectUri` 派生），因此品牌定制构建只改 profile，客户端与回调一起跟随品牌；授权路径、参数与深链结构保持上游一致。
 
 `ui-sdkwork-iam` 设置命名空间（host 侧注册在本包 node half，通过 api-proxy 的产品命名空间列表暴露给浏览器）只保留展示与登录开关：
 
@@ -48,7 +48,7 @@ IAM baseUrl 与租户应用 id 来自共享的 [ui-sdkwork-env](../ui-sdkwork-en
 | `qrLoginEnabled` | `true` | 认证表面是否提供扫码登录 |
 | `oauthLoginEnabled` | `false` | 认证表面是否提供 OAuth 登录 |
 
-会话持久化在 `localStorage` 的 `dsh.iam.session` 键下，环境报告已配置的 baseUrl 后于启动时恢复。桌面外壳还通过 `sdkworkDesktop.iamSession` 桥把同一份完整会话镜像到 `<DSH_HOME>/iam/session.json`（authToken、accessToken、可轮换的 refreshToken、sessionId、user 与 AppContext），以仅属主可读的权限原子写入；浏览器本地副本缺失时从该文件恢复，而持久化写入失败的提交会被拒绝，不会把无法跨启动的登录报告为成功。验证码登录方式默认隐藏（harness 的 app 客户端不提供消息验证码 API）；在后端策略允许时注册与找回密码无需验证码，页面也遵循后端获取到的策略。
+会话持久化在桌面外壳的操作系统加密副本中（操作系统提供密钥库时使用 Electron `safeStorage`，位于 `<DSH_HOME>/iam/session.json`，仅属主可读、原子写入）；纯浏览器页面没有系统密钥库，使用 `localStorage` 的 `dsh.iam.session` 键。桌面端刻意不再把 token 镜像到 `localStorage`，旧的本地副本会迁移一次并删除。桌面副本包含完整会话（authToken、accessToken、可轮换的 refreshToken、sessionId、user 与 AppContext）；持久化写入失败的提交会被拒绝，不会把无法跨启动的登录报告为成功。验证码登录方式默认隐藏（harness 的 app 客户端不提供消息验证码 API）；在后端策略允许时注册与找回密码无需验证码，页面也遵循后端获取到的策略。
 
 ## 实现说明
 
@@ -69,7 +69,7 @@ IAM baseUrl 与租户应用 id 来自共享的 [ui-sdkwork-env](../ui-sdkwork-en
 
 - **验证码登录**——邮箱/手机验证码登录与需要验证的注册依赖消息验证码 API；harness app 客户端未暴露它，因此这些方式被隐藏或呈现后端策略的要求。
 - **扫码与 OAuth 登录**——默认关闭；启用需要后端特性与提供方目录。
-- **浏览器登录需要租户完成 relying party 注册**——`signInMethod: browser` 打开租户托管授权页，在租户应用 `agent.app.config.json` 里的 `oauth.relyingParty`（`clientId: birdcoder`、`redirectUris: ["birdcoder://auth/callback"]`）被应用之前，该页会返回 `invalid_client`；浏览器显示该错误文档，而应用观察不到它，因此未应用该配置的租户应设置 `signInMethod: modal`。
+- **浏览器登录需要租户完成 relying party 注册**——`signInMethod: browser` 打开租户托管授权页，在租户应用 `agent.app.config.json` 里的 `oauth.relyingParty`（`clientId: daxuedazi`、`redirectUris: ["daxuedazi://auth/callback"]`）被应用之前，该页会返回 `invalid_client`；浏览器显示该错误文档，而应用观察不到它，因此未应用该配置的租户应设置 `signInMethod: modal`。
 - **单一个人会话**——组织/登录上下文选择挑战会呈现 sdkwork 对话框，但 harness 没有租户管理；多租户流程未经测试。
 
 ### 开发备注

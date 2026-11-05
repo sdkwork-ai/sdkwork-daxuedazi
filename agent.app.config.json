@@ -39,9 +39,9 @@
   "oauth": {
     "relyingParty": {
       "enabled": true,
-      "clientId": "birdcoder",
+      "clientId": "daxuedazi",
       "redirectUris": [
-        "birdcoder://auth/callback"
+        "daxuedazi://auth/callback"
       ],
       "allowedScopes": [
         "openid",

@@ -254,7 +254,7 @@ function checkShell(root: string, brand: DesktopBrand | undefined, failures: str
 }
 
 /**
- * Check the OEM IAM callback keeps the shipped brand's URL scheme.
+ * Check the OEM IAM callback and client keep the shipped brand's URL scheme.
  * @param root - Repository root.
  * @param brand - Parsed shipped manifest.
  * @param failures - Receives every default that drifted from the brand protocol.
@@ -270,6 +270,12 @@ function checkIamCallback(root: string, brand: DesktopBrand | undefined, failure
     const uri = match[1] ?? ''
     if (!uri.startsWith(`${brand.desktop.protocol}://`)) {
       failures.push(`oem identity: ${path} ships ${JSON.stringify(uri)}; the scheme must be the desktop brand's ${JSON.stringify(brand.desktop.protocol)} or the packaged login callback never arrives`)
+    }
+    const client = /DEFAULT_IAM_CLIENT_ID\s*=\s*'([^']+)'/u.exec(read(root, path))
+    if (client === null) {
+      failures.push(`oem identity: ${path} no longer declares DEFAULT_IAM_CLIENT_ID`)
+    } else if (client[1] !== brand.desktop.protocol) {
+      failures.push(`oem identity: ${path} ships OAuth client ${JSON.stringify(client[1])}; it must be the desktop brand's ${JSON.stringify(brand.desktop.protocol)} so a tenant registers one public client per brand`)
     }
   }
 }

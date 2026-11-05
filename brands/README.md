@@ -64,7 +64,9 @@ build error rather than a lane that starts on a truncated port.
 brand that changes it must set `sdkwork.iamRedirectUri` in its OEM profile to
 `<scheme>://auth/callback` (see
 [the OEM profile](../packages/host/sdkwork-oem/README.md)), because the packaged
-shell can only receive schemes the operating system was told about.
+shell can only receive schemes the operating system was told about. The OAuth
+client id defaults to that same scheme, so the tenant registers one public
+client per installed brand instead of reusing another brand's.
 
 ## Ports
 

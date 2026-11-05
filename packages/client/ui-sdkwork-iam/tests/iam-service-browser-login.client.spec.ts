@@ -144,8 +144,8 @@ describe('IamService desktop browser login', () => {
     const service = new IamService(scopeOf(), envOf('https://env.example'), layoutOf())
     await service.beginBrowserSignIn()
     expect(createIamDesktopLogin).toHaveBeenCalledWith(expect.objectContaining({
-      clientId: 'birdcoder',
-      redirectUri: 'birdcoder://auth/callback',
+      clientId: 'daxuedazi',
+      redirectUri: 'daxuedazi://auth/callback',
       authorizeBaseUrl: 'https://platform.oem.test',
       baseUrl: 'https://api.oem.test',
     }))

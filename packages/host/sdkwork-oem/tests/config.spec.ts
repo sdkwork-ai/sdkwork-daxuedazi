@@ -49,7 +49,7 @@ describe('resolveOemConfig', () => {
       sdkwork: {
         iamBaseUrl: 'https://api.birdcoder.com',
         iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',
-        iamClientId: 'birdcoder',
+        iamClientId: 'daxuedazi',
         iamRedirectUri: 'daxuedazi://auth/callback',
       },
       deepseek: {
@@ -186,7 +186,7 @@ describe('resolveOemConfig', () => {
     expect(config.sdkwork).toEqual({
       iamBaseUrl: 'https://iam.acme.test',
       iamAuthorizeBaseUrl: 'https://platform.acme.test',
-      iamClientId: 'birdcoder',
+      iamClientId: 'daxuedazi',
       iamRedirectUri: 'daxuedazi://auth/callback',
     })
     expect(() => resolveOemConfig({ sdkwork: { iamBaseUrl: 'http://iam.acme.test' } }))
@@ -206,6 +206,20 @@ describe('resolveOemConfig', () => {
     // The API tenant identity is a different key: repointing the OAuth client
     // must not move the `ui-sdkwork-env` app id the generated client reports.
     expect(config.sdkwork.iamBaseUrl).toBe('https://api.birdcoder.com')
+  })
+
+  it('names the OAuth client after the deep-link scheme when no id is declared', () => {
+    const config = resolveOemConfig({ sdkwork: { iamRedirectUri: 'acme://auth/callback' } })
+    expect(config.sdkwork.iamClientId).toBe('acme')
+    expect(config.sdkwork.iamRedirectUri).toBe('acme://auth/callback')
+  })
+
+  it('requires an explicit OAuth client id when the callback scheme cannot name one', () => {
+    expect(() => resolveOemConfig({ sdkwork: { iamRedirectUri: 'acme+desktop://auth/callback' } }))
+      .toThrow(/sdkwork\.iamClientId/)
+    expect(resolveOemConfig({
+      sdkwork: { iamClientId: 'acme-coder', iamRedirectUri: 'acme+desktop://auth/callback' },
+    }).sdkwork.iamClientId).toBe('acme-coder')
   })
 
   it('rejects an unusable OAuth client id or deep-link callback', () => {
@@ -414,7 +428,7 @@ describe('oemBootConfig', () => {
       sdkwork: {
         iamBaseUrl: 'https://api.birdcoder.com',
         iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',
-        iamClientId: 'birdcoder',
+        iamClientId: 'daxuedazi',
         iamRedirectUri: 'daxuedazi://auth/callback',
       },
     })

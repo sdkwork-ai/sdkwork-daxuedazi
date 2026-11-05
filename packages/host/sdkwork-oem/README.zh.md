@@ -25,7 +25,7 @@ OEM 部署保留 DeepSeek 官方登录验证流程，只替换其运行的域名
 
 SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数结构与 `X-Platform: pc` 请求头；`sdkwork.iamBaseUrl` 只替换源。
 
-桌面浏览器登录保持 SDKWork 契约：应用打开 `<iamAuthorizeBaseUrl>/iam/v3/oauth/authorize`，携带 PKCE S256、`client_id=sdkwork.iamClientId`、`redirect_uri=sdkwork.iamRedirectUri`、`scope=openid profile offline_access` 与 state。托管页在 `/auth/desktop/launch?redirectUrl=…` 完成，并通过深链把 code 交回应用；应用在 `/app/v3/api/oauth/desktop_sessions` 兑换双 token 会话。出厂默认值为 `birdcoder` 与 `daxuedazi://auth/callback`；部署若在 IAM 控制台注册了其他 OAuth 客户端或回调，只需改这两个字段，无需改代码。授权路径与参数保持上游原样。重定向 scheme 必须是桌面应用的 URL scheme（品牌清单的 `desktop.protocol`，出厂品牌为 `daxuedazi`）：打包外壳以该 scheme 向操作系统注册协议处理器，HTTP(S) 重定向永远到不了应用。
+桌面浏览器登录保持 SDKWork 契约：应用打开 `<iamAuthorizeBaseUrl>/iam/v3/oauth/authorize`，携带 PKCE S256、`client_id=sdkwork.iamClientId`、`redirect_uri=sdkwork.iamRedirectUri`、`scope=openid profile offline_access` 与 state。托管页在 `/auth/desktop/launch?redirectUrl=…` 完成，并通过深链把 code 交回应用；应用在 `/app/v3/api/oauth/desktop_sessions` 兑换双 token 会话。出厂默认值就是当前品牌自己的 scheme（`daxuedazi` 与 `daxuedazi://auth/callback`）；profile 未声明 `sdkwork.iamClientId` 时由回调 scheme 派生，构建不会冒用其他品牌的客户端。部署若在 IAM 控制台注册了其他 OAuth 客户端或回调，只需改这两个字段，无需改代码。授权路径与参数保持上游原样。重定向 scheme 必须是桌面应用的 URL scheme（品牌清单的 `desktop.protocol`，出厂品牌为 `daxuedazi`）：打包外壳以该 scheme 向操作系统注册协议处理器，HTTP(S) 重定向永远到不了应用。
 
 ## 配置
 
@@ -76,8 +76,8 @@ SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数�
 | `application.origins` | `["https://birdcoder.com"]` | 本部署对外提供 Web 应用的源；浏览器登录回调必须命中其中之一。回环地址仍供 Desktop 与本地使用 |
 | `sdkwork.iamBaseUrl` | `https://api.birdcoder.com` | SDKWork IAM PC 登录客户端的 app-api 源。生成的路径（`/app/v3/api/auth/...`）与 `X-Platform: pc` 请求头保持不变，只替换域名。非默认值会在所有环境层级替换 `ui-sdkwork-env` profile 的源；默认值则让环境 profile 继续生效 |
 | `sdkwork.iamAuthorizeBaseUrl` | `https://platform.birdcoder.com` | 桌面浏览器登录使用的托管 IAM 授权源。应用打开 `<origin>/iam/v3/oauth/authorize`；登录页保持 `/auth/...` 路径，并通过 `sdkwork.iamRedirectUri` 深链返回 |
-| `sdkwork.iamClientId` | `birdcoder` | 托管授权作为 `client_id` 收到的 OAuth 客户端 id。与 `ui-sdkwork-env` 的 app id（仍是 API 租户键）相互独立。必须与 IAM 控制台注册的公共客户端一致；允许小写字母、数字、`.`、`_`、`-` |
-| `sdkwork.iamRedirectUri` | `daxuedazi://auth/callback` | 托管登录返回时使用的已注册深链回调。必须是无凭据、查询与片段的自定义 scheme 绝对 URI，且 scheme 必须是桌面品牌的 `desktop.protocol` |
+| `sdkwork.iamClientId` | `daxuedazi` | 托管授权作为 `client_id` 收到的 OAuth 客户端 id。与 `ui-sdkwork-env` 的 app id（仍是 API 租户键）相互独立。未声明时取 `sdkwork.iamRedirectUri` 的 scheme（即当前安装品牌），构建不会冒用其他品牌的客户端；仅当控制台注册了别的 id 时才显式声明。必须与 IAM 控制台注册的公共客户端一致；允许小写字母、数字、`.`、`_`、`-` |
+| `sdkwork.iamRedirectUri` | `daxuedazi://auth/callback` | 托管登录返回时使用的已注册深链回调。必须是无凭据、查询与片段的自定义 scheme 绝对 URI，且 scheme 必须是桌面品牌的 `desktop.protocol`；该 scheme 同时是默认 OAuth 客户端 id |
 | `deepseek.platformOrigin` | `https://platform.birdcoder.com` | 登录、账号、用量与充值页面域名 |
 | `deepseek.inferenceOrigin` | `https://api.birdcoder.com` | 账号路由的模型与文件域名；同时派生搜索基址 |
 | `deepseek.allowLoopbackHttp` | `false` | 允许回环 HTTP（仅开发） |

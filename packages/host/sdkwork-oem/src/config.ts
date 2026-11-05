@@ -38,14 +38,20 @@ export const DEFAULT_APPLICATION_ORIGINS: readonly string[] = Object.freeze(['ht
 export const DEFAULT_IAM_BASE_URL = 'https://api.birdcoder.com'
 /** Hosted SDKWork IAM authorization origin shipped for production. */
 export const DEFAULT_IAM_AUTHORIZE_BASE_URL = 'https://platform.birdcoder.com'
-/** OAuth client the desktop browser login presents; the tenant IAM application registers it. */
-export const DEFAULT_IAM_CLIENT_ID = 'birdcoder'
 /**
  * Deep-link callback the hosted SDKWork IAM login returns through. Its scheme is
  * the desktop application's registered URL scheme (`desktop.protocol` in the
  * brand manifest), so a brand declares the handler and this URI names the path.
  */
 export const DEFAULT_IAM_REDIRECT_URI = 'daxuedazi://auth/callback'
+/**
+ * OAuth client the desktop browser login presents without a profile value: the
+ * deep-link scheme of {@link DEFAULT_IAM_REDIRECT_URI}, which is the installed
+ * brand the tenant registers. A profile that repoints `sdkwork.iamRedirectUri`
+ * carries that brand's scheme into the client id as well, unless it names an
+ * explicit `sdkwork.iamClientId`.
+ */
+export const DEFAULT_IAM_CLIENT_ID = 'daxuedazi'
 
 /** Service domains per SDKWork lifecycle. */
 const ENVIRONMENT_ORIGINS: Readonly<Record<OemEnvironment, {
@@ -120,7 +126,7 @@ export interface OemSdkworkConfig {
   readonly iamBaseUrl: string
   /**
    * Hosted IAM authorization origin for the desktop browser-login flow. The
-   * app appends `/iam/v3/oauth/authorize`; the hosted login pages keep their
+   * app appends the versionless `/iam/oauth/authorize`; the hosted login pages keep their
    * `/auth/...` paths and deep-link completion.
    */
   readonly iamAuthorizeBaseUrl: string
@@ -128,6 +134,8 @@ export interface OemSdkworkConfig {
    * OAuth client id the hosted authorization receives. The tenant IAM
    * application registers it together with {@link iamRedirectUri}; it is
    * independent of the `ui-sdkwork-env` app id, which stays the API tenant key.
+   * A profile that omits `sdkwork.iamClientId` derives it from the deep-link
+   * scheme, so the client is always named after the installed brand.
    */
   readonly iamClientId: string
   /**
@@ -385,22 +393,51 @@ function explicitOrDefault(
 const IAM_CLIENT_ID_PATTERN = /^[a-z][a-z0-9._-]{0,63}$/u
 
 /**
+ * Derive the OAuth client id from a validated deep-link callback.
+ *
+ * The tenant registers one public client per installed brand, named after the
+ * brand's URL scheme, so the callback's scheme is the client id. A scheme the
+ * IAM registry cannot accept (`+`, a leading digit, more than 64 characters)
+ * leaves the id undeclared: the caller reports it instead of registering
+ * another brand's client behind the deployment's back.
+ * @param redirectUri - validated `sdkwork.iamRedirectUri`.
+ * @returns the scheme, or undefined when it cannot be an OAuth client id.
+ */
+function iamClientIdFromRedirect(redirectUri: string): string | undefined {
+  const scheme = new URL(redirectUri).protocol.slice(0, -1)
+  return IAM_CLIENT_ID_PATTERN.test(scheme) ? scheme : undefined
+}
+
+/**
  * Resolve the OAuth client id the desktop login presents.
  *
- * The id is deliberately not derived from the API tenant app id: the hosted
- * IAM registers its own public OAuth client, and a deployment repoints it
- * here without touching the tenant identity the API headers carry.
- * @param value - declared profile value, or undefined for the shipped default.
+ * The id defaults to the deep-link scheme the same profile declares, so a brand
+ * never ships a client named after another brand; the hosted IAM registers its
+ * own public OAuth client, and a deployment repoints it here without touching
+ * the tenant identity the API headers carry.
+ * @param value - declared profile value, or undefined to derive it from the callback.
+ * @param redirectUri - validated `sdkwork.iamRedirectUri` the profile declares.
  * @param where - field path named in validation errors.
  * @returns the validated client id.
- * @throws Error when the value is not a usable lower-case client id.
+ * @throws Error when the value is not a usable lower-case client id, or the
+ *   callback's scheme cannot name one and no explicit id is declared.
  */
-function iamClientId(value: string | undefined, where: string): string {
-  const text = (value ?? DEFAULT_IAM_CLIENT_ID).trim()
-  if (!IAM_CLIENT_ID_PATTERN.test(text)) {
-    throw new Error(`oem: ${where} must be a lower-case OAuth client id of at most 64 characters`)
+function iamClientId(value: string | undefined, redirectUri: string, where: string): string {
+  if (value !== undefined) {
+    const declared = value.trim()
+    if (!IAM_CLIENT_ID_PATTERN.test(declared)) {
+      throw new Error(`oem: ${where} must be a lower-case OAuth client id of at most 64 characters`)
+    }
+    return declared
   }
-  return text
+  const derived = iamClientIdFromRedirect(redirectUri)
+  if (derived === undefined) {
+    throw new Error(
+      `oem: ${where} must be declared because the deep-link scheme of sdkwork.iamRedirectUri`
+      + ' cannot be an OAuth client id',
+    )
+  }
+  return derived
 }
 
 /**
@@ -497,6 +534,10 @@ export function resolveOemConfig(
   const declaredInference = optionalString(deepseek, 'inferenceOrigin', 'deepseek.inferenceOrigin')
   const declaredAuthorize = optionalString(sdkwork, 'iamAuthorizeBaseUrl', 'sdkwork.iamAuthorizeBaseUrl')
   const declaredIamBase = optionalString(sdkwork, 'iamBaseUrl', 'sdkwork.iamBaseUrl')
+  const redirectUri = iamRedirectUri(
+    optionalString(sdkwork, 'iamRedirectUri', 'sdkwork.iamRedirectUri'),
+    'sdkwork.iamRedirectUri',
+  )
   if (environment !== 'production') {
     const productionEndpoint = (value: string | undefined, field: string): void => {
       if (value === undefined) return
@@ -583,12 +624,10 @@ export function resolveOemConfig(
       ),
       iamClientId: iamClientId(
         optionalString(sdkwork, 'iamClientId', 'sdkwork.iamClientId'),
+        redirectUri,
         'sdkwork.iamClientId',
       ),
-      iamRedirectUri: iamRedirectUri(
-        optionalString(sdkwork, 'iamRedirectUri', 'sdkwork.iamRedirectUri'),
-        'sdkwork.iamRedirectUri',
-      ),
+      iamRedirectUri: redirectUri,
     },
     deepseek: {
       platformOrigin,

@@ -7,6 +7,7 @@
 
 import {
   createSdkworkIamRuntimeAuthController,
+  scheduleSdkworkAuthSessionRefresh,
   type SdkworkAuthController,
   type SdkworkAuthRuntimeConfig,
 } from '@sdkwork/auth-pc-react'
@@ -48,8 +49,35 @@ import {
 
 /** The localStorage key owning the durable IAM session blob. */
 const IAM_SESSION_STORAGE_KEY = 'dsh.iam.session'
+/** Stable per-install identity that scopes the desktop session. */
+const IAM_DEVICE_ID_STORAGE_KEY = 'dsh.iam.deviceId'
 /** Page global the Desktop welcome uses to request the IAM browser login. */
 const IAM_SIGN_IN_GLOBAL = '__DSH_IAM_SIGN_IN__'
+
+/**
+ * Read or create the stable opaque device identity used for desktop logins.
+ *
+ * The identity is per install, not per login: redeeming a new code on the
+ * same install replaces that install's previous session, while a second
+ * install keeps its session. Storage failures fall back to no identity, which
+ * preserves the previous "one session per application" behavior.
+ * @returns the stored device id, or undefined when storage is unavailable.
+ */
+function readOrCreateIamDeviceId(): string | undefined {
+  try {
+    const storage = globalThis.localStorage
+    if (storage === undefined) return undefined
+    const existing = storage.getItem(IAM_DEVICE_ID_STORAGE_KEY)?.trim()
+    if (existing !== undefined && existing !== '') return existing
+    const generated = typeof globalThis.crypto?.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`
+    storage.setItem(IAM_DEVICE_ID_STORAGE_KEY, generated)
+    return generated
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * Resolve the IAM app-api origin the generated client dispatches against.
@@ -638,7 +666,8 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
     const authorizeBaseUrl = readOemIamAuthorizeBaseUrl() ?? DEFAULT_IAM_AUTHORIZE_BASE_URL
     const clientId = readOemIamClientId() ?? DEFAULT_IAM_CLIENT_ID
     const redirectUri = readOemIamRedirectUri() ?? DEFAULT_IAM_REDIRECT_URI
-    const key = `${baseUrl}\u0000${authorizeBaseUrl}\u0000${clientId}\u0000${redirectUri}`
+    const deviceId = readOrCreateIamDeviceId()
+    const key = `${baseUrl}\u0000${authorizeBaseUrl}\u0000${clientId}\u0000${redirectUri}\u0000${deviceId ?? ''}`
     if (this.desktopLogin === undefined || this.desktopLoginKey !== key) {
       this.desktopLogin?.dispose()
       const login = createIamDesktopLogin({
@@ -648,6 +677,7 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
         baseUrl,
         tokenManager: this.tokenManager,
         bridge,
+        ...(deviceId === undefined ? {} : { deviceId }),
         onSession: session => this.commitDesktopSession(session),
         onError: () => {
           this.desktopFailed = true
@@ -672,6 +702,13 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
       ...(session.user === undefined || session.user === null ? {} : { user: desktopSessionUser(session.user) }),
     }
     await this.tokenStore.set(stored)
+    try {
+      // The browser exchange commits outside the auth service, so schedule the
+      // same pre-expiry refresh the service normally owns.
+      scheduleSdkworkAuthSessionRefresh(this.readRuntime(), stored)
+    } catch {
+      // Scheduling is best-effort; the next bootstrap schedules again.
+    }
     this.applyPersistedSession(stored)
     this.syncTokenManagerFromEnvOrSession()
     this.desktopFailed = false
