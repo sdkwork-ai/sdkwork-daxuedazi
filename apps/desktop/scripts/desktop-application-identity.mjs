@@ -139,23 +139,45 @@ export function writePackagedUpdaterCacheDir(resourcesDir, cacheDirName) {
 }
 
 /**
- * Assert that a packaged application carries the identity its packaging lane
- * intends, and that the shipped product owns its own updater cache.
+ * Read the publish provider the packaged updater configuration names.
  *
- * Both halves are verified on the artifact: the manifest is what Electron reads
+ * The file electron-builder and the macOS lane write is flat YAML, so one pass
+ * over `key: value` lines reads the fields the update feed depends on.
+ * @param resourcesDir - `<appOutDir>/resources` for the packed application.
+ * @returns {{ provider: string | undefined, owner: string | undefined, repo: string | undefined } | undefined} Feed fields, or undefined when the shell ships no updater configuration.
+ */
+export function readPackagedUpdateFeed(resourcesDir) {
+  const file = join(resourcesDir, 'app-update.yml')
+  if (!existsSync(file)) return undefined
+  const fields = new Map()
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const match = /^([A-Za-z]+):\s*(.*)$/u.exec(line.trim())
+    if (match === null) continue
+    fields.set(match[1], match[2].trim().replace(/^(['"])(.*)\1$/u, '$2'))
+  }
+  return { provider: fields.get('provider'), owner: fields.get('owner'), repo: fields.get('repo') }
+}
+
+/**
+ * Assert that a packaged application carries the identity its packaging lane
+ * intends, that the shipped product owns its own updater cache, and that a
+ * GitHub update feed names the brand's own release repository.
+ *
+ * All halves are verified on the artifact: the manifest is what Electron reads
  * for `app.name` and every path derived from it, and the packaged
- * `app-update.yml` is what electron-updater reads for the updater cache.
- * electron-builder's own `AppInfo.updaterCacheDirName` is not consulted — it folds
- * the scoped package `name` (which this fork shares with upstream) into
- * `@deepseek-aidsh-desktop-updater` regardless of the product name, so a lane that
- * trusted it would either fail every build or pass a cache directory the artifact
- * does not carry. A shell without a packaged updater configuration runs a
- * disabled updater and owns no cache directory, so the cache half applies only
- * when one ships. A lane that changes one without the other ships a shell whose
- * userData, single-instance lock and logs belong to another application.
+ * `app-update.yml` is what electron-updater reads for the updater cache and the
+ * `latest.yml` it fetches. electron-builder's own `AppInfo.updaterCacheDirName`
+ * is not consulted — it folds the scoped package `name` (which this fork shares
+ * with upstream) into `@deepseek-aidsh-desktop-updater` regardless of the
+ * product name, so a lane that trusted it would either fail every build or pass
+ * a cache directory the artifact does not carry. A shell without a packaged
+ * updater configuration runs a disabled updater and owns no cache directory, so
+ * the cache half applies only when one ships. A lane that changes one without
+ * the other ships a shell whose userData, single-instance lock and logs belong
+ * to another application, or whose updater installs another product's release.
  *
  * @param resourcesDir - `<appOutDir>/resources` for the packed application.
- * @param application - Product name the packaging lane resolved for this build.
+ * @param application - Product name, updater cache directory and release repository the packaging lane resolved for this build.
  */
 export function verifyPackagedApplicationIdentity(resourcesDir, application) {
   const manifest = JSON.parse(readAsarEntry(join(resourcesDir, 'app.asar'), 'package.json').toString('utf8'))
@@ -173,5 +195,15 @@ export function verifyPackagedApplicationIdentity(resourcesDir, application) {
     throw new Error('desktop application identity: the packaged updater configuration names the cache directory '
       + `${JSON.stringify(updaterCacheDirName)}; expected ${JSON.stringify(expectedCacheDirName)}. `
       + 'A shared cache lets one application install the other application\'s downloaded update.')
+  }
+  const feed = readPackagedUpdateFeed(resourcesDir)
+  const expectedRepository = application.releaseRepository
+  if (expectedRepository !== undefined && feed?.provider === 'github') {
+    const actualRepository = `${feed.owner ?? ''}/${feed.repo ?? ''}`
+    if (actualRepository.toLowerCase() !== expectedRepository.toLowerCase()) {
+      throw new Error('desktop application identity: the packaged updater configuration resolves updates from '
+        + `${JSON.stringify(actualRepository)}; expected ${JSON.stringify(expectedRepository)}. `
+        + 'electron-updater reads latest.yml from that repository, so this shell would install another product\'s release.')
+    }
   }
 }

@@ -21,5 +21,14 @@ export function directoryInstallerExits(source: string): string
  */
 export function directoryUninstaller(source: string): string
 
+/**
+ * Build the defines the patched NSIS compute hook injects.
+ * @param updaterCacheDirName - Brand updater cache directory.
+ * @param tool - Absolute path of the copied 7-Zip executable.
+ * @param sourceTool - Absolute path of the toolset's 7-Zip executable.
+ * @returns NSIS define lines.
+ */
+export function directoryInstallerDefines(updaterCacheDirName: string, tool: string, sourceTool: string): string
+
 /** Install the build-only adapter while retaining signed uninstaller generation. */
 export function installWindowsDirectoryInstaller(): void

@@ -47,8 +47,8 @@ describe('EnvService', () => {
     const service = new EnvService(state.scope)
     expect(service.currentEnvironment()).toBe('development')
     expect(service.apiBaseUrl()).toBe(DEFAULT_UI_ENV_SETTINGS.development.apiBaseUrl)
-    expect(service.appId()).toBe('sdkwork-birdcoder')
-    expect(service.appKey()).toBe('sdkwork-birdcoder')
+    expect(service.appId()).toBe('sdkwork-birdcoder2')
+    expect(service.appKey()).toBe('sdkwork-birdcoder2')
     expect(service.accessToken()).toBe('')
     expect(service.isConfigured()).toBe(true)
   })
@@ -137,7 +137,7 @@ describe('EnvService', () => {
   it('reports unconfigured when the active profile carries an empty base URL', () => {
     const state = scopeOf({
       environment: 'production',
-      development: { apiBaseUrl: '', appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: '' },
+      development: { apiBaseUrl: '', appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: '' },
     })
     const service = new EnvService(state.scope)
     expect(service.isConfigured()).toBe(true)
@@ -167,10 +167,10 @@ describe('EnvService', () => {
     expect(service.apiBaseUrl()).toBe('https://api.birdcoder.com')
     expect(service.accessToken()).toBe('boot-token')
     // A profile the projection only partly names keeps the schema defaults.
-    expect(service.appId()).toBe('sdkwork-birdcoder')
+    expect(service.appId()).toBe('sdkwork-birdcoder2')
     expect(service.profile()).toEqual({
       apiBaseUrl: 'https://api.birdcoder.com', imApiBaseUrl: 'https://api.birdcoder.com',
-      appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: 'boot-token', imEmbedUrl: '',
+      appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: 'boot-token', imEmbedUrl: '',
     })
   })
 

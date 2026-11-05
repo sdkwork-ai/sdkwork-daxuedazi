@@ -10,6 +10,7 @@ import { cosOperation } from './cos-operation.ts'
 import type { DesktopObjectDigest, DesktopPublishTransport } from './desktop-publish.ts'
 import { DesktopCosOperationError } from './desktop-publication-failure.ts'
 import type { DesktopUploadPlan } from './desktop-upload-plan.ts'
+import { resolveBrand } from './brand-manifest.mjs'
 
 /** Verified file and destination; the caller closes the handle after publication. */
 export interface DesktopWebsiteInstaller {
@@ -41,7 +42,9 @@ export async function prepareWebsiteInstaller(directory: string, manifest: Deskt
     throw new Error('website installer: build identity or production qualification mismatch')
   }
   const windows = route.target === 'win-x64'
-  const filename = `deepseek-harness-${source.version}-${route.target}.${windows ? 'exe' : 'dmg'}`
+  // The retained build manifest lists the brand-prefixed artifacts the packaging
+  // lane produced; a framework prefix here would look for a file no release ships.
+  const filename = `${resolveBrand(process.env).desktop.artifactPrefix}-${source.version}-${route.target}.${windows ? 'exe' : 'dmg'}`
   const file = manifest.files.find(item => item.name === filename)
   if (!file) throw new Error('website installer: selected installer is absent from build manifest')
   const path = join(directory, file.name)

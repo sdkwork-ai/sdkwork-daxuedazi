@@ -113,8 +113,18 @@ export const FALLBACK_LOCALE: BuiltInLocaleId = 'en'
 // this product name; an OEM profile replaces it at render time so no dictionary
 // file has to be edited per deployment. Keep in step with
 // `@deepseek-ai/dsh-client-ui-primitives`'s OEM default.
-/** Product name the shipped dictionaries spell. */
+/** Product name the shipped dictionaries spell; this is the substitution token. */
 export const DEFAULT_BRAND_NAME = 'BirdCoder'
+
+/**
+ * Brand rendered before the OEM projection arrives.
+ *
+ * The token above is what the dictionaries spell, so it is not a display
+ * default: the shipped brand's display name is. A page that renders before (or
+ * without) the projection must show the shipped product rather than the
+ * predecessor's token.
+ */
+const SHIPPED_BRAND_NAME = '学伴AI'
 
 /** Shared namespace for shell-level texts. */
 export const COMMON_NS = 'common'
@@ -183,8 +193,8 @@ export class LocaleRuntime {
   private provisional: LocaleId
   /** Last explicit selection, including one awaiting an external registration. */
   private preference: LocaleId | undefined
-  /** Display brand substituted into every dictionary string that spells the shipped name. */
-  private brandName = DEFAULT_BRAND_NAME
+  /** Display brand substituted into every dictionary string that spells the shipped token. */
+  private brandName = SHIPPED_BRAND_NAME
 
   /**
    * @param ctx - owning context (change events are emitted on it; the scope

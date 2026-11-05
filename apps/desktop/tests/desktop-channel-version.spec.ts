@@ -55,10 +55,10 @@ it('accepts a stable prerelease in an unsigned Windows x64 configuration', () =>
     DSH_DESKTOP_UNSIGNED: '1',
   }, 'win32', 'x64')
   expect(config.extraMetadata).toMatchObject({ version })
-  // FORK DIVERGENCE: a build with no update target still declares the fork's own
-  // repository, because a publish provider is what makes electron-builder write
-  // the updater metadata beside the installers; packaging always runs with
-  // `--publish never`, so the provider is never contacted. Upstream leaves
-  // `publish` null in this configuration.
-  expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-birdcoder2' }])
+  // FORK DIVERGENCE: a build with no update target still declares the selected
+  // brand's own release repository, because a publish provider is what makes
+  // electron-builder write the updater metadata beside the installers; packaging
+  // always runs with `--publish never`, so the provider is never contacted.
+  // Upstream leaves `publish` null in this configuration.
+  expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-daxuedazi' }])
 })

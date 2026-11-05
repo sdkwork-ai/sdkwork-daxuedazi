@@ -60,8 +60,19 @@ describe('desktop locale dictionaries', () => {
     expect(branded.messages.aboutProduct).toBe('Acme Coder')
     expect(branded.messages.quitTitle).toBe('Quit Acme Coder?')
     expect(branded.messages.welcomeKeyDescription).toBe('Configure official DeepSeek models to start using Acme Coder')
-    // The terminal command is build-time identity, not the display brand.
+    // The terminal command is build-time identity, not the display brand: with no
+    // command argument the copy keeps the shipped command.
     expect(branded.messages.cliCommandMenu).toBe('Manage daxuedazi Command…')
     expect(resolveDesktopStartupLocale('zh', [], 'Acme Coder').messages.aboutMenu).toBe('关于 Acme Coder')
+  })
+
+  it('follows the selected brand command so two brands never teach each other\'s command', () => {
+    const birdcoder = resolveDesktopLocale('en', 'BirdCoder', 'birdcoder')
+    expect(birdcoder.messages.cliCommandMenu).toBe('Manage birdcoder Command…')
+    expect(birdcoder.messages.cliCommandNewTerminal).toContain('birdcoder --version')
+    expect(birdcoder.messages.cliCommandShadowed).not.toContain('daxuedazi')
+    const chinese = resolveDesktopLocale('zh', 'BirdCoder', 'birdcoder')
+    expect(chinese.messages.cliCommandMenu).toContain('birdcoder')
+    expect(chinese.messages.cliCommandMenu).not.toContain('daxuedazi')
   })
 })

@@ -21,6 +21,9 @@ export const DEFAULT_BRAND_KEY: 'daxuedazi'
 /** Directory holding the repository's brand manifests. */
 export const BRAND_DIRECTORY: string
 
+/** Reverse-DNS application identifier the upstream application owns; no brand may take it. */
+export const UPSTREAM_APP_ID: string
+
 /**
  * Loopback ports one brand owns, starting at `desktop.webPort`: the packaged shell
  * serves the first, the two source lanes the next two, and each lane's main,
@@ -40,6 +43,8 @@ export interface DesktopBrandHome {
 export interface DesktopBrandDesktop {
   /** Reverse-DNS application identifier packaging falls back to when `DSH_DESKTOP_APP_ID` is unset. */
   readonly appId: string
+  /** GitHub `owner/repo` that publishes this brand's releases; the packaged updater reads `latest.yml` from it. */
+  readonly releaseRepository: string
   /** Electron product name; names userData, the single-instance lock and the logs directory. */
   readonly productName: string
   /** Installed executable (and macOS `MacOS/<name>`) every launcher names. */

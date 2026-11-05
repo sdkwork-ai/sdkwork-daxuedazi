@@ -73,6 +73,80 @@ it('fails when a packaging lane stops deriving names from the brand', () => {
   expect(failures.some(failure => failure.includes('scripts/release/assemble-github-release.ts'))).toBe(true)
 })
 
+it('fails when a container release asset is named with a foreign stem', () => {
+  const packer = fixture()
+  edit(packer, 'scripts/release/pack-container.ts',
+    text => text.replace('containerBundleArchive(releaseVersion)', '`birdcoder-container-${releaseVersion}.tar.gz`'))
+  expect(verifyOemIdentity(packer).failures.some(failure => failure.includes('scripts/release/pack-container.ts'))).toBe(true)
+
+  const workflow = fixture()
+  edit(workflow, '.github/workflows/container-release.yml',
+    text => text.replace('${ARTIFACT_PREFIX}-container-${RELEASE_VERSION}.tar.gz', 'birdcoder-container-${RELEASE_VERSION}.tar.gz'))
+  expect(verifyOemIdentity(workflow).failures.some(failure => failure.includes('hardcoded upstream stem'))).toBe(true)
+})
+
+it('fails when a packaging surface pins another product identity', () => {
+  const lane = fixture()
+  edit(lane, '.github/workflows/desktop-package-target.yml',
+    text => text.replace('env:\n', 'env:\n  DSH_DESKTOP_APP_ID: com.sdkwork.birdcoder\n'))
+  expect(verifyOemIdentity(lane).failures.some(failure => failure.includes('.github/workflows/desktop-package-target.yml')
+    && failure.includes('DSH_DESKTOP_APP_ID'))).toBe(true)
+
+  const template = fixture()
+  edit(template, 'apps/desktop/packaging/windows.env.example',
+    text => `DSH_DESKTOP_APP_ID=com.sdkwork.birdcoder\n${text}`)
+  expect(verifyOemIdentity(template).failures.some(failure => failure.includes('packaging/windows.env.example'))).toBe(true)
+
+  const derivation = fixture()
+  edit(derivation, 'apps/desktop/scripts/electron-builder-config.mjs',
+    text => text.replace('resolveBrandApplicationId(env)', 'resolveDesktopAppId(env)'))
+  expect(verifyOemIdentity(derivation).failures.some(failure => failure.includes('resolveBrandApplicationId'))).toBe(true)
+
+  const feed = fixture()
+  edit(feed, 'apps/desktop/scripts/electron-builder-config.mjs',
+    text => text.replace('resolveBrandReleaseRepository(env)', "{ owner: 'sdkwork-ai', repo: 'sdkwork-birdcoder2' }"))
+  expect(verifyOemIdentity(feed).failures.some(failure => failure.includes('resolveBrandReleaseRepository'))).toBe(true)
+})
+
+it('fails when a brand-derived surface stops following the manifest', () => {
+  const workflow = fixture()
+  edit(workflow, 'agent.workflow.json', text => text.replace('"artifactPrefix": "daxuedazi"', '"artifactPrefix": "sdkwork-birdcoder2"'))
+  expect(verifyOemIdentity(workflow).failures.some(failure => failure.includes('agent.workflow.json release.artifactPrefix'))).toBe(true)
+
+  const store = fixture()
+  edit(store, 'agent.app.config.json', text => text.replace('"desktopAppId": "com.sdkwork.daxuedazi"', '"desktopAppId": "com.sdkwork.birdcoder.desktop"'))
+  expect(verifyOemIdentity(store).failures.some(failure => failure.includes('desktopAppId'))).toBe(true)
+
+  const locale = fixture()
+  edit(locale, 'apps/desktop/installer/locales/en_US.json', text => text.replace('{brand}', 'BirdCoder'))
+  const localeFailures = verifyOemIdentity(locale).failures
+  expect(localeFailures.some(failure => failure.includes('en_US.json') && failure.includes('{brand}'))).toBe(true)
+
+  const guide = fixture()
+  edit(guide, 'INSTALL.md', text => `${text}\nSee https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases.\n`)
+  expect(verifyOemIdentity(guide).failures.some(failure => failure.includes('INSTALL.md'))).toBe(true)
+
+  const profile = fixture()
+  rmSync(join(profile, 'brands/birdcoder.oem.json'))
+  expect(verifyOemIdentity(profile).failures.some(failure => failure.includes('birdcoder.oem.json'))).toBe(true)
+
+  const scheme = fixture()
+  edit(scheme, 'brands/birdcoder.oem.json', text => text.replace('"birdcoder://auth/callback"', '"daxuedazi://auth/callback"'))
+  expect(verifyOemIdentity(scheme).failures.some(failure => failure.includes('iamRedirectUri'))).toBe(true)
+
+  const port = fixture()
+  edit(port, 'apps/desktop-host/src/web-port.ts', text => text.replace('export const DESKTOP_HOST_WEB_PORT_ENV', 'export const DESKTOP_HOST_DEFAULT_WEB_PORT = 19387\nexport const DESKTOP_HOST_WEB_PORT_ENV'))
+  expect(verifyOemIdentity(port).failures.some(failure => failure.includes('fixed default Web port'))).toBe(true)
+
+  const command = fixture()
+  edit(command, 'apps/desktop/src/locale.ts', text => text.replaceAll('DESKTOP_DEFAULT_COMMAND', 'DESKTOP_SHIPPED_COMMAND'))
+  expect(verifyOemIdentity(command).failures.some(failure => failure.includes('brand command'))).toBe(true)
+
+  const application = fixture()
+  edit(application, 'agent.app.config.json', text => text.replace('"appId": "sdkwork-birdcoder2"', '"appId": "sdkwork-birdcoder"'))
+  expect(verifyOemIdentity(application).failures.some(failure => failure.includes('splits one application') || failure.includes('application code'))).toBe(true)
+})
+
 it('fails when the OEM IAM callback leaves the shipped brand scheme', () => {
   const root = fixture()
   edit(root, 'packages/host/sdkwork-oem/src/config.ts',

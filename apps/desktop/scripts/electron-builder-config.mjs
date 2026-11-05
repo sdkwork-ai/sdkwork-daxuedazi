@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
-  resolveDesktopAppId,
   resolveDesktopInsecureTls,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
@@ -38,22 +37,13 @@ import {
   writePackagedUpdaterCacheDir,
 } from './desktop-application-identity.mjs'
 import { DEFAULT_BRAND_KEY, brandManifestPath, brandPortCollisions, readBrands, resolveBrand } from './brand-manifest.mjs'
+import { resolveBrandApplicationId } from './brand-application-id.mjs'
 import {
   resolveMacOSAppUpdateFeed,
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
-
-/**
- * The fork's GitHub Release repository.
- *
- * electron-builder writes the updater metadata (`latest.yml` and its per-platform
- * siblings) only when a publish provider is configured, and the release contract
- * requires those files beside the installers. Packaging always runs with
- * `--publish never`, so the provider is never contacted during packaging.
- */
-const GITHUB_RELEASE_OWNER = 'sdkwork-ai'
-const GITHUB_RELEASE_REPO = 'sdkwork-birdcoder2'
+import { resolveBrandReleaseRepository } from './brand-release-repository.mjs'
 
 /**
  * Write the NSIS wrapper include that binds `INSTALLER_BUILD_DIR` to this run's
@@ -157,7 +147,19 @@ export function createElectronBuilderConfig(
   if (brandCollisions.length > 0) throw new Error(`desktop package: ${brandCollisions.join('; ')}`)
   const shippedOemProfile = brandManifest.replace(/\.json$/u, '.oem.json')
   const linuxPackageName = brand.desktop.artifactPrefix.toLowerCase().replaceAll(/[^a-z0-9+.-]+/gu, '-')
-  const appId = resolveDesktopAppId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })
+  // FORK DIVERGENCE (AGENTS.md, "Windows installer install mode"): electron-builder
+  // hashes this identifier into the NSIS GUID, and the GUID decides which existing
+  // installation the next installer upgrades. The brand manifest therefore owns it;
+  // a lane setting that names another shipped product (a leftover
+  // `packaging/<platform>.env`) stops packaging here instead of installing this
+  // build over that product's directory and uninstall registration.
+  const appId = resolveBrandApplicationId(env)
+  // FORK DIVERGENCE: the fallback GitHub provider is the brand's own release
+  // repository, not a product constant. A repository has one `latest` pointer, so
+  // naming another product's repository here makes the packaged updater fetch
+  // that product's release and replace this installation with it; the resolver
+  // also refuses a lane that packages a brand outside its release home.
+  const releaseRepository = resolveBrandReleaseRepository(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -357,7 +359,7 @@ export function createElectronBuilderConfig(
         '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales()), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales(), brand.displayName), 'utf8')
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -407,7 +409,9 @@ export function createElectronBuilderConfig(
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
-        NSMicrophoneUsageDescription: 'BirdCoder uses your microphone to transcribe speech into message drafts.',
+        // The TCC prompt is the only microphone copy the user sees before the app
+        // can ask, so it names the selected brand instead of a build-time literal.
+        NSMicrophoneUsageDescription: `${brand.displayName} uses your microphone to transcribe speech into message drafts.`,
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -470,6 +474,7 @@ export function createElectronBuilderConfig(
       verifyPackagedApplicationIdentity(resourcesDir, {
         productName: context.packager.appInfo.productName,
         updaterCacheDirName: brand.desktop.updaterCacheDirName,
+        releaseRepository: releaseRepository.fullName,
       })
       // The bundled runtime declares whichever version prepared it: the product version for an ordinary
       // release, and a rewritten one for installed-update qualification.
@@ -566,12 +571,14 @@ export function createElectronBuilderConfig(
     },
     // A publish provider is what makes electron-builder write the updater
     // metadata at all, and the release contract requires all four channel files
-    // beside the installers. Naming the fork's own repository keeps the metadata
-    // honest about where the desktop shell resolves updates from; packaging
-    // always runs with `--publish never`, so the provider is never contacted.
+    // beside the installers. The fallback names the brand's own release
+    // repository (`desktop.releaseRepository`) so the metadata — and the
+    // `app-update.yml` electron-builder derives from it — never points a brand at
+    // another product's `latest`; packaging always runs with `--publish never`,
+    // so the provider is never contacted.
     // Leaving `channel` unset keeps the `latest` names the contract asserts.
     publish: update === undefined
-      ? [{ provider: 'github', owner: GITHUB_RELEASE_OWNER, repo: GITHUB_RELEASE_REPO }]
+      ? [{ provider: 'github', owner: releaseRepository.owner, repo: releaseRepository.repo }]
       : [{ provider: 'generic', url: update.publicUrl }],
     // The static AppImage toolset carries native runtimes for every
     // architecture; the legacy 0.0.0 toolset falls back to its x64 runtime when

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { createWindowsTokenSigner, installWindowsNsisBootstrapSigner, scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs'
+import { resolveBrand } from './brand-manifest.mjs'
 import { createPackagingRun } from './packaging-run.mjs'
 
 if (process.platform !== 'win32' || process.arch !== 'x64') {
@@ -123,7 +124,7 @@ SectionEnd
     const languageOutput = join(output, language)
     await mkdir(languageOutput)
     const strings = join(languageOutput, 'strings.nsh')
-    await writeFile(strings, renderInstallerStrings([locale]), 'utf8')
+    await writeFile(strings, renderInstallerStrings([locale], resolveBrand().displayName), 'utf8')
     const include = join(languageOutput, 'include.nsh')
     await writeFile(include, `!define INSTALLER_BUILD_DIR "${join(output, 'ui')}"\n!define INSTALLER_STRINGS_FILE "${strings}"\n!include "${join(appRoot, 'scripts', 'installer.nsh')}"\n`)
     await build({ projectDir: appRoot, prepackaged: payload, targets: Platform.WINDOWS.createTarget(['nsis'], Arch.x64), publish: 'never',

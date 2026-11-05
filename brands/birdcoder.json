@@ -9,6 +9,7 @@
   },
   "desktop": {
     "appId": "com.sdkwork.birdcoder",
+    "releaseRepository": "sdkwork-ai/sdkwork-birdcoder2",
     "productName": "BirdCoder",
     "executableName": "birdcoder",
     "protocol": "birdcoder",

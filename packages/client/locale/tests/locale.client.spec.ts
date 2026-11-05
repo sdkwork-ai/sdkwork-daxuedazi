@@ -74,7 +74,9 @@ describe('LocaleRuntime', () => {
     svc.register('oem', 'zh', { brand: 'BirdCoder' })
     svc.register('oem', 'en', { welcome: 'Welcome to BirdCoder' })
     const t = svc.bind('oem')
-    expect(t('welcome')).toBe('Welcome to BirdCoder')
+    // The shipped display name is the fallback before any OEM projection; the
+    // token in the dictionary is substituted, not rendered.
+    expect(t('welcome')).toBe('Welcome to 学伴AI')
     svc.setBrand('Acme')
     expect(t('brand')).toBe('Acme')
     expect(t('welcome')).toBe('Welcome to Acme')

@@ -1,0 +1,8 @@
+{
+  "brand": {
+    "name": "BirdCoder"
+  },
+  "sdkwork": {
+    "iamRedirectUri": "birdcoder://auth/callback"
+  }
+}

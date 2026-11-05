@@ -30,11 +30,11 @@
   en: bc9dce9206e40ca9
   zh: 0604b745d858bf91
 /desktop-packaging/unsigned-windows-test-installer:
-  en: 15f59300b68fc0d5
-  zh: 5d219ced700e9b7c
+  en: 21f8b2222e2e2105
+  zh: 00b71e4ebcae9272
 /desktop-packaging/local-macos-dmg-without-release-signing:
-  en: 2dd153bd4bada354
-  zh: 2792945036d2ad38
+  en: 704576f9e8018fd7
+  zh: f076a3f0a076f17f
 /desktop-packaging/macos-release-signing-and-diagnostics:
   en: 9d5a0bf757c18532
   zh: b61d8eabbd75f11d
@@ -45,7 +45,7 @@
   en: ba5927075585bb29
   zh: 022d67e99b3faf99
 /desktop-packaging/runtime-file-selection-and-installation-checks:
-  en: 44044a5c14b75533
+  en: 4cf3c05e25a28bed
   zh: 39d91a369c4ec2fa
 /desktop-packaging/desktop-runtime-preparation:
   en: 326fc2bc4e295dab

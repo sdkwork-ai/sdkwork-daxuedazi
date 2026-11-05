@@ -19,7 +19,7 @@ import css from './boot-brand.module.css'
  * page paints, so a rebranded deployment keeps this shipped name on the startup
  * surface for the same interval as its document title.
  */
-const PRODUCT_NAME = 'BirdCoder'
+const PRODUCT_NAME = '学伴AI'
 
 /**
  * Mark raster served from the web root: the fork's canonical raster

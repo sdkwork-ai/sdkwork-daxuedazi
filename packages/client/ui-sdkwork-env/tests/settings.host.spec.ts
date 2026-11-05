@@ -25,7 +25,7 @@ describe('ui-sdkwork-env host', () => {
     const configuration = await liveConfig(ctx, { Config, apply })
     expect(plainConfig(configuration.fiber.effectiveConfig)).toMatchObject({
       [UI_ENV_ENVIRONMENT_FIELD]: 'development',
-      development: { appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: '' },
+      development: { appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: '' },
     })
     await configuration.update({ environment: 'production' })
     expect(plainConfig(configuration.fiber.effectiveConfig)).toMatchObject({ environment: 'production' })

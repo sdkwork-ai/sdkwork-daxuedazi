@@ -4,14 +4,14 @@
   "workflowRole": "fork-upstream",
   "app": {
     "id": "sdkwork-birdcoder2",
-    "name": "SDKWork BirdCoder Harness",
-    "repository": "deepseek-ai/deepseek-harness",
+    "name": "学伴AI",
+    "repository": "sdkwork-ai/sdkwork-daxuedazi",
     "sourcePath": ".",
     "configPath": "agent.app.config.json"
   },
   "release": {
-    "artifactPrefix": "sdkwork-birdcoder2",
-    "defaultVersion": "0.1.0-rc.21",
+    "artifactPrefix": "daxuedazi",
+    "defaultVersion": "0.2.2-rc.2",
     "changelog": {
       "source": "auto",
       "maxCommitSubjects": 50

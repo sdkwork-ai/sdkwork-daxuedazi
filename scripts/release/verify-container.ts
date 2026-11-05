@@ -5,8 +5,17 @@ import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
+import { shippedBrand } from '../../apps/desktop/scripts/brand-manifest.mjs'
 
 const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
+
+/**
+ * Artifact stem the installation and deployment guides name.
+ *
+ * The guides document the repository's shipped brand, so they carry its stem
+ * literally while the release workflow resolves the same field at run time.
+ */
+const GUIDE_ARTIFACT_PREFIX = shippedBrand().desktop.artifactPrefix
 
 function fail(message: string): never {
   throw new Error(`container verify: ${message}`)
@@ -126,10 +135,10 @@ function main(): void {
   assert(entrypoint.includes('process.env.DSH_WEB_PORT ?? \'4080\''), 'entrypoint must default DSH_WEB_PORT to 4080')
   assert(entrypoint.includes('host !== \'0.0.0.0\' && allowNonLoopback'), 'entrypoint must reject a non-loopback opt-in for another host')
   assert(entrypoint.includes('/opt/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js'), 'entrypoint must start the packed npm consumer CLI')
-  assert(deploymentGuide.includes('git clone https://github.com/sdkwork-ai/sdkwork-birdcoder2.git'), 'deployment guide must include the source-clone path')
-  assert(deploymentGuide.includes('docker save --output birdcoder-container-local.tar localhost/deepseek-harness:local'), 'deployment guide must save the source image before loading a local cluster')
-  assert(deploymentGuide.includes('minikube image load birdcoder-container-local.tar'), 'deployment guide must load the source archive into Minikube')
-  assert(deploymentGuide.includes('minikube image load "birdcoder-container-image-${version}-linux-${arch}.tar"'), 'deployment guide must load the selected Release architecture into Minikube')
+  assert(deploymentGuide.includes('git clone https://github.com/sdkwork-ai/sdkwork-daxuedazi.git'), 'deployment guide must include the source-clone path')
+  assert(deploymentGuide.includes(`docker save --output ${GUIDE_ARTIFACT_PREFIX}-container-local.tar localhost/deepseek-harness:local`), 'deployment guide must save the source image before loading a local cluster')
+  assert(deploymentGuide.includes(`minikube image load ${GUIDE_ARTIFACT_PREFIX}-container-local.tar`), 'deployment guide must load the source archive into Minikube')
+  assert(deploymentGuide.includes(`minikube image load "${GUIDE_ARTIFACT_PREFIX}-container-image-\${version}-linux-\${arch}.tar"`), 'deployment guide must load the selected Release architecture into Minikube')
   assert(deploymentGuide.includes('docker compose up -d --wait --wait-timeout 180'), 'deployment guide must wait for the offline Compose deployment')
   assert(deploymentGuide.includes('kubectl port-forward svc/dsh 4081:4080'), 'deployment guide must keep the Kubernetes port-forward distinct from Docker and npx')
   assert(releaseWorkflowDocument.name === 'Release (dsh artifacts)', 'release workflow must have the expected name')
@@ -172,10 +181,11 @@ function main(): void {
   const loadIndex = releaseWorkflow.indexOf('| docker load')
   const workflowSmokeIndex = releaseWorkflow.indexOf('docker run --detach --name')
   assert(saveIndex !== -1 && saveIndex < removeIndex && removeIndex < loadIndex && loadIndex < workflowSmokeIndex, 'release workflow must health-check the image reloaded from the release archive')
-  assert(releaseWorkflow.includes('birdcoder-container-image-${RELEASE_VERSION}-linux-${RELEASE_ARCH}.tar.gz'), 'release workflow must name image archives by version and architecture')
+  assert(releaseWorkflow.includes('node scripts/release/brand-artifact-prefix.mjs'), 'release workflow must resolve the container artifact prefix from the brand manifest')
+  assert(releaseWorkflow.includes('${ARTIFACT_PREFIX}-container-image-${RELEASE_VERSION}-linux-${RELEASE_ARCH}.tar.gz'), 'release workflow must name image archives by brand prefix, version and architecture')
   assert(releaseWorkflow.includes('sha256sum --check'), 'release workflow must verify the image archive checksum before the smoke test')
   assert(releaseWorkflow.includes('release:verify-container-bundle'), 'release workflow must verify the extracted deployment manifest before upload')
-  assert(releaseWorkflow.includes('dist/container/extracted/birdcoder-container-${RELEASE_VERSION}/docker-compose.yml'), 'release workflow must smoke Compose from the extracted deployment archive')
+  assert(releaseWorkflow.includes('dist/container/extracted/${ARTIFACT_PREFIX}-container-${RELEASE_VERSION}/docker-compose.yml'), 'release workflow must smoke Compose from the extracted deployment archive')
   assert(releaseWorkflow.includes('if [[ "$RELEASE_ARCH" == amd64 ]]'), 'the packaged Compose smoke must run for amd64')
   assert(releaseWorkflow.includes("test \"$(docker inspect --format '{{.State.Health.Status}}' \"$container\")\" = healthy"), 'every native image must pass its Docker health check')
   assert(releaseWorkflow.includes('down --volumes --remove-orphans'), 'release workflow must clean up its Compose volumes')
@@ -187,8 +197,8 @@ function main(): void {
   assert((releaseWorkflow.match(/softprops\/action-gh-release@v2/g) ?? []).length === 1, 'one workflow job must create the unified GitHub Release')
   assert(releaseWorkflow.includes('Prepare retry-safe release state') && releaseWorkflow.includes('--method DELETE'), 'a retry must replace the release for the tag so rebuilt assets republish')
   assert(releaseWorkflow.includes('draft: true'), 'new uploads must stay draft until the exact asset verification passes')
-  assert(releaseWorkflow.includes('birdcoder-container-deployment-${{ needs.resolve.outputs.version }}'), 'Actions artifacts must separate the deployment bundle')
-  assert(releaseWorkflow.includes('birdcoder-container-image-${{ needs.resolve.outputs.version }}-linux-${{ matrix.arch }}'), 'Actions artifacts must retain both image architectures')
+  assert(releaseWorkflow.includes('${{ needs.resolve.outputs.prefix }}-container-deployment-${{ needs.resolve.outputs.version }}'), 'Actions artifacts must separate the deployment bundle under the brand prefix')
+  assert(releaseWorkflow.includes('${{ needs.resolve.outputs.prefix }}-container-image-${{ needs.resolve.outputs.version }}-linux-${{ matrix.arch }}'), 'Actions artifacts must retain both image architectures under the brand prefix')
   assert(releaseWorkflow.includes('scripts/release/assemble-github-release.ts'), 'GitHub publication must pass through exact asset assembly')
   assert(releaseWorkflow.includes('test "$(wc -l < "$actual")" -eq 31'), 'published GitHub asset verification must require the exact asset count')
   assert(releaseWorkflow.includes('stat --format=%s') && releaseWorkflow.includes('Accept: application/octet-stream'), 'draft verification must compare every asset size and download small metadata assets')

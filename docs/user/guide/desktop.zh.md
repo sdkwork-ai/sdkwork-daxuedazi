@@ -6,9 +6,9 @@
 
 ## 选择资产
 
-打开 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases)，选择目标 `birdcoder-v<version>` Release，再下载与操作系统和 CPU 架构匹配的文件。
+打开 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases)，选择目标 `sdkwork-daxuedazi-v<version>` Release，再下载与操作系统和 CPU 架构匹配的文件。
 
-GitHub Latest 当前指向 `birdcoder-v0.1.0-rc.13`。在通过全部校验的普通 Release 中，SemVer 最高的 tag 持有 Latest；只有需要固定特定版本时才选择其他 tag。
+GitHub Latest 当前指向 `sdkwork-daxuedazi-v0.2.2-rc.2`。在通过全部校验的普通 Release 中，SemVer 最高的 tag 持有 Latest；只有需要固定特定版本时才选择其他 tag。
 
 | 平台 | 架构 | 安装包 | 便携归档 |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Write-Output "$asset checksum verified"
 
 在 Windows 上运行 `.exe` 完成面向本机所有用户的安装，或解压 `.zip` 并直接启动 `daxuedazi.exe`。
 
-在 macOS 上打开 `.dmg`，再将 BirdCoder 移入 Applications，或解压 `.zip`。对于未签名的候选版本，可能需要从 Finder 上下文菜单打开已校验的应用。
+在 macOS 上打开 `.dmg`，再将学伴AI移入 Applications，或解压 `.zip`。对于未签名的候选版本，可能需要从 Finder 上下文菜单打开已校验的应用。
 
 在 Debian 或 Ubuntu 上安装 `.deb` 包：
 

@@ -1,4 +1,5 @@
 import { readInstallerLocales, renderInstallerStrings } from '../scripts/installer-locales.mjs'
+import { shippedBrand } from '../scripts/brand-manifest.mjs'
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -285,7 +286,7 @@ describe('Windows installer installs for all users', () => {
     // The copy ships as `installer/locales/*.json` now, and the packaging run
     // generates `strings.nsh` from them, so the compiler input is the surface
     // that has to stay free of the rejection wording.
-    const strings = nsisCode(renderInstallerStrings(readInstallerLocales()))
+    const strings = nsisCode(renderInstallerStrings(readInstallerLocales(), shippedBrand().displayName))
     // The installer now always runs elevated, so no copy may promise otherwise.
     expect(strings).not.toContain('does not request administrator rights')
     expect(strings).not.toContain('不会申请管理员权限')
@@ -487,15 +488,18 @@ describe('Windows installer path row geometry', () => {
 })
 
 // FORK DIVERGENCE (AGENTS.md, "Desktop shell display copy" and "OEM profile"):
-// install-time copy is a fork-owned display surface and names the product
-// BirdCoder, as does the About panel; the About name is the OEM brand, shipped
-// as BirdCoder without a profile. The rasters are guarded above; this guards the
-// words around them.
+// install-time copy is a fork-owned display surface and names the selected
+// brand, as does the About panel. The locales spell the name as a `{brand}`
+// placeholder and the packaging run substitutes the selected manifest's display
+// name, so a second brand never ships the shipped brand's words. The rasters are
+// guarded above; this guards the words around them.
 describe('installer and About-panel display copy', () => {
-  it('names BirdCoder, never the upstream product, in the installer strings', () => {
-    const strings = renderInstallerStrings(readInstallerLocales())
+  it('substitutes the shipped brand name, never the upstream product, in the installer strings', () => {
+    const brand = shippedBrand()
+    const strings = renderInstallerStrings(readInstallerLocales(), brand.displayName)
     expect(strings).not.toContain('DeepSeek Harness')
-    expect(strings.match(/BirdCoder/gu)?.length ?? 0).toBeGreaterThanOrEqual(3)
+    expect(strings.match(new RegExp(brand.displayName, 'gu'))?.length ?? 0).toBeGreaterThanOrEqual(3)
+    expect(strings).not.toContain('{brand}')
   })
 
   it('names the shipped or OEM brand in the About panel', () => {

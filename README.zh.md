@@ -20,7 +20,7 @@ DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来
 
 所有受支持的安装路径——包括 npx、源码、Docker、Kubernetes 与全部桌面安装包——请遵循[英文安装指南](INSTALL.md)或[中文安装指南](INSTALL.zh.md)。
 
-GitHub Latest 当前指向 `birdcoder-v0.1.0-rc.13`。在全部经过完整验证的常规发布中，最高 SemVer 标签持有 Latest 指针。
+GitHub Latest 当前指向 `sdkwork-daxuedazi-v0.2.2-rc.2`。在全部经过完整验证的常规发布中，最高 SemVer 标签持有 Latest 指针。
 
 ### 通过 `npm` 运行
 
@@ -36,7 +36,7 @@ npx @deepseek-ai/dsh@next web
 
 ### 安装桌面应用
 
-从 [GitHub Releases](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases) 下载适配你 CPU 架构的 Windows、macOS 或 Linux 安装包。[桌面安装指南](docs/user/guide/desktop.zh.md)列出了全部安装器与便携格式，并说明了校验和验证方法。
+从 [GitHub Releases](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases) 下载适配你 CPU 架构的 Windows、macOS 或 Linux 安装包。[桌面安装指南](docs/user/guide/desktop.zh.md)列出了全部安装器与便携格式，并说明了校验和验证方法。
 
 <a id="deploy-containers"></a>
 
@@ -51,8 +51,8 @@ npx @deepseek-ai/dsh@next web
 如需从仓库源码运行：
 
 ```sh
-git clone https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 pnpm install
 pnpm run build
 pnpm dsh web

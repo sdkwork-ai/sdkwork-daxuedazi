@@ -2,18 +2,18 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-08-16-birdcoder-container-assets.md
-/agent-note-birdcoder-container-asset-names:
-  en: 1b378ed930418b03
-  zh: 62d6975df49bfb12
-/agent-note-birdcoder-container-asset-names/problem:
-  en: 3986363540c65878
-  zh: fb4fdb99487d6c7e
-/agent-note-birdcoder-container-asset-names/decision:
-  en: 8307f54e0abaa8c4
-  zh: aa16e646d40752db
-/agent-note-birdcoder-container-asset-names/alternatives-considered:
-  en: 4500412f3c0ff72c
-  zh: 1ca13066ba494a78
-/agent-note-birdcoder-container-asset-names/consequences:
-  en: 912d285d64b9b7b5
-  zh: 4a67250857f6a1ec
+/agent-note-container-release-asset-names:
+  en: 769241054670f462
+  zh: 5c21a6414919b927
+/agent-note-container-release-asset-names/problem:
+  en: e59bd9eb2b3cf3fb
+  zh: 1f114427502e5a07
+/agent-note-container-release-asset-names/decision:
+  en: cbf8f1a04c249999
+  zh: fefd7674c08975f1
+/agent-note-container-release-asset-names/alternatives-considered:
+  en: f4c56a8a47343075
+  zh: eab640a9469d6224
+/agent-note-container-release-asset-names/consequences:
+  en: 943f0b070578c73e
+  zh: 4abaedd485ae94a8

@@ -4,7 +4,7 @@ import { accessSync, constants, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
-import { resolveDesktopAppId, resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
+import { resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, resolveMacOSSigningEnvironment, resolveNpmRegistry } from './desktop-release-environment.mjs'
 import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environment.mjs'
 import { createWindowsTokenSigner } from './windows-sign.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
@@ -13,6 +13,8 @@ import { resolveMacOSPackageSettings } from './macos-package-settings.mjs'
 import { resolveWindowsSignatureCacheDirectory } from './windows-signature-cache-directory.mjs'
 import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { shippedBrand } from './brand-manifest.mjs'
+import { resolveBrandApplicationId } from './brand-application-id.mjs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SHARED_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|INSECURE_TLS|DISTRIBUTION|SDKWORK_(?:RELEASE_ENV|ENVIRONMENT|ALLOW_TEST_TOKEN)|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_RELEASE_ID|DOWNLOAD_PROD_EO_ZONE_ID|DOWNLOAD_(?:TEST|PROD)_(?:ORIGIN|COS_BUCKET|COS_SECRET_ID|COS_SECRET_KEY))$/u
@@ -28,13 +30,18 @@ const FILE_SETTINGS = ['DSH_DESKTOP_WINDOWS_CER_FILE', 'DSH_DESKTOP_WINDOWS_SIGN
 
 /**
  * Select local macOS test defaults without reading dotenv files or inheriting release settings.
+ * FORK DIVERGENCE: upstream injects its own `com.deepseek.harness` identifier.
+ * This fork's local defaults carry the shipped brand's identity instead, so an
+ * unsigned DMG registers as the product the repository ships rather than as the
+ * upstream application it installs beside; `selectDesktopPackagingEnvironment`
+ * re-applies the identifier of whichever brand the run selects.
  * @param {NodeJS.ProcessEnv} environment Parent environment, retained for build tools and networking.
- * @returns {NodeJS.ProcessEnv} Unsigned build environment with the standard application identifier and no update policy.
+ * @returns {NodeJS.ProcessEnv} Unsigned build environment with the shipped brand's application identifier and no update policy.
  */
 export function localMacOSPackageEnvironment(environment = process.env) {
   return {
     ...Object.fromEntries(Object.entries(environment).filter(([name]) => !AMBIENT_RELEASE_SETTING.test(name))),
-    DSH_DESKTOP_APP_ID: 'com.deepseek.harness',
+    DSH_DESKTOP_APP_ID: shippedBrand().desktop.appId,
     DSH_DESKTOP_UNSIGNED: '1',
   }
 }
@@ -197,7 +204,7 @@ function validateSdkworkReleaseEnvironment(environment) {
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
   resolveDesktopTargetBuildPaths(environment, target.platform, target.arch)
-  resolveDesktopAppId(environment)
+  resolveBrandApplicationId(environment)
   resolveDesktopInsecureTls(environment)
   validateSdkworkReleaseEnvironment(environment)
   resolveNpmRegistry(environment)

@@ -25,10 +25,10 @@ import { prepareRuntimeManifests } from './prepare-runtime-manifests.ts'
 import { prepareRuntimePatches, verifyRuntimePatches } from './prepare-runtime-patches.ts'
 import { writeDesktopRuntime, writeDesktopRuntimeAsync, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import {
-  resolveDesktopAppId,
   resolveMacOSSigningEnvironment,
   resolveNpmRegistry,
 } from './desktop-release-environment.mjs'
+import { resolveBrandApplicationId } from './brand-application-id.mjs'
 import {
   signMacOSRuntime,
 } from './macos-runtime.ts'
@@ -181,8 +181,8 @@ async function main(): Promise<void> {
     // is the only mode under which the identity may be absent.
     if (process.platform === 'darwin' && process.env.DSH_DESKTOP_UNSIGNED !== '1') {
       const cacheDirectory = resolveMacOSSignatureCacheDirectory(process.env, BUILD_PATHS.root)
-      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:dsh-native', () => signMacOSRuntime(DSH_OUTPUT_ROOT, resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env), target.arch, cacheDirectory))
-      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:primary-native', () => signMacOSRuntime(join(RUNTIME_ROOT, 'primary-runtime'), resolveDesktopAppId(process.env), resolveMacOSSigningEnvironment(process.env), target.arch, cacheDirectory, 'primary'))
+      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:dsh-native', () => signMacOSRuntime(DSH_OUTPUT_ROOT, resolveBrandApplicationId(process.env), resolveMacOSSigningEnvironment(process.env), target.arch, cacheDirectory))
+      await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'sign:primary-native', () => signMacOSRuntime(join(RUNTIME_ROOT, 'primary-runtime'), resolveBrandApplicationId(process.env), resolveMacOSSigningEnvironment(process.env), target.arch, cacheDirectory, 'primary'))
     }
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:manifests', () => prepareRuntimeManifests(DSH_OUTPUT_ROOT))
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:primary-smoke', async () => smokePrimaryRuntime(join(RUNTIME_ROOT, 'primary-runtime')))

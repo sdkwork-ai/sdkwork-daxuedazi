@@ -55,16 +55,30 @@ export function readPackagedUpdaterCacheDirName(resourcesDir: string): string | 
  */
 export function writePackagedUpdaterCacheDir(resourcesDir: string, cacheDirName: string): boolean
 
+/**
+ * Read the publish provider the packaged updater configuration names.
+ * @param resourcesDir - `<appOutDir>/resources` for the packed application.
+ * @returns Feed fields, or undefined when the application ships no updater configuration.
+ */
+export function readPackagedUpdateFeed(resourcesDir: string): {
+  provider: string | undefined
+  owner: string | undefined
+  repo: string | undefined
+} | undefined
+
 /** Product identity one packaging lane resolved for the application it packs. */
 export interface DesktopPackagedApplication {
   readonly productName: string
   /** Cache directory the brand owns; omitted falls back to the shipped brand's. */
   readonly updaterCacheDirName?: string
+  /** GitHub `owner/repo` the brand publishes from; a GitHub feed must name it. */
+  readonly releaseRepository?: string
 }
 
 /**
  * Assert that a packaged application carries the identity its packaging lane
- * intends, and that the shipped product owns its own updater cache.
+ * intends, that the shipped product owns its own updater cache, and that a
+ * GitHub update feed names the brand's release repository.
  * @param resourcesDir - `<appOutDir>/resources` for the packed application.
  * @param application - Product identity the packaging lane resolved for this build.
  */

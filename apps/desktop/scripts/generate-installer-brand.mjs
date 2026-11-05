@@ -26,6 +26,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
+import { resolveBrand } from './brand-manifest.mjs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SOURCE_MARK = join(APP_ROOT, '..', 'web', 'public', 'favicon.png')
@@ -47,7 +48,7 @@ const SIDEBAR = { width: 164, height: 314, fill: '#F3F4F6', markSize: 96, fontSi
  */
 const WORDMARK_FONT = "'Segoe UI', 'Segoe UI Semibold', Arial, 'Microsoft YaHei UI', sans-serif"
 /** The product name as it appears in the wordmark (matches the shipped display brand). */
-const WORDMARK_TEXT = '学伴AI'
+const WORDMARK_TEXT = resolveBrand().displayName
 
 /**
  * Render the canonical product mark as a trimmed, transparent square PNG.

@@ -42,9 +42,10 @@ const uint32 = (value: number): Buffer => {
  * Write an `app.asar` carrying one manifest, in the layout `readAsarEntry` reads.
  * @param manifest - Packaged manifest fields.
  * @param updater - `updaterCacheDirName` for a packaged `app-update.yml`; omit it to ship no updater configuration.
+ * @param updateConfig - Complete `app-update.yml` body; overrides {@link updater}.
  * @returns Application resources directory holding `app.asar` and the optional updater configuration.
  */
-function packagedApplication(manifest: Record<string, unknown>, updater?: string): string {
+function packagedApplication(manifest: Record<string, unknown>, updater?: string, updateConfig?: string): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-app-identity-'))
   onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
   const content = Buffer.from(`${JSON.stringify(manifest, undefined, 2)}\n`, 'utf8')
@@ -54,7 +55,10 @@ function packagedApplication(manifest: Record<string, unknown>, updater?: string
   writeFileSync(join(resources, 'app.asar'), Buffer.concat([
     uint32(4), uint32(8 + header.length), uint32(4 + header.length), uint32(header.length), header, content,
   ]))
-  if (updater !== undefined) {
+  if (updateConfig !== undefined) {
+    writeFileSync(join(resources, 'app-update.yml'), updateConfig)
+  }
+  else if (updater !== undefined) {
     writeFileSync(join(resources, 'app-update.yml'), `provider: generic\nurl: https://updates.example.com\nupdaterCacheDirName: ${updater}\n`)
   }
   return resources
@@ -106,6 +110,20 @@ it('accepts the lane identity, and rejects a manifest or updater cache another a
     name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME,
   }, '@deepseek-aidsh-desktop-updater'), { productName: DESKTOP_PRODUCT_NAME }) })
     .toThrow(/cache directory/u)
+})
+
+it('refuses a GitHub update feed that names another product release repository', () => {
+  const repository = (owner: string, repo: string): string =>
+    `provider: github\nowner: ${owner}\nrepo: ${repo}\nupdaterCacheDirName: ${DESKTOP_UPDATER_CACHE_DIR_NAME}\n`
+  const foreign = packagedApplication({ name: '@deepseek-ai/dsh-desktop', productName: DESKTOP_PRODUCT_NAME },
+    undefined, repository('sdkwork-ai', 'sdkwork-birdcoder2'))
+  expect(() => { verifyPackagedApplicationIdentity(foreign, {
+    productName: DESKTOP_PRODUCT_NAME, releaseRepository: 'sdkwork-ai/sdkwork-daxuedazi',
+  }) }).toThrow(/would install another product/u)
+  // The same artifact is correct for the brand that publishes there.
+  expect(() => { verifyPackagedApplicationIdentity(foreign, {
+    productName: DESKTOP_PRODUCT_NAME, releaseRepository: 'sdkwork-ai/sdkwork-birdcoder2',
+  }) }).not.toThrow()
 })
 
 it('ships the product name Electron reads in the application manifest and the builder configuration', async () => {

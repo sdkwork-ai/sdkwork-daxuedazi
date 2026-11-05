@@ -18,7 +18,7 @@ Review the [safety notice](SAFETY.md) before running the project.
 
 For every supported installation path, including npx, source, Docker, Kubernetes, and all desktop packages, follow the [English installation guide](INSTALL.md) or [Chinese installation guide](INSTALL.zh.md).
 
-GitHub Latest currently points to `birdcoder-v0.1.0-rc.13`. Among fully verified regular releases, the highest SemVer tag holds the Latest pointer.
+GitHub Latest currently points to `sdkwork-daxuedazi-v0.2.2-rc.2`. Among fully verified regular releases, the highest SemVer tag holds the Latest pointer.
 
 ### Run from `npm`
 
@@ -34,7 +34,7 @@ The npm `next` channel is published independently from GitHub Releases and may c
 
 ### Install the desktop application
 
-Download the Windows, macOS, or Linux package for your CPU architecture from [GitHub Releases](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases). The [desktop installation guide](docs/user/guide/desktop.md) lists every installer and portable format and explains checksum verification.
+Download the Windows, macOS, or Linux package for your CPU architecture from [GitHub Releases](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases). The [desktop installation guide](docs/user/guide/desktop.md) lists every installer and portable format and explains checksum verification.
 
 ### Deploy with Docker or Kubernetes
 
@@ -45,8 +45,8 @@ Container deployments use port `4080`, while the npx/local runner keeps `3080`. 
 To run from a repository checkout:
 
 ```sh
-git clone https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 pnpm install
 pnpm run build
 pnpm dsh web

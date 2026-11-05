@@ -6,9 +6,9 @@ The desktop application runs the same Web profile and stores the same Harness da
 
 ## Choose an asset
 
-Open the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases), select the intended `birdcoder-v<version>` release, and download the file for the operating system and CPU architecture.
+Open the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases), select the intended `sdkwork-daxuedazi-v<version>` release, and download the file for the operating system and CPU architecture.
 
-GitHub Latest currently points to `birdcoder-v0.1.0-rc.13`. Among fully verified regular releases, the highest SemVer tag holds the Latest pointer; select another tag only when pinning that version intentionally.
+GitHub Latest currently points to `sdkwork-daxuedazi-v0.2.2-rc.2`. Among fully verified regular releases, the highest SemVer tag holds the Latest pointer; select another tag only when pinning that version intentionally.
 
 | Platform | Architecture | Installer | Portable archive |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Release candidates are unsigned. Windows SmartScreen, macOS Gatekeeper, or a Lin
 
 On Windows, run the `.exe` for an assisted installation that installs for every user of the computer, or extract the `.zip` and launch `daxuedazi.exe` without installing it.
 
-On macOS, open the `.dmg` and move BirdCoder to Applications, or extract the `.zip`. An unsigned candidate may require opening the verified application from Finder's context menu.
+On macOS, open the `.dmg` and move 学伴AI to Applications, or extract the `.zip`. An unsigned candidate may require opening the verified application from Finder's context menu.
 
 On Debian or Ubuntu, install the `.deb` package:
 

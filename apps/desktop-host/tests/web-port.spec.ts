@@ -1,15 +1,18 @@
-/** The Desktop Host Web port is a launch fact; the workspace launcher moves it off the packaged value. */
+/** The Desktop Host Web port is a launch fact; every launch names the selected brand's port. */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { DESKTOP_HOST_DEFAULT_WEB_PORT, DESKTOP_HOST_WEB_PORT_ENV, resolveDesktopHostWebPort } from '../src/web-port.ts'
+import { readBrands } from '../../desktop/scripts/brand-manifest.mjs'
+import { DESKTOP_HOST_WEB_PORT_ENV, resolveDesktopHostWebPort } from '../src/web-port.ts'
 
 const DEVELOPMENT_LAUNCHER = fileURLToPath(new URL('../../desktop/scripts/dev.ts', import.meta.url))
 
 describe('Desktop Host Web port', () => {
-  it('serves the packaged default when the environment names no port', () => {
-    expect(resolveDesktopHostWebPort({})).toBe(DESKTOP_HOST_DEFAULT_WEB_PORT)
-    expect(resolveDesktopHostWebPort({ [DESKTOP_HOST_WEB_PORT_ENV]: '' })).toBe(DESKTOP_HOST_DEFAULT_WEB_PORT)
+  it('requires the launch environment to name the port', () => {
+    // Any fixed fallback equals some brand's port, so a missing value is a
+    // launch bug rather than a reason to reuse another brand's listener.
+    expect(() => resolveDesktopHostWebPort({})).toThrow(`${DESKTOP_HOST_WEB_PORT_ENV} must be set`)
+    expect(() => resolveDesktopHostWebPort({ [DESKTOP_HOST_WEB_PORT_ENV]: '' })).toThrow(`${DESKTOP_HOST_WEB_PORT_ENV} must be set`)
   })
 
   it('takes the port the launch environment selects', () => {
@@ -22,13 +25,15 @@ describe('Desktop Host Web port', () => {
       .toThrow(`${DESKTOP_HOST_WEB_PORT_ENV} must be an integer from 1 through 65535`)
   })
 
-  it('keeps the workspace launcher on another port through this same variable', () => {
+  it('keeps the workspace launcher on its own brand-derived lane port', () => {
     // A rename on either side would put development back on the packaged port and let the
     // launcher's own availability probe pass while the Host still fails to bind.
     const launcher = readFileSync(DEVELOPMENT_LAUNCHER, 'utf8')
     expect(launcher).toContain(DESKTOP_HOST_WEB_PORT_ENV)
-    const developmentPort = /const DEVELOPMENT_HOST_WEB_PORT = (\d+)/u.exec(launcher)?.[1]
-    expect(developmentPort).toBeDefined()
-    expect(Number(developmentPort)).not.toBe(DESKTOP_HOST_DEFAULT_WEB_PORT)
+    expect(launcher).toMatch(/lanePorts\.web\[lane\]/u)
+    // The launcher derives its port from the brand's block; a predecessor literal
+    // here would collide with an installed brand.
+    for (const brand of readBrands()) expect(launcher).not.toContain(String(brand.desktop.webPort))
+    expect(launcher).not.toContain('19387')
   })
 })

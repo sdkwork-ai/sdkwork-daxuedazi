@@ -9,6 +9,7 @@ import { answer, cosError, startCosLoopback } from './cos-loopback.ts'
 import { prepareWebsiteInstaller, uploadWebsiteInstaller } from '../scripts/desktop-website-installer.ts'
 import type { DesktopRetainedManifest } from '../scripts/desktop-release-store.ts'
 import type { DesktopPublishRoute } from '../scripts/desktop-publish-route.ts'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))) })
@@ -18,7 +19,7 @@ async function fixture(target: DesktopPublishRoute['target'] = 'mac-arm64') {
   const bytes = Buffer.from('final installer bytes')
   const route: DesktopPublishRoute = { runId: '12', attempt: '1', commit: 'a'.repeat(40), sourceRef: 'master',
     channel: 'nightly', runnerName: 'mini', runnerLabel: 'dsh-mini', target, preset: 'production' }
-  const filename = `deepseek-harness-0.2.1-rc.5-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}`
+  const filename = `${resolveBrand({}).desktop.artifactPrefix}-0.2.1-rc.5-${target}.${target === 'win-x64' ? 'exe' : 'dmg'}`
   await writeFile(join(directory, filename), bytes)
   const manifest: DesktopRetainedManifest = { schemaVersion: 1, source: {
     runId: route.runId, attempt: route.attempt, commit: route.commit, sourceRef: route.sourceRef,

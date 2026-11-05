@@ -46,7 +46,7 @@ import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopSignInOutcome, ty
 import { createIamDeepLinkBridge, findIamDeepLink } from './iam-deep-links.ts'
 import { createIamSessionBridge, type IamSessionSecretStorage } from './iam-session.ts'
 import { readDeviceInfo } from './device-info.ts'
-import { DESKTOP_DEFAULT_BRAND, desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
+import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
 import type { DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
@@ -199,7 +199,7 @@ function desktopBrandName(): string {
   } catch {
     // The fatal report names the OEM failure; the dialog that shows it still
     // needs a dictionary, so it renders the shipped brand.
-    return DESKTOP_DEFAULT_BRAND
+    return brand.displayName
   }
 }
 
@@ -208,7 +208,7 @@ function desktopBrandName(): string {
 app.setAppLogsPath()
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
-  return resolveDesktopLocale(windowsLanguage ?? app.getLocale(), desktopBrandName())
+  return resolveDesktopLocale(windowsLanguage ?? app.getLocale(), desktopBrandName(), brand.desktop.commandName)
 }
 /** Quit without the task confirmation; the caller has already decided the application must stop. */
 function quitWithoutConfirmation(): void {
@@ -597,7 +597,8 @@ async function main(): Promise<void> {
     ...(channelState?.error === undefined ? {} : { configurationError: channelState.error }) })
   const systemLanguages = app.getPreferredSystemLanguages()
   let locale = windowsLanguage === undefined
-    ? resolveDesktopStartupLocale(null, systemLanguages, oem().brand.name) : resolveDesktopLocale(windowsLanguage, oem().brand.name)
+    ? resolveDesktopStartupLocale(null, systemLanguages, oem().brand.name, brand.desktop.commandName)
+    : resolveDesktopLocale(windowsLanguage, oem().brand.name, brand.desktop.commandName)
   windowsLanguage = locale.id
   let mandatoryPolicy: DesktopMandatoryUpdatePolicy | undefined
   let mandatoryUI: DesktopMandatoryUpdateWindow | undefined
@@ -1111,7 +1112,7 @@ async function main(): Promise<void> {
     const window = mainWindow
     if (window === undefined || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
       || typeof next !== 'string') return
-    const current = resolveDesktopStartupLocale(next, systemLanguages, desktopBrandName())
+    const current = resolveDesktopStartupLocale(next, systemLanguages, desktopBrandName(), brand.desktop.commandName)
     writeDesktopLocaleCache(app.getPath('userData'), current.id)
     if (current.id === locale.id) return
     locale = current
@@ -1761,7 +1762,7 @@ async function main(): Promise<void> {
       await enterWorkspace()
       return
     }
-    locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages, desktopBrandName())
+    locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages, desktopBrandName(), brand.desktop.commandName)
     writeDesktopLocaleCache(app.getPath('userData'), locale.id)
     windowsLanguage = locale.id
     refreshApplicationMenu()

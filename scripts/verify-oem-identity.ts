@@ -30,6 +30,7 @@ const OTHER_KEY = 'birdcoder'
 /** Every identity value the shipped manifest owns. */
 const SHIPPED_IDENTITY = Object.freeze({
   appId: 'com.sdkwork.daxuedazi',
+  releaseRepository: 'sdkwork-ai/sdkwork-daxuedazi',
   productName: 'daxuedazi',
   executableName: 'daxuedazi',
   protocol: 'daxuedazi',
@@ -44,7 +45,7 @@ const SHIPPED_IDENTITY = Object.freeze({
 const SHIPPED_HOME = Object.freeze({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
 
 /** Identity values two installed brands must never share. */
-const SHARED_IDENTITY = ['appId', 'productName', 'executableName', 'protocol', 'commandName', 'registryKey', 'updaterCacheDirName', 'artifactPrefix', 'webPort'] as const
+const SHARED_IDENTITY = ['appId', 'releaseRepository', 'productName', 'executableName', 'protocol', 'commandName', 'registryKey', 'updaterCacheDirName', 'artifactPrefix', 'webPort'] as const
 
 /** Packaging and publication modules that must derive names from the selected brand. */
 const BRAND_DERIVED = [
@@ -58,7 +59,94 @@ const BRAND_DERIVED = [
   'apps/desktop/scripts/retain-desktop-ci.ts',
   'apps/desktop/scripts/installed-update-distribution.ts',
   'scripts/release/assemble-github-release.ts',
+  'scripts/release/container-artifacts.ts',
+  'scripts/release/brand-artifact-prefix.mjs',
 ] as const
+
+/** Files that name a container release asset; the names come from one brand-derived owner. */
+const CONTAINER_RELEASE_SURFACES = [
+  'scripts/release/container-artifacts.ts',
+  'scripts/release/brand-artifact-prefix.mjs',
+  'scripts/release/pack-container.ts',
+  'scripts/release/assemble-github-release.ts',
+  'scripts/release/verify-container.ts',
+  '.github/workflows/container-release.yml',
+  'INSTALL.md',
+  'INSTALL.zh.md',
+  'docs/user/guide/deployment.md',
+  'docs/user/guide/deployment.zh.md',
+] as const
+
+/** A container release file named after an application other than the selected brand. */
+const FOREIGN_CONTAINER_STEM = /(?:birdcoder|dsh)-container[-.]/u
+
+/**
+ * Packaging inputs the installed application identity must never come from.
+ *
+ * electron-builder hashes `desktop.appId` into the NSIS GUID, and that GUID keys
+ * the `InstallLocation` the next installer reads, so a lane or template that
+ * pins an identifier instead of reading the selected brand installs one product
+ * over another. These files therefore may not assign `DSH_DESKTOP_APP_ID` at
+ * all; `apps/desktop/scripts/brand-application-id.mjs` supplies the brand value
+ * and refuses a value naming another shipped product.
+ */
+const PACKAGING_IDENTITY_SURFACES = [
+  '.github/workflows/desktop-package-target.yml',
+  'apps/desktop/packaging/windows.env.example',
+  'apps/desktop/packaging/macos.env.example',
+] as const
+
+/** A packaging input that pins the installed application identifier instead of reading the brand. */
+const PINNED_APP_ID = /^\s*(?:export\s+)?DSH_DESKTOP_APP_ID\s*[:=]/mu
+
+/** A release repository spelled into the builder instead of coming from the brand manifest. */
+const FOREIGN_RELEASE_REPOSITORY = /sdkwork-(?:birdcoder|daxuedazi)\b/u
+
+/** Installer language resources; the product name is a `{brand}` placeholder in every file. */
+const INSTALLER_LOCALES = ['en_US', 'zh_CN', 'ja_JP', 'es_ES', 'fr_FR', 'de_DE', 'ru_RU', 'pt_BR'] as const
+
+/** Shipped guides that must send users to this brand's releases, never another product's. */
+const SHIPPED_GUIDES = [
+  'README.md',
+  'INSTALL.md',
+  'docs/user/guide/desktop.md',
+  'apps/desktop/packaging/README.md',
+] as const
+
+/** A GitHub repository URL naming the predecessor product inside a shipped guide. */
+const FOREIGN_RELEASE_URL = /github\.com\/[A-Za-z0-9-]+\/(?!sdkwork-daxuedazi\b)[A-Za-z0-9._-]*birdcoder[A-Za-z0-9._-]*/u
+
+/**
+ * The application code this repository ships, declared once and consumed by
+ * every config surface (Section 8 of the OEM standard).
+ *
+ * The application code is the technical namespace of the deployed application;
+ * the product brand (install identity, display, releases, home, ports) is a
+ * separate layer owned by `brands/<key>.json`. One application, one spelling:
+ * a surface that still says `sdkwork-birdcoder` names a product that does not
+ * exist and splits the same application across two identities.
+ */
+const APPLICATION_IDENTITY = 'sdkwork-birdcoder2'
+
+/** Application code without the vendor prefix. */
+const APPLICATION_CODE = 'birdcoder2'
+
+/** Surfaces that must agree on {@link APPLICATION_IDENTITY}. */
+const APPLICATION_IDENTITY_SURFACES = [
+  'agent.workflow.json',
+  'agent.app.config.json',
+  'specs/topology.spec.json',
+  'specs/component.spec.json',
+  'etc/sdkwork.deployment.config.json',
+  'etc/client-env.materialization.json',
+  'deployments/kubernetes/values.yaml',
+  'deployments/kubernetes/Chart.yaml',
+  'bin/lib/module.sh',
+  'packages/client/ui-sdkwork-env/src/env-settings.ts',
+] as const
+
+/** A spelling of the application slug that drops the code suffix. */
+const LEGACY_APPLICATION_SLUG = /sdkwork-birdcoder(?!2)/u
 
 /** Surfaces whose content the OEM contract depends on; the spec copies exactly these. */
 export const OEM_OWNED_FILES = [
@@ -66,6 +154,28 @@ export const OEM_OWNED_FILES = [
   `brands/${OTHER_KEY}.json`,
   'apps/desktop/package.json',
   'apps/desktop/scripts/brand-manifest.mjs',
+  'apps/desktop/scripts/brand-application-id.mjs',
+  'apps/desktop/scripts/brand-release-repository.mjs',
+  '.github/workflows/desktop-package-target.yml',
+  'apps/desktop/packaging/windows.env.example',
+  'apps/desktop/packaging/macos.env.example',
+  'agent.workflow.json',
+  'agent.app.config.json',
+  `brands/${OTHER_KEY}.oem.json`,
+  'packages/client/web/src/boot-brand.ts',
+  'apps/desktop/scripts/generate-installer-brand.mjs',
+  'apps/desktop/src/locale.ts',
+  'apps/desktop-host/src/web-port.ts',
+  'packages/client/locale/src/client/index.ts',
+  'specs/topology.spec.json',
+  'specs/component.spec.json',
+  'etc/sdkwork.deployment.config.json',
+  'etc/client-env.materialization.json',
+  'deployments/kubernetes/values.yaml',
+  'deployments/kubernetes/Chart.yaml',
+  'bin/lib/module.sh',
+  'packages/client/ui-sdkwork-env/src/env-settings.ts',
+  ...INSTALLER_LOCALES.map(locale => `apps/desktop/installer/locales/${locale}.json`),
   'apps/desktop/scripts/dev.ts',
   'apps/desktop/scripts/development-identity.ts',
   'apps/desktop/scripts/electron-builder-config.mjs',
@@ -93,6 +203,13 @@ export const OEM_OWNED_FILES = [
   'AGENTS.md',
   'brands/README.md',
   'FORK_SYNC.md',
+  'INSTALL.md',
+  'INSTALL.zh.md',
+  'docs/user/guide/deployment.md',
+  'docs/user/guide/deployment.zh.md',
+  '.github/workflows/container-release.yml',
+  'scripts/release/pack-container.ts',
+  'scripts/release/verify-container.ts',
   ...BRAND_DERIVED,
 ] as const
 
@@ -203,6 +320,304 @@ function checkDerivation(root: string, failures: string[]): void {
   const manifestModule = read(root, 'apps/desktop/scripts/brand-manifest.mjs')
   if (!manifestModule.includes(`export const DEFAULT_BRAND_KEY = '${SHIPPED_KEY}'`)) {
     failures.push(`oem identity: brand-manifest.mjs no longer ships ${SHIPPED_KEY} as DEFAULT_BRAND_KEY`)
+  }
+}
+
+/**
+ * Check every container release asset name derives from the selected brand.
+ *
+ * The container bundle was the last release family named after another
+ * application: the packer, the assembler, the workflow, the install guides and
+ * the container gate each spelled the stem separately, so one OEM rename left
+ * six published files behind. A literal foreign stem in any of them, or a lane
+ * that stopped reading the brand manifest, is the defect this catches.
+ * @param root - Repository root.
+ * @param failures - Receives every lane that would publish a foreign-named asset.
+ */
+function checkContainerArtifacts(root: string, failures: string[]): void {
+  const contract = 'brands/README.md ("OEM-owned surfaces")'
+  for (const path of CONTAINER_RELEASE_SURFACES) {
+    const text = read(root, path)
+    if (text === '') {
+      failures.push(`oem identity: ${path} is missing; every container release asset name is part of the OEM release contract (${contract})`)
+      continue
+    }
+    if (FOREIGN_CONTAINER_STEM.test(text)) {
+      failures.push(`oem identity: ${path} names a container release file with a hardcoded upstream stem; `
+        + `every container asset must start with the selected brand's desktop.artifactPrefix (${contract})`)
+    }
+  }
+  if (!read(root, 'scripts/release/container-artifacts.ts').includes('resolveBrand().desktop.artifactPrefix')) {
+    failures.push('oem identity: scripts/release/container-artifacts.ts no longer takes the stem from resolveBrand().desktop.artifactPrefix; '
+      + 'an OEM build would publish files named after another product')
+  }
+  for (const token of ['containerBundleDirectory(', 'containerBundleArchive(']) {
+    if (!read(root, 'scripts/release/pack-container.ts').includes(token)) {
+      failures.push(`oem identity: scripts/release/pack-container.ts no longer names its output through ${JSON.stringify(token)}; `
+        + 'the packaged bundle would stop carrying the brand prefix')
+    }
+  }
+  for (const token of ['containerReleaseAssets(', 'containerReleaseArtifacts(']) {
+    if (!read(root, 'scripts/release/assemble-github-release.ts').includes(token)) {
+      failures.push(`oem identity: scripts/release/assemble-github-release.ts no longer requires the brand-derived container names (${JSON.stringify(token)}); `
+        + 'the release would accept assets named for another product')
+    }
+  }
+  const workflow = read(root, '.github/workflows/container-release.yml')
+  if (!workflow.includes('scripts/release/brand-artifact-prefix.mjs') || !workflow.includes('${ARTIFACT_PREFIX}-container-')) {
+    failures.push('oem identity: .github/workflows/container-release.yml no longer resolves and applies the brand artifact prefix; '
+      + 'its uploaded Actions artifacts would not match the packaged file names')
+  }
+  const shippedStem = `${SHIPPED_IDENTITY.artifactPrefix}-container-`
+  if (!read(root, 'docs/user/guide/deployment.md').includes(shippedStem)) {
+    failures.push(`oem identity: docs/user/guide/deployment.md no longer names the shipped brand's container assets (${JSON.stringify(shippedStem)}); `
+      + 'the download instructions would name files the release does not publish')
+  }
+}
+
+/**
+ * Read one nested field from parsed JSON without trusting the document's shape.
+ * @param root - Parsed JSON object.
+ * @param section - Top-level section name.
+ * @param key - Field inside the section.
+ * @returns The raw value, or undefined when either level is not an object.
+ */
+function nestedJsonField(root: Record<string, unknown>, section: string, key: string): unknown {
+  const value = root[section]
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
+  return (value as Record<string, unknown>)[key]
+}
+
+/**
+ * Check the application code is declared once and spelled once.
+ *
+ * The brand and the application are two layers. The brand manifest owns the
+ * installed identity; every other config surface names the application code.
+ * A second spelling of the application slug is what made one product appear as
+ * two different applications across the store, IAM, deployment, and workflow.
+ * @param root - Repository root.
+ * @param failures - Receives every surface that disagrees with the declaration.
+ */
+function checkApplicationIdentity(root: string, failures: string[]): void {
+  const contract = 'sdkwork-specs/OEM_BRANDING_SPEC.md §8'
+  for (const path of APPLICATION_IDENTITY_SURFACES) {
+    const text = read(root, path)
+    if (text === '') {
+      failures.push(`oem identity: ${path} is missing; every application identity surface agrees on ${APPLICATION_IDENTITY} (${contract})`)
+      continue
+    }
+    if (LEGACY_APPLICATION_SLUG.test(text)) {
+      failures.push(`oem identity: ${path} spells the application as "sdkwork-birdcoder"; the declared application code is ${APPLICATION_IDENTITY}, `
+        + `and a second spelling splits one application across two identities (${contract})`)
+    }
+  }
+  const expectations: Array<[string, string]> = [
+    ['agent.workflow.json', `"id": "${APPLICATION_IDENTITY}"`],
+    ['agent.app.config.json', `"key": "${APPLICATION_IDENTITY}"`],
+    ['agent.app.config.json', `"containerImage": "registry.sdkwork.com/apps/${APPLICATION_IDENTITY}"`],
+    ['agent.app.config.json', `"appId": "${APPLICATION_IDENTITY}"`],
+    ['specs/topology.spec.json', `"appId": "${APPLICATION_IDENTITY}"`],
+    ['specs/topology.spec.json', `"applicationCode": "${APPLICATION_CODE}"`],
+    ['etc/sdkwork.deployment.config.json', `"application": "${APPLICATION_IDENTITY}"`],
+    ['etc/client-env.materialization.json', `"application": "${APPLICATION_IDENTITY}"`],
+    ['deployments/kubernetes/Chart.yaml', `name: ${APPLICATION_IDENTITY}`],
+    ['bin/lib/module.sh', `SDKWORK_MODULE_ID="${APPLICATION_IDENTITY}"`],
+    ['packages/client/ui-sdkwork-env/src/env-settings.ts', `.default('${APPLICATION_IDENTITY}')`],
+  ]
+  for (const [path, expected] of expectations) {
+    const text = read(root, path)
+    if (text !== '' && !text.includes(expected)) {
+      failures.push(`oem identity: ${path} no longer declares ${JSON.stringify(expected)}; the application code must be declared once and read everywhere (${contract})`)
+    }
+  }
+}
+
+/**
+ * Check the identity values that must follow the brand manifest rather than a literal.
+ *
+ * These surfaces are where a rebrand historically stopped: the workflow manifest
+ * that names released artifacts, the app-store manifest's desktop id, the
+ * installer language resources, the pre-plugin boot page, the installer artwork
+ * generator, and the shipped guides' release links.
+ * @param root - Repository root.
+ * @param brand - Parsed shipped manifest.
+ * @param failures - Receives every surface that still names another identity or another product.
+ */
+function checkBrandDerivedSurfaces(root: string, brand: DesktopBrand | undefined, failures: string[]): void {
+  if (brand === undefined) return
+  const contract = 'brands/README.md ("OEM-owned surfaces")'
+  const workflowText = read(root, 'agent.workflow.json')
+  if (workflowText === '') {
+    failures.push('oem identity: agent.workflow.json is missing; the release workflow contract is part of the OEM release identity')
+  }
+  else {
+    let workflow: Record<string, unknown> = {}
+    try {
+      const parsed: unknown = JSON.parse(workflowText)
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) workflow = parsed as Record<string, unknown>
+      else failures.push('oem identity: agent.workflow.json must be a JSON object')
+    }
+    catch {
+      failures.push('oem identity: agent.workflow.json is not valid JSON')
+    }
+    const prefix = nestedJsonField(workflow, 'release', 'artifactPrefix')
+    if (prefix !== brand.desktop.artifactPrefix) {
+      failures.push(`oem identity: agent.workflow.json release.artifactPrefix is ${JSON.stringify(prefix ?? null)}; expected the shipped brand's ${JSON.stringify(brand.desktop.artifactPrefix)} (${contract})`)
+    }
+    const repository = nestedJsonField(workflow, 'app', 'repository')
+    if (repository !== brand.desktop.releaseRepository) {
+      failures.push(`oem identity: agent.workflow.json app.repository is ${JSON.stringify(repository ?? null)}; expected the shipped brand's ${JSON.stringify(brand.desktop.releaseRepository)}`)
+    }
+    const name = nestedJsonField(workflow, 'app', 'name')
+    if (typeof name !== 'string' || !name.includes(brand.displayName)) {
+      failures.push(`oem identity: agent.workflow.json app.name is ${JSON.stringify(name ?? null)}; it must name the shipped brand ${JSON.stringify(brand.displayName)}`)
+    }
+  }
+  const appManifestText = read(root, 'agent.app.config.json')
+  if (appManifestText === '') {
+    failures.push('oem identity: agent.app.config.json is missing; the app-store manifest publishes the installed identity')
+  }
+  else {
+    let desktopAppId: unknown
+    try {
+      desktopAppId = (JSON.parse(appManifestText) as { app?: { identifiers?: { desktopAppId?: unknown } } }).app?.identifiers?.desktopAppId
+    }
+    catch {
+      failures.push('oem identity: agent.app.config.json is not valid JSON')
+    }
+    if (desktopAppId !== undefined && desktopAppId !== brand.desktop.appId) {
+      failures.push(`oem identity: agent.app.config.json app.identifiers.desktopAppId is ${JSON.stringify(desktopAppId)}; expected the shipped brand's ${JSON.stringify(brand.desktop.appId)}. `
+        + 'A second desktop id describes an installation no packaged artifact uses')
+    }
+  }
+  for (const locale of INSTALLER_LOCALES) {
+    const path = `apps/desktop/installer/locales/${locale}.json`
+    const text = read(root, path)
+    if (text === '') {
+      failures.push(`oem identity: ${path} is missing; every installer language carries the brand placeholder`)
+      continue
+    }
+    if (!text.includes('{brand}')) {
+      failures.push(`oem identity: ${path} no longer spells the product name as the {brand} placeholder; installer copy would ship one brand's name to every build`)
+    }
+    if (/BirdCoder|DeepSeek Harness/u.test(text)) {
+      failures.push(`oem identity: ${path} names a product literally; installer copy must use the {brand} placeholder the packaging run substitutes`)
+    }
+  }
+  const boot = read(root, 'packages/client/web/src/boot-brand.ts')
+  if (boot === '') {
+    failures.push('oem identity: packages/client/web/src/boot-brand.ts is missing; the pre-plugin boot surface has no brand')
+  }
+  else if (!boot.includes(`'${brand.displayName}'`)) {
+    failures.push(`oem identity: packages/client/web/src/boot-brand.ts no longer shows the shipped brand display name ${JSON.stringify(brand.displayName)}`)
+  }
+  const artwork = read(root, 'apps/desktop/scripts/generate-installer-brand.mjs')
+  if (artwork === '') {
+    failures.push('oem identity: apps/desktop/scripts/generate-installer-brand.mjs is missing; installer artwork is build-time identity')
+  }
+  else if (!artwork.includes('resolveBrand(')) {
+    failures.push('oem identity: apps/desktop/scripts/generate-installer-brand.mjs no longer takes the wordmark from resolveBrand(); a second brand would render the shipped brand\'s name')
+  }
+  const hostPort = read(root, 'apps/desktop-host/src/web-port.ts')
+  if (hostPort === '') {
+    failures.push('oem identity: apps/desktop-host/src/web-port.ts is missing; the Host Web port is a brand-owned launch fact')
+  }
+  else if (/DEFAULT_WEB_PORT\s*=\s*\d/u.test(hostPort)) {
+    failures.push('oem identity: apps/desktop-host/src/web-port.ts declares a fixed default Web port; every fixed port equals one brand\'s port, so the Host must require DSH_DESKTOP_HOST_WEB_PORT')
+  }
+  const clientLocale = read(root, 'packages/client/locale/src/client/index.ts')
+  if (clientLocale === '') {
+    failures.push('oem identity: packages/client/locale/src/client/index.ts is missing; the pre-projection brand fallback lives there')
+  }
+  else if (!clientLocale.includes(`'${brand.displayName}'`)) {
+    failures.push(`oem identity: packages/client/locale/src/client/index.ts no longer falls back to the shipped brand display name ${JSON.stringify(brand.displayName)}; a page without the OEM projection would render another product's name`)
+  }
+  const desktopLocale = read(root, 'apps/desktop/src/locale.ts')
+  if (!desktopLocale.includes('DESKTOP_DEFAULT_COMMAND')) {
+    failures.push('oem identity: apps/desktop/src/locale.ts no longer substitutes the brand command; a second brand would teach users the shipped command')
+  }
+  const desktopMain = read(root, 'apps/desktop/src/main.ts')
+  if (!/resolveDesktop(?:Startup)?Locale\([^\n]*brand\.desktop\.commandName/u.test(desktopMain)) {
+    failures.push('oem identity: apps/desktop/src/main.ts no longer resolves the Desktop dictionary with brand.desktop.commandName')
+  }
+  for (const candidate of readBrands()) {
+    if (candidate.key === brand.key) continue
+    // A non-shipped brand inherits the shipped OEM defaults unless it ships its
+    // own profile. Those defaults spell one brand (display name and IAM callback
+    // scheme), so the second brand must override them in data.
+    const path = `brands/${candidate.key}.oem.json`
+    const text = read(root, path)
+    if (text === '') {
+      failures.push(`oem identity: ${path} is missing; a brand other than the shipped one must ship an OEM profile naming its display brand and its own IAM callback scheme, or it renders the shipped brand's copy`)
+      continue
+    }
+    let profile: Record<string, unknown>
+    try {
+      const parsed: unknown = JSON.parse(text)
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        failures.push(`oem identity: ${path} must be a JSON object`)
+        continue
+      }
+      profile = parsed as Record<string, unknown>
+    }
+    catch {
+      failures.push(`oem identity: ${path} is not valid JSON`)
+      continue
+    }
+    const declaredName = nestedJsonField(profile, 'brand', 'name')
+    const redirect = nestedJsonField(profile, 'sdkwork', 'iamRedirectUri')
+    if (declaredName !== candidate.displayName) {
+      failures.push(`oem identity: ${path} brand.name is ${JSON.stringify(declaredName ?? null)}; expected ${JSON.stringify(candidate.displayName)}`)
+    }
+    if (typeof redirect !== 'string' || !redirect.startsWith(`${candidate.desktop.protocol}://`)) {
+      failures.push(`oem identity: ${path} sdkwork.iamRedirectUri must start with the brand protocol ${JSON.stringify(`${candidate.desktop.protocol}://`)}; found ${JSON.stringify(redirect ?? null)}`)
+    }
+  }
+  for (const guide of SHIPPED_GUIDES) {
+    const text = read(root, guide)
+    if (text === '') {
+      failures.push(`oem identity: ${guide} is missing; the shipped guides are part of the release identity`)
+      continue
+    }
+    if (FOREIGN_RELEASE_URL.test(text)) {
+      failures.push(`oem identity: ${guide} links another product's release repository; the shipped guides must name ${brand.desktop.releaseRepository}`)
+    }
+  }
+}
+
+/**
+ * Check no packaging surface pins the installed application identity.
+ *
+ * The identifier decides the Windows installer GUID, so a template or a workflow
+ * default carrying one product's app id makes the other product's installer
+ * upgrade it in place. The brand resolver is the only owner.
+ * @param root - Repository root.
+ * @param failures - Receives every surface that pins an identifier or stopped using the brand.
+ */
+function checkPackagingApplicationIdentity(root: string, failures: string[]): void {
+  for (const path of PACKAGING_IDENTITY_SURFACES) {
+    const text = read(root, path)
+    if (text === '') {
+      failures.push(`oem identity: ${path} is missing; packaging inputs are part of the OEM release contract (brands/README.md)`)
+      continue
+    }
+    if (PINNED_APP_ID.test(text)) {
+      failures.push(`oem identity: ${path} assigns DSH_DESKTOP_APP_ID; the installed identity must come from the selected brand manifest, `
+        + 'because electron-builder hashes it into the Windows installer GUID and a pinned value installs this build over the product it names')
+    }
+  }
+  const builder = read(root, 'apps/desktop/scripts/electron-builder-config.mjs')
+  if (!builder.includes('resolveBrandApplicationId(')) {
+    failures.push('oem identity: apps/desktop/scripts/electron-builder-config.mjs no longer takes its appId from resolveBrandApplicationId; '
+      + 'a lane setting could hand the build another product\'s installer identity again')
+  }
+  if (!builder.includes('resolveBrandReleaseRepository(')) {
+    failures.push('oem identity: apps/desktop/scripts/electron-builder-config.mjs no longer takes its update feed from '
+      + 'resolveBrandReleaseRepository; a packaged shell would offer another product\'s release as its own update')
+  }
+  if (FOREIGN_RELEASE_REPOSITORY.test(builder)) {
+    failures.push('oem identity: apps/desktop/scripts/electron-builder-config.mjs names a release repository literally; '
+      + 'each brand\'s `desktop.releaseRepository` must decide where its updater reads latest.yml')
   }
 }
 
@@ -616,6 +1031,10 @@ export function verifyOemIdentity(root: string = resolve(dirname(fileURLToPath(i
   checkSecondBrand(shipped, other, failures)
   checkBrandPorts(root, failures)
   checkDerivation(root, failures)
+  checkContainerArtifacts(root, failures)
+  checkPackagingApplicationIdentity(root, failures)
+  checkBrandDerivedSurfaces(root, shipped, failures)
+  checkApplicationIdentity(root, failures)
   checkShell(root, shipped, failures)
   checkDevelopmentLane(root, failures)
   checkIamCallback(root, shipped, failures)

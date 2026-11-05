@@ -28,6 +28,7 @@ const ACME = Object.freeze({
   home: { dirName: '.acme', adoptLegacyDshHome: false },
   desktop: {
     appId: 'com.acme.harness',
+    releaseRepository: 'acme/harness-releases',
     productName: 'Acme Harness',
     executableName: 'acme',
     protocol: 'acme',
@@ -57,6 +58,7 @@ it('ships the daxuedazi brand this application builds today', () => {
   expect(brand.home).toEqual({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
   expect(brand.desktop).toEqual({
     appId: 'com.sdkwork.daxuedazi',
+    releaseRepository: 'sdkwork-ai/sdkwork-daxuedazi',
     productName: 'daxuedazi',
     executableName: 'daxuedazi',
     protocol: 'daxuedazi',
@@ -108,6 +110,7 @@ it('rejects an identity that belongs to the upstream application', () => {
     ['desktop.protocol', (manifest) => { (manifest.desktop as Record<string, unknown>).protocol = 'dsh' }],
     ['desktop.commandName', (manifest) => { (manifest.desktop as Record<string, unknown>).commandName = 'dsh' }],
     ['desktop.appId', (manifest) => { (manifest.desktop as Record<string, unknown>).appId = 'com.deepseek.harness' }],
+    ['desktop.releaseRepository', (manifest) => { (manifest.desktop as Record<string, unknown>).releaseRepository = 'deepseek-ai/deepseek-harness' }],
   ]
   for (const [field, corrupt] of cases) {
     const manifest = acme()
@@ -124,6 +127,8 @@ it('rejects malformed fields instead of falling back', () => {
     ['home.dirName', (manifest) => { (manifest.home as Record<string, unknown>).dirName = '.ACME' }],
     ['home.adoptLegacyDshHome', (manifest) => { (manifest.home as Record<string, unknown>).adoptLegacyDshHome = 'yes' }],
     ['desktop.appId', (manifest) => { (manifest.desktop as Record<string, unknown>).appId = 'acme' }],
+    ['desktop.releaseRepository', (manifest) => { (manifest.desktop as Record<string, unknown>).releaseRepository = 'acme' }],
+    ['desktop.releaseRepository', (manifest) => { delete (manifest.desktop as Record<string, unknown>).releaseRepository }],
     ['desktop.protocol', (manifest) => { (manifest.desktop as Record<string, unknown>).protocol = 'Acme Scheme' }],
     ['desktop.productName', (manifest) => { (manifest.desktop as Record<string, unknown>).productName = 'Acme/Harness' }],
     ['desktop.webPort', (manifest) => { (manifest.desktop as Record<string, unknown>).webPort = '19390' }],

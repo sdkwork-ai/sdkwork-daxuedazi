@@ -18,6 +18,8 @@ import { dirname, join, resolve } from 'node:path'
 import { isDeepStrictEqual, parseArgs } from 'node:util'
 import yaml from 'js-yaml'
 import { resolveBrand } from '../../apps/desktop/scripts/brand-manifest.mjs'
+import { resolveBrandReleaseRepository } from '../../apps/desktop/scripts/brand-release-repository.mjs'
+import { containerReleaseArtifacts, containerReleaseAssets } from './container-artifacts.ts'
 import { isEntry } from './process.ts'
 
 type DesktopOs = 'win' | 'mac' | 'linux'
@@ -62,7 +64,7 @@ interface AssembleOptions {
   readonly input: string
   /** Clean destination for the exact GitHub Release asset set. */
   readonly output: string
-  /** Version named by the `birdcoder-v<version>` tag. */
+  /** Version named by the `sdkwork-daxuedazi-v<version>` tag. */
   readonly version: string
 }
 
@@ -151,25 +153,6 @@ function artifactPrefix(): string {
 
 function desktopFilename(target: DesktopTarget, version: string, format: string): string {
   return `${artifactPrefix()}-${version}-${target.os}-${artifactArch(target, format)}.${format}`
-}
-
-function containerArtifactNames(version: string): string[] {
-  return [
-    `birdcoder-container-${version}.tar.gz`,
-    `birdcoder-container-${version}.tar.gz.sha256`,
-    `birdcoder-container-image-${version}-linux-amd64.tar.gz`,
-    `birdcoder-container-image-${version}-linux-amd64.tar.gz.sha256`,
-    `birdcoder-container-image-${version}-linux-arm64.tar.gz`,
-    `birdcoder-container-image-${version}-linux-arm64.tar.gz.sha256`,
-  ]
-}
-
-function containerArtifactDirectories(version: string): string[] {
-  return [
-    `birdcoder-container-deployment-${version}`,
-    `birdcoder-container-image-${version}-linux-amd64`,
-    `birdcoder-container-image-${version}-linux-arm64`,
-  ]
 }
 
 function hashFile(path: string, algorithm: 'sha256' | 'sha512', encoding: 'hex' | 'base64'): string {
@@ -295,7 +278,7 @@ export function desktopReleaseArtifacts(): readonly string[] {
  * tree beside its installers, and only files reach the GitHub Release.
  * @param artifact - Actions artifact directory name, as `DESKTOP_TARGETS` spells it.
  * @param directory - Packaged target output directory.
- * @param version - Version the `birdcoder-v<version>` tag names.
+ * @param version - Version the `sdkwork-daxuedazi-v<version>` tag names.
  * @param tolerated - Extra filenames to ignore, for electron-builder bookkeeping.
  * @returns The expected filenames, sorted.
  */
@@ -369,8 +352,8 @@ function validateChecksum(directory: string, archiveName: string, checksumName: 
 }
 
 function validateContainerArtifacts(input: string, version: string): Map<string, string> {
-  const names = containerArtifactNames(version)
-  const directories = containerArtifactDirectories(version)
+  const names = containerReleaseAssets(version)
+  const directories = containerReleaseArtifacts(version)
   const groups = [names.slice(0, 2), names.slice(2, 4), names.slice(4, 6)]
   const files = new Map<string, string>()
   directories.forEach((artifact, index) => {
@@ -390,7 +373,7 @@ function validateContainerArtifacts(input: string, version: string): Map<string,
 
 /**
  * Return the exact public assets for one release version.
- * @param version - release version without the `birdcoder-v` prefix.
+ * @param version - release version without the `sdkwork-daxuedazi-v` prefix.
  * @returns Sorted asset basenames, including the aggregate checksum file.
  */
 export function expectedReleaseAssetNames(version: string): string[] {
@@ -398,7 +381,7 @@ export function expectedReleaseAssetNames(version: string): string[] {
     ...target.formats.map(format => desktopFilename(target, version, format)),
     ...target.blockmapFormats.map(format => `${desktopFilename(target, version, format)}.blockmap`),
   ])
-  return [...desktop, ...METADATA_NAMES, ...containerArtifactNames(version), 'SHA256SUMS'].sort()
+  return [...desktop, ...METADATA_NAMES, ...containerReleaseAssets(version), 'SHA256SUMS'].sort()
 }
 
 /**
@@ -407,11 +390,16 @@ export function expectedReleaseAssetNames(version: string): string[] {
  */
 export function assembleGitHubRelease(options: AssembleOptions): void {
   assert(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(options.version), `invalid version ${options.version}`)
+  // The packaged desktop shell reads latest.yml from the brand's release
+  // repository, so assembling this brand's assets anywhere else would publish a
+  // release no installed copy looks at — or, with a shared repository, offer one
+  // product's release to the other product's installations.
+  resolveBrandReleaseRepository(process.env)
   const input = resolve(options.input)
   const output = resolve(options.output)
   const expectedArtifactDirectories = [
     ...DESKTOP_TARGETS.map(target => target.artifact),
-    ...containerArtifactDirectories(options.version),
+    ...containerReleaseArtifacts(options.version),
   ]
   const inputEntries = readdirSync(input, { withFileTypes: true })
   assert(inputEntries.every(entry => entry.isDirectory()), `${input} must contain only artifact directories`)

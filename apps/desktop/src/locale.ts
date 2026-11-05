@@ -205,10 +205,27 @@ export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 /** Product name the Desktop dictionaries spell. */
 export const DESKTOP_DEFAULT_BRAND = 'BirdCoder'
 
-function brandMessages(messages: DesktopMessages, brand: string): DesktopMessages {
-  if (brand === DESKTOP_DEFAULT_BRAND) return messages
+/**
+ * Desktop command the shipped dictionaries spell.
+ *
+ * The command is brand identity too: a second brand installs its own executable,
+ * so the copy that teaches the user what to type must follow the selected
+ * manifest rather than the shipped command. The resolver substitutes this token
+ * with `brand.desktop.commandName`; changing it without respelling every
+ * dictionary would render the token itself.
+ */
+export const DESKTOP_DEFAULT_COMMAND = 'daxuedazi'
+
+function brandMessages(messages: DesktopMessages, brand: string, command: string = DESKTOP_DEFAULT_COMMAND): DesktopMessages {
+  if (brand === DESKTOP_DEFAULT_BRAND && command === DESKTOP_DEFAULT_COMMAND) return messages
   const branded: Record<string, string> = {}
-  for (const [key, value] of Object.entries(messages)) branded[key] = value.replaceAll(DESKTOP_DEFAULT_BRAND, brand)
+  for (const [key, value] of Object.entries(messages)) {
+    let text = value.replaceAll(DESKTOP_DEFAULT_BRAND, brand)
+    // The command token appears inside CLI-copy sentences, never inside an
+    // identifier the shell uses, so a plain substitution is sufficient.
+    if (command !== DESKTOP_DEFAULT_COMMAND) text = text.replaceAll(DESKTOP_DEFAULT_COMMAND, command)
+    branded[key] = text
+  }
   return branded as DesktopMessages
 }
 
@@ -463,7 +480,7 @@ export const ja = {
   selectAll: 'すべて選択',
   startupFailed: 'BirdCoder を利用できません',
   fatalSummary: 'アプリケーションを起動できなかったか、予期せず停止しました。',
-  startupAddressInUse: '別の DSH インスタンス (dsh web やデスクトップアプリなど) が実行中です。同時に起動することはできません。実行中の他の DSH インスタンスを終了してから再起動してください。',
+  startupAddressInUse: '別の BirdCoder インスタンス (dsh web やデスクトップアプリなど) が実行中です。同時に起動することはできません。実行中の他の BirdCoder インスタンスを終了してから再起動してください。',
   diagnosticTruncated: '… エラー詳細は省略されています。',
   reportWrittenTo: '診断レポート: {path}',
   getDiagnosticReport: '診断レポートを取得',
@@ -654,7 +671,7 @@ export const es = {
   selectAll: 'Seleccionar todo',
   startupFailed: 'BirdCoder no está disponible',
   fatalSummary: 'La aplicación no pudo iniciarse o se detuvo inesperadamente.',
-  startupAddressInUse: 'Se está ejecutando otra instancia de DSH (como la web de dsh o la aplicación de escritorio). No pueden empezar al mismo tiempo. Salga de la otra instancia DSH en ejecución y luego reinicie.',
+  startupAddressInUse: 'Se está ejecutando otra instancia de BirdCoder (como la web de dsh o la aplicación de escritorio). No pueden empezar al mismo tiempo. Salga de la otra instancia BirdCoder en ejecución y luego reinicie.',
   diagnosticTruncated: '… Detalles del error acortados.',
   reportWrittenTo: 'Informe de diagnóstico: {path}',
   getDiagnosticReport: 'Obtener informe de diagnóstico',
@@ -845,7 +862,7 @@ export const fr = {
   selectAll: 'Sélectionner tout',
   startupFailed: "BirdCoder n'est pas disponible",
   fatalSummary: "L'application n'a pas pu démarrer ou s'est arrêtée de manière inattendue.",
-  startupAddressInUse: "Une autre instance DSH (telle que le Web dsh ou l'application de bureau) est en cours d'exécution. Ils ne peuvent pas démarrer en même temps. Quittez l'autre instance DSH en cours d'exécution, puis redémarrez.",
+  startupAddressInUse: "Une autre instance BirdCoder (telle que le Web dsh ou l'application de bureau) est en cours d'exécution. Ils ne peuvent pas démarrer en même temps. Quittez l'autre instance BirdCoder en cours d'exécution, puis redémarrez.",
   diagnosticTruncated: '… Détails de l’erreur raccourcis.',
   reportWrittenTo: 'Rapport de diagnostic : {path}',
   getDiagnosticReport: 'Obtenir le rapport de diagnostic',
@@ -1036,7 +1053,7 @@ export const de = {
   selectAll: 'Alles auswählen',
   startupFailed: 'BirdCoder ist nicht verfügbar',
   fatalSummary: 'Die Anwendung konnte nicht gestartet werden oder wurde unerwartet gestoppt.',
-  startupAddressInUse: 'Eine andere DSH-Instanz (z. B. dsh Web oder die Desktop-App) wird ausgeführt. Sie können nicht gleichzeitig starten. Beenden Sie die andere laufende DSH-Instanz und starten Sie sie neu.',
+  startupAddressInUse: 'Eine andere BirdCoder-Instanz (z. B. dsh Web oder die Desktop-App) wird ausgeführt. Sie können nicht gleichzeitig starten. Beenden Sie die andere laufende BirdCoder-Instanz und starten Sie sie neu.',
   diagnosticTruncated: '… Fehlerdetails gekürzt.',
   reportWrittenTo: 'Diagnosebericht: {path}',
   getDiagnosticReport: 'Diagnosebericht abrufen',
@@ -1227,7 +1244,7 @@ export const ru = {
   selectAll: 'Выбрать все',
   startupFailed: 'BirdCoder недоступен.',
   fatalSummary: 'Приложение не могло запуститься или неожиданно остановилось.',
-  startupAddressInUse: 'Другой экземпляр DSH (например, веб-приложение dsh или настольное приложение) запущен. Они не могут начаться одновременно. Закройте другой работающий экземпляр DSH, а затем перезапустите.',
+  startupAddressInUse: 'Другой экземпляр BirdCoder (например, веб-приложение dsh или настольное приложение) запущен. Они не могут начаться одновременно. Закройте другой работающий экземпляр BirdCoder, а затем перезапустите.',
   diagnosticTruncated: '… Подробности об ошибках сокращены.',
   reportWrittenTo: 'Диагностический отчет: {path}',
   getDiagnosticReport: 'Получить диагностический отчет',
@@ -1418,7 +1435,7 @@ export const pt = {
   selectAll: 'Selecionar tudo',
   startupFailed: 'BirdCoder não está disponível',
   fatalSummary: 'O aplicativo não pôde ser iniciado ou parou inesperadamente.',
-  startupAddressInUse: 'Outra instância DSH (como dsh web ou aplicativo de desktop) está em execução. Eles não podem começar ao mesmo tempo. Saia da outra instância DSH em execução e reinicie.',
+  startupAddressInUse: 'Outra instância BirdCoder (como dsh web ou aplicativo de desktop) está em execução. Eles não podem começar ao mesmo tempo. Saia da outra instância BirdCoder em execução e reinicie.',
   diagnosticTruncated: '… Detalhes do erro reduzidos.',
   reportWrittenTo: 'Relatório de diagnóstico: {path}',
   getDiagnosticReport: 'Obter relatório de diagnóstico',
@@ -1562,18 +1579,23 @@ export interface DesktopLocale {
  * Resolve Electron's locale to one shipped Desktop dictionary.
  * @param locale - Electron or renderer locale tag.
  * @param brand - OEM display brand; the shipped name when omitted.
+ * @param command - Desktop command of the selected brand; the shipped command when omitted.
  * @returns the dictionary with its branded copy.
  */
-export function resolveDesktopLocale(locale: string, brand: string = DESKTOP_DEFAULT_BRAND): DesktopLocale {
+export function resolveDesktopLocale(
+  locale: string,
+  brand: string = DESKTOP_DEFAULT_BRAND,
+  command: string = DESKTOP_DEFAULT_COMMAND,
+): DesktopLocale {
   const primary = locale.toLowerCase().split('-')[0]
   // A blank or argv-truncated brand keeps the shipped copy instead of blanking
   // every product label.
   const resolved = brand.trim() === '' ? DESKTOP_DEFAULT_BRAND : brand
   if (primary !== undefined && Object.hasOwn(dictionaries, primary)) {
     const id = primary as keyof typeof dictionaries
-    return { id: id === 'zh' ? 'zh-CN' : id, brand: resolved, messages: brandMessages(dictionaries[id], resolved) }
+    return { id: id === 'zh' ? 'zh-CN' : id, brand: resolved, messages: brandMessages(dictionaries[id], resolved, command) }
   }
-  return { id: 'en', brand: resolved, messages: brandMessages(en, resolved) }
+  return { id: 'en', brand: resolved, messages: brandMessages(en, resolved, command) }
 }
 
 /**
@@ -1581,20 +1603,22 @@ export function resolveDesktopLocale(locale: string, brand: string = DESKTOP_DEF
  * @param preference - explicit locale.preference, or null when no language was selected.
  * @param languages - operating-system languages in preference order.
  * @param brand - OEM display brand; the shipped name when omitted.
+ * @param command - Desktop command of the selected brand; the shipped command when omitted.
  * @returns the supported dictionary, falling back to English.
  */
 export function resolveDesktopStartupLocale(
   preference: string | null,
   languages: readonly string[],
   brand: string = DESKTOP_DEFAULT_BRAND,
+  command: string = DESKTOP_DEFAULT_COMMAND,
 ): DesktopLocale {
   const selected = preference?.toLowerCase()
-  if (selected !== undefined && Object.hasOwn(dictionaries, selected)) return resolveDesktopLocale(selected, brand)
+  if (selected !== undefined && Object.hasOwn(dictionaries, selected)) return resolveDesktopLocale(selected, brand, command)
   for (const language of languages) {
     const primary = language.toLowerCase().split('-')[0]
-    if (primary !== undefined && Object.hasOwn(dictionaries, primary)) return resolveDesktopLocale(primary, brand)
+    if (primary !== undefined && Object.hasOwn(dictionaries, primary)) return resolveDesktopLocale(primary, brand, command)
   }
-  return resolveDesktopLocale('en', brand)
+  return resolveDesktopLocale('en', brand, command)
 }
 
 /** Replace named placeholders in one locale-owned message. */

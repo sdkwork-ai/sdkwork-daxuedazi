@@ -13,11 +13,15 @@ import {
   desktopArtifactFiles,
   expectedReleaseAssetNames,
 } from './assemble-github-release.ts'
+import { containerReleaseArtifacts, containerReleaseAssets } from './container-artifacts.ts'
 
 const VERSION = '1.2.3-rc.4'
 // Packaging names every desktop artifact after the selected brand's stem, so the
 // fixture and the assembler agree on the manifest instead of a literal here.
 const ARTIFACT_PREFIX = resolveBrand({}).desktop.artifactPrefix
+// The container names come from the same brand-derived owner the interpreter uses.
+const CONTAINER_ASSETS = containerReleaseAssets(VERSION)
+const CONTAINER_ARTIFACTS = containerReleaseArtifacts(VERSION)
 
 interface FixtureTarget {
   readonly artifact: string
@@ -90,9 +94,9 @@ function fixture(): { input: string; output: string } {
   const output = join(root, 'output')
   mkdirSync(input)
   for (const target of TARGETS) writeDesktopArtifact(input, target)
-  writeContainerArtifact(input, `birdcoder-container-deployment-${VERSION}`, `birdcoder-container-${VERSION}.tar.gz`)
-  writeContainerArtifact(input, `birdcoder-container-image-${VERSION}-linux-amd64`, `birdcoder-container-image-${VERSION}-linux-amd64.tar.gz`)
-  writeContainerArtifact(input, `birdcoder-container-image-${VERSION}-linux-arm64`, `birdcoder-container-image-${VERSION}-linux-arm64.tar.gz`)
+  for (const [index, artifact] of CONTAINER_ARTIFACTS.entries()) {
+    writeContainerArtifact(input, artifact, CONTAINER_ASSETS[index * 2]!)
+  }
   return { input, output }
 }
 

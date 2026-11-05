@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { expect, it } from 'vitest'
-import { directoryInstallerExits, directoryInstallSection, directoryUninstaller } from '../scripts/windows-directory-installer.mjs'
+import { directoryInstallerDefines, directoryInstallerExits, directoryInstallSection, directoryUninstaller } from '../scripts/windows-directory-installer.mjs'
+import { shippedBrand } from '../scripts/brand-manifest.mjs'
 
 const require = createRequire(import.meta.url)
 const section = readFileSync(join(dirname(require.resolve('app-builder-lib/package.json')),
@@ -49,3 +50,13 @@ it.each(['!include installer.nsh', '!insertmacro setLinkVars', '!insertmacro ins
     expect(() => directoryInstallSection(`${section}\n${point}`)).toThrow('Desktop NSIS template changed')
   },
 )
+
+it('targets the brand updater cache, not the package-derived directory', () => {
+  const brand = shippedBrand()
+  const defines = directoryInstallerDefines(brand.desktop.updaterCacheDirName, 'C:\\tool\\7za.exe', 'C:\\toolset\\7za.exe')
+  expect(defines).toContain(`!define DSH_UPDATER_CACHE_NAME "${brand.desktop.updaterCacheDirName}"`)
+  // electron-builder's value folds the scoped package name, which this fork shares
+  // with every other brand built from the same package.
+  expect(defines).not.toContain('@deepseek-aidsh-desktop-updater')
+  expect(defines).toContain('!define DSH_SEVENZIP_PATH "C:\\tool\\7za.exe"')
+})

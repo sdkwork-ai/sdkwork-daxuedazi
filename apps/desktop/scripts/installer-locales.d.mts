@@ -20,6 +20,7 @@ export function readInstallerLocales(directory?: string): InstallerLocale[]
 /**
  * Generate NSIS LangString declarations from validated resources.
  * @param locales - All configured languages or one isolated native-test language.
+ * @param brandName - Brand display name substituted for every `{brand}` placeholder in the copy.
  * @returns UTF-8 NSIS source with literal text escaped.
  */
-export function renderInstallerStrings(locales: InstallerLocale[]): string
+export function renderInstallerStrings(locales: InstallerLocale[], brandName: string): string

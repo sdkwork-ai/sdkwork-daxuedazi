@@ -3,22 +3,22 @@
   "kind": "agent.app",
   "app": {
     "key": "sdkwork-birdcoder2",
-    "name": "SDKWork Birdcoder",
-    "displayName": "SDKWork Birdcoder",
-    "description": "SDKWork BirdCoder coding workbench application.",
+    "name": "学伴AI",
+    "displayName": "学伴AI",
+    "description": "学伴AI desktop application.",
     "vendor": "SDKWork",
-    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder2",
     "supportUrl": "https://sdkwork.com/support",
     "privacyPolicyUrl": "https://sdkwork.com/privacy",
     "termsOfServiceUrl": "https://sdkwork.com/terms",
-    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-1024.png",
+    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/assets/icon-1024.png",
     "appType": "APP_REACT",
     "versionSource": "package.json",
     "identifiers": {
       "packageName": null,
       "bundleId": null,
-      "desktopAppId": "com.sdkwork.birdcoder.desktop",
-      "containerImage": "registry.sdkwork.com/apps/sdkwork-birdcoder"
+      "desktopAppId": "com.sdkwork.daxuedazi",
+      "containerImage": "registry.sdkwork.com/apps/sdkwork-birdcoder2"
     }
   },
   "backend": {
@@ -26,7 +26,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "WEB",
-    "appId": "sdkwork-birdcoder",
+    "appId": "sdkwork-birdcoder2",
     "tenantId": "100001",
     "organizationId": "0",
     "accessTokenPermissionScope": [
@@ -74,10 +74,10 @@
   "media": {
     "icons": {
       "primary": {
-        "id": "sdkwork-birdcoder-primary-icon",
+        "id": "sdkwork-birdcoder2-primary-icon",
         "type": "ICON",
         "purpose": "PRIMARY",
-        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-1024.png",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/assets/icon-1024.png",
         "platform": "APP",
         "locale": "en-US",
         "width": 1024,
@@ -98,10 +98,10 @@
     },
     "screenshots": [
       {
-        "id": "sdkwork-birdcoder-web-screenshot",
+        "id": "sdkwork-birdcoder2-web-screenshot",
         "type": "SCREENSHOT",
         "purpose": "CATALOG_SCREENSHOT",
-        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/web-screenshot.png",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/media/web-screenshot.png",
         "platform": "WEB",
         "locale": "en-US",
         "deviceClass": "BROWSER",
@@ -111,21 +111,21 @@
         "format": "PNG",
         "fileSizeBytes": 1048576,
         "alphaChannel": false,
-        "caption": "SDKWork Birdcoder product screenshot.",
+        "caption": "学伴AI product screenshot.",
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "altText": "SDKWork Birdcoder app screenshot."
+          "altText": "学伴AI app screenshot."
         }
       }
     ],
     "previews": [
       {
-        "id": "sdkwork-birdcoder-catalog-preview",
+        "id": "sdkwork-birdcoder2-catalog-preview",
         "type": "PREVIEW_IMAGE",
         "purpose": "CATALOG_PREVIEW",
-        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/media/preview-cover.png",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/media/preview-cover.png",
         "platform": "WEB",
         "locale": "en-US",
         "width": 1600,
@@ -133,12 +133,12 @@
         "format": "PNG",
         "fileSizeBytes": 786432,
         "alphaChannel": false,
-        "caption": "SDKWork Birdcoder preview.",
+        "caption": "学伴AI preview.",
         "sortOrder": 0,
         "enabled": true,
         "metadata": {
           "generatedPlaceholder": true,
-          "altText": "SDKWork Birdcoder preview cover."
+          "altText": "学伴AI preview cover."
         }
       }
     ],
@@ -164,7 +164,7 @@
       "DESKTOP_LINUX"
     ],
     "defaultPackageId": "linux-x64-cloud-server-tar-gz",
-    "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder2",
     "stores": [],
     "config": {
       "workspaceRoot": "apps/web",
@@ -177,9 +177,9 @@
   "artifacts": {
     "installConfig": {
       "defaultPackageId": "linux-x64-cloud-server-tar-gz",
-      "installCommand": "sdkwork install sdkwork-birdcoder",
-      "launchCommand": "sdkwork open sdkwork-birdcoder",
-      "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder",
+      "installCommand": "sdkwork install sdkwork-birdcoder2",
+      "launchCommand": "sdkwork open sdkwork-birdcoder2",
+      "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder2",
       "packages": [
         {
           "id": "linux-x64-cloud-server-tar-gz",
@@ -187,7 +187,7 @@
           "sourceType": "BINARY_URL",
           "packageFormat": "TAR_GZ",
           "platform": "API",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/linux-x64-cloud-server-tar-gz-0.1.0.tar.gz",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/STABLE/0.1.0/linux-x64-cloud-server-tar-gz-0.1.0.tar.gz",
           "architecture": "x64",
           "checksumAlgorithm": "SHA-256",
           "checksum": "eb0dd32d10d7d5d4f7e07cca955474be2bd866885f48b1826d89cbc35a275a78",
@@ -205,7 +205,7 @@
           "sourceType": "BINARY_URL",
           "packageFormat": "TAR_GZ",
           "platform": "API",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/linux-x64-standalone-server-tar-gz-0.1.0.tar.gz",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder2/STABLE/0.1.0/linux-x64-standalone-server-tar-gz-0.1.0.tar.gz",
           "architecture": "x64",
           "checksumAlgorithm": "SHA-256",
           "checksum": "0f0368e3a70af515916dd4b9359bd4b1cd2d4be2f612b8aebc862273717c1271",
@@ -221,18 +221,18 @@
     }
   },
   "release": {
-    "currentVersion": "0.1.0",
+    "currentVersion": "0.2.2-rc.2",
     "defaultChannel": "STABLE",
     "latest": {
-      "STABLE": "0.1.0"
+      "STABLE": "0.2.2-rc.2"
     },
     "notes": [
       {
         "version": "0.1.0",
         "releaseChannel": "STABLE",
-        "title": "SDKWork Birdcoder 0.1.0",
-        "summary": "SDKWork Birdcoder initialized standard release.",
-        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder.",
+        "title": "学伴AI 0.1.0",
+        "summary": "学伴AI initialized standard release.",
+        "content": "Initial SDKWork App Standard v3 manifest for 学伴AI.",
         "highlights": [
           "SDKWork App Standard v3 configuration initialized",
           "platform_app projection metadata standardized",
@@ -256,7 +256,7 @@
     "sbomRequired": true
   },
   "metadata": {
-    "standardOwner": "sdkwork-birdcoder",
+    "standardOwner": "sdkwork-birdcoder2",
     "initializedAt": "2026-05-07T00:00:00Z",
     "deploymentConfig": "etc/sdkwork.deployment.config.json",
     "preLaunch": true

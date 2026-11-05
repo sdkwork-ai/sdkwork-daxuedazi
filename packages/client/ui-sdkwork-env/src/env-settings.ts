@@ -103,8 +103,8 @@ function profileFields(defaultBaseUrl: string, defaultImBaseUrl: string): z<Sdkw
   return z.object({
     apiBaseUrl: z.string().default(defaultBaseUrl),
     imApiBaseUrl: z.string().default(defaultImBaseUrl),
-    appId: z.string().default('sdkwork-birdcoder'),
-    appKey: z.string().default('sdkwork-birdcoder'),
+    appId: z.string().default('sdkwork-birdcoder2'),
+    appKey: z.string().default('sdkwork-birdcoder2'),
     accessToken: z.string().default(''),
     imEmbedUrl: z.string().default(''),
   })
@@ -139,9 +139,9 @@ export const ENV_PROFILE_KEYS = ['development', 'testing', 'production'] as cons
  */
 export const DEFAULT_UI_ENV_SETTINGS: UiEnvSettings = {
   [UI_ENV_ENVIRONMENT_FIELD]: 'development',
-  development: { apiBaseUrl: DEFAULT_API_BASE_URL.development, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.development, appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: '', imEmbedUrl: '' },
-  testing: { apiBaseUrl: DEFAULT_API_BASE_URL.testing, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.testing, appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: '', imEmbedUrl: '' },
-  production: { apiBaseUrl: DEFAULT_API_BASE_URL.production, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.production, appId: 'sdkwork-birdcoder', appKey: 'sdkwork-birdcoder', accessToken: '', imEmbedUrl: '' },
+  development: { apiBaseUrl: DEFAULT_API_BASE_URL.development, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.development, appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: '', imEmbedUrl: '' },
+  testing: { apiBaseUrl: DEFAULT_API_BASE_URL.testing, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.testing, appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: '', imEmbedUrl: '' },
+  production: { apiBaseUrl: DEFAULT_API_BASE_URL.production, imApiBaseUrl: DEFAULT_IM_API_BASE_URL.production, appId: 'sdkwork-birdcoder2', appKey: 'sdkwork-birdcoder2', accessToken: '', imEmbedUrl: '' },
 }
 
 /**

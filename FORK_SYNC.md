@@ -18,7 +18,7 @@ brand contracts that keep fork work from colliding with upstream.
 | Remote | URL | Role |
 | --- | --- | --- |
 | `upstream` | `https://github.com/deepseek-ai/deepseek-harness.git` | Sync source (read-only) |
-| `origin` | `https://github.com/sdkwork-ai/sdkwork-birdcoder2.git` | This project's own home |
+| `origin` | `https://github.com/sdkwork-ai/sdkwork-daxuedazi.git` | This project's own home |
 
 View with: `git remote -v`
 

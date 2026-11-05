@@ -20,7 +20,7 @@ const ADOPTING = parseBrandManifest({
   companyName: 'SDKWork',
   home: { dirName: '.birdcoder', adoptLegacyDshHome: true },
   desktop: {
-    appId: 'com.sdkwork.birdcoder', productName: 'BirdCoder', executableName: 'birdcoder', protocol: 'birdcoder',
+    appId: 'com.sdkwork.birdcoder', releaseRepository: 'sdkwork-ai/sdkwork-birdcoder2', productName: 'BirdCoder', executableName: 'birdcoder', protocol: 'birdcoder',
     commandName: 'birdcoder', registryKey: 'BirdCoder', updaterCacheDirName: 'birdcoder-updater', artifactPrefix: 'BirdCoder', webPort: 19387,
   },
 })
@@ -31,7 +31,7 @@ const ISOLATED = parseBrandManifest({
   companyName: 'Acme',
   home: { dirName: '.acme', adoptLegacyDshHome: false },
   desktop: {
-    appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+    appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
     commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
   },
 })
@@ -145,7 +145,7 @@ it('reads a packaged brand manifest, applies its home, and defaults the OEM prof
     companyName: 'Acme',
     home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
       commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))
@@ -168,7 +168,7 @@ it('lets a home oem.json win over the shipped profile', () => {  const home = op
   writeFileSync(join(resources, 'brand.json'), JSON.stringify({
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
       commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))
@@ -185,7 +185,7 @@ it('renders the installed CLI launchers for a brand command and home', async () 
   writeFileSync(manifest, JSON.stringify({
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
       commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
     },
   }))

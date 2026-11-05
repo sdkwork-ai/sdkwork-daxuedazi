@@ -4,7 +4,7 @@
 
 本指南介绍 DeepSeek Harness 的所有受支持分发方式，并最终得到可运行的应用：npx、源码 checkout、从源码构建 Docker、Docker Release 离线包、从源码部署 Kubernetes、Kubernetes Release 离线包，以及打包后的桌面应用。
 
-以下命令固定使用仓库当前版本 `0.1.0-rc.13`，它也是当前的 GitHub Latest。GitHub 会将每个通过全部产物校验的 `birdcoder-v*` 发布标记为普通 Release，即使其 SemVer 包含 `-rc`；在这些公开 Release 中，SemVer 最高的 tag 持有 Latest。出现更新版本时，请在 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases)查看 `birdcoder-v` 后面的版本号，并替换固定值。版本中的 `-rc` 段仍表示候选版本。
+以下命令固定使用仓库当前版本 `0.2.2-rc.2`，它也是当前的 GitHub Latest。GitHub 会将每个通过全部产物校验的 `sdkwork-daxuedazi-v*` 发布标记为普通 Release，即使其 SemVer 包含 `-rc`；在这些公开 Release 中，SemVer 最高的 tag 持有 Latest。出现更新版本时，请在 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases)查看 `sdkwork-daxuedazi-v` 后面的版本号，并替换固定值。版本中的 `-rc` 段仍表示候选版本。
 
 ## 选择安装方式
 
@@ -47,7 +47,7 @@ $env:DEEPSEEK_BASE_URL = 'https://your-endpoint.example.com'
 
 ### 数据与网络暴露
 
-npx、源码和桌面方式使用 `$DSH_HOME`；未设置时使用 `~/.dsh`。这些方式共享 profile、设置、凭据、会话、附件和工作区记录。Docker 使用 `dsh-data` 和 `dsh-workspace` 命名卷。Kubernetes 使用 `dsh-data` 和 `dsh-workspace` 持久卷声明。
+npx 与源码方式使用 `$DSH_HOME`；未设置时使用 `~/.dsh`；打包的桌面应用使用 `~/.daxuedazi`。这些方式共享 profile、设置、凭据、会话、附件和工作区记录。Docker 使用 `dsh-data` 和 `dsh-workspace` 命名卷。Kubernetes 使用 `dsh-data` 和 `dsh-workspace` 持久卷声明。
 
 Web 服务不提供身份认证或 TLS。默认监听地址仅限 loopback。将任何 Web 部署暴露给其他计算机之前，必须放在带身份认证和 TLS 的反向代理或 Ingress 后，并在 `DSH_TRUSTED_HOSTS` 中配置浏览器使用的准确 authority。
 
@@ -68,7 +68,7 @@ npx 包使用单独发布的 npm `next` 渠道，版本可能早于最新 GitHub
 npx @deepseek-ai/dsh@next --version
 ```
 
-必须匹配某个 `birdcoder-v<version>` GitHub tag 时，请使用源码、容器或桌面安装方式。
+必须匹配某个 `sdkwork-daxuedazi-v<version>` GitHub tag 时，请使用源码、容器或桌面安装方式。
 
 ### 启动 Web UI
 
@@ -138,15 +138,15 @@ pnpm --version
 Clone 当前 Release tag，安装锁定的依赖，并构建所有包与 Web 前端：
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 corepack enable
 corepack prepare pnpm@11.7.0 --activate
 pnpm install --frozen-lockfile
 pnpm run build
 ```
 
-只有明确要跟随开发分支时才省略 `--branch birdcoder-v0.1.0-rc.13 --depth 1`。全新 checkout 必须先完成 `pnpm run build`，然后才能启动生产 Web profile。
+只有明确要跟随开发分支时才省略 `--branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1`。全新 checkout 必须先完成 `pnpm run build`，然后才能启动生产 Web profile。
 
 本地运行时，把与目标环境匹配的受跟踪物化文件（`.env.standalone.development`、`.env.standalone.test` 或 `.env.standalone.production`）复制为仓库根目录的 `.env`，填入 `DEEPSEEK_API_KEY` 等 API 密钥；该文件保持被 gitignore。`dsh` CLI 与桌面壳会在启动时自动生成 development/test 的 bootstrap access token（参见 `pnpm run env:token:ensure`）；`pnpm run admin:bootstrap:app` 向 IAM 后端注册应用。决定进程如何启动或如何联网的变量（`DEEPSEEK_BASE_URL`、`DSH_*`、代理）必须由启动 shell 导出，不能写进 `.env`。
 
@@ -174,7 +174,7 @@ pnpm dsh --profile headless "summarize this workspace"
 
 ```sh
 git fetch --tags
-git checkout birdcoder-v0.1.0-rc.13
+git checkout sdkwork-daxuedazi-v0.2.2-rc.2
 pnpm install --frozen-lockfile
 pnpm run build
 ```
@@ -200,8 +200,8 @@ docker compose version
 Clone 当前 tag 并构建原生架构镜像：
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 docker build -t localhost/deepseek-harness:local .
 ```
 
@@ -251,21 +251,21 @@ GitHub Releases 提供 `amd64` 和 `arm64` 两种原生 Linux 镜像。项目没
 在 Linux、macOS 或 WSL 中运行以下命令。它会检测宿主机架构，并下载当前部署包、匹配的镜像及两份校验和文件：
 
 ```sh
-version='0.1.0-rc.13'
-base="https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases/download/birdcoder-v${version}"
+version='0.2.2-rc.2'
+base="https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases/download/sdkwork-daxuedazi-v${version}"
 case "$(uname -m)" in
   x86_64|amd64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
   *) echo 'unsupported container architecture' >&2; exit 1 ;;
 esac
 
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz.sha256"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 
-sha256sum --check "birdcoder-container-${version}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-${version}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 ```
 
 在 macOS 中，将两条 `sha256sum --check` 命令替换为 `shasum -a 256 --check`。在 Windows 中，可以在 WSL 内运行上述命令，也可以用 `Get-FileHash -Algorithm SHA256` 与每个已下载 `.sha256` 文件的第一列比较。
@@ -275,16 +275,16 @@ sha256sum --check "birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha
 加载镜像，解压部署包，并启动其中已经打包的 Compose 文件：
 
 ```sh
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" | docker load
-tar -xzf "birdcoder-container-${version}.tar.gz"
-cd "birdcoder-container-${version}"
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" | docker load
+tar -xzf "daxuedazi-container-${version}.tar.gz"
+cd "daxuedazi-container-${version}"
 export DEEPSEEK_API_KEY='your-key'
 docker compose up -d --wait --wait-timeout 180
 docker compose ps
 curl --fail http://127.0.0.1:4080/
 ```
 
-PowerShell 可以通过 `docker load --input "birdcoder-container-image-<version>-linux-<arch>.tar.gz"` 加载压缩镜像。打包后的 Compose 文件已经引用 `localhost/deepseek-harness:<version>`；不要使用 `--build` 或 `docker compose pull` 运行它。
+PowerShell 可以通过 `docker load --input "daxuedazi-container-image-<version>-linux-<arch>.tar.gz"` 加载压缩镜像。打包后的 Compose 文件已经引用 `localhost/deepseek-harness:<version>`；不要使用 `--build` 或 `docker compose pull` 运行它。
 
 打开 [http://127.0.0.1:4080](http://127.0.0.1:4080)。停止与移除命令和从源码构建 Docker 时相同。
 
@@ -338,15 +338,15 @@ minikube version
 Clone 当前 tag、构建镜像、启动 Minikube，并将镜像归档加载到其容器运行时：
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 docker build -t localhost/deepseek-harness:local .
-docker save --output birdcoder-container-local.tar localhost/deepseek-harness:local
+docker save --output daxuedazi-container-local.tar localhost/deepseek-harness:local
 minikube start --driver=docker --container-runtime=containerd
-minikube image load birdcoder-container-local.tar
+minikube image load daxuedazi-container-local.tar
 ```
 
-使用 kind 时，先启动 kind 集群，再将最后一条命令替换为 `kind load image-archive birdcoder-container-local.tar`。
+使用 kind 时，先启动 kind 集群，再将最后一条命令替换为 `kind load image-archive daxuedazi-container-local.tar`。
 
 ### 应用并验证
 
@@ -381,30 +381,30 @@ curl --fail http://127.0.0.1:4081/
 下载并校验 Docker 离线包说明中使用的同四个 Release 文件，然后启动 Minikube 并加载 Release 镜像：
 
 ```sh
-version='0.1.0-rc.13'
-base="https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases/download/birdcoder-v${version}"
+version='0.2.2-rc.2'
+base="https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases/download/sdkwork-daxuedazi-v${version}"
 case "$(uname -m)" in
   x86_64|amd64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
   *) echo 'unsupported container architecture' >&2; exit 1 ;;
 esac
 
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz.sha256"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-${version}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-${version}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 
 minikube start --driver=docker --container-runtime=containerd
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" \
-  > "birdcoder-container-image-${version}-linux-${arch}.tar"
-minikube image load "birdcoder-container-image-${version}-linux-${arch}.tar"
-tar -xzf "birdcoder-container-${version}.tar.gz"
-cd "birdcoder-container-${version}"
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" \
+  > "daxuedazi-container-image-${version}-linux-${arch}.tar"
+minikube image load "daxuedazi-container-image-${version}-linux-${arch}.tar"
+tar -xzf "daxuedazi-container-${version}.tar.gz"
+cd "daxuedazi-container-${version}"
 ```
 
-在 macOS 中，对两份校验和文件使用 `shasum -a 256 --check`。使用 kind 时，将 Minikube 镜像加载命令替换为 `kind load image-archive "birdcoder-container-image-<version>-linux-<arch>.tar"`。
+在 macOS 中，对两份校验和文件使用 `shasum -a 256 --check`。使用 kind 时，将 Minikube 镜像加载命令替换为 `kind load image-archive "daxuedazi-container-image-<version>-linux-<arch>.tar"`。
 
 ### 应用并验证
 
@@ -428,7 +428,7 @@ kubectl port-forward svc/dsh 4081:4080
 Release 不提供官方 registry 镜像。对于多节点或远程集群，请先将归档加载到 Docker，为镜像添加自有 registry tag 并推送，然后在应用清单前更新 Kustomize 镜像替换。每个可能调度到的节点都必须能够拉取所选架构的镜像：
 
 ```sh
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" | docker load
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" | docker load
 docker tag "localhost/deepseek-harness:${version}" "registry.example.com/deepseek-harness:${version}"
 docker push "registry.example.com/deepseek-harness:${version}"
 cd deployments/kubernetes
@@ -459,7 +459,7 @@ minikube delete
 
 ### 选择安装包
 
-打开 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases)，选择 `birdcoder-v0.1.0-rc.13` 或更新的目标 Release，并下载 `SHA256SUMS` 以及与操作系统和 CPU 架构匹配的文件。
+打开 [GitHub Releases 页面](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases)，选择 `sdkwork-daxuedazi-v0.2.2-rc.2` 或更新的目标 Release，并下载 `SHA256SUMS` 以及与操作系统和 CPU 架构匹配的文件。
 
 | 平台 | 架构 | 安装包 | 便携归档 |
 |---|---|---|---|
@@ -475,7 +475,7 @@ minikube delete
 在 Linux 中只校验所选文件，因为 `SHA256SUMS` 还会列出本地可能没有下载的其他文件：
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 asset="daxuedazi-${version}-linux-x86_64.AppImage"
 awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 ```
@@ -483,7 +483,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 在 macOS 中：
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 asset="daxuedazi-${version}-mac-x64.dmg"
 awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 ```
@@ -491,7 +491,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 在 Windows PowerShell 中：
 
 ```powershell
-$version = '0.1.0-rc.13'
+$version = '0.2.2-rc.2'
 $asset = "daxuedazi-$version-win-x64.exe"
 $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($asset))$" }
@@ -505,18 +505,18 @@ Release 候选版本没有签名，Windows SmartScreen、macOS Gatekeeper 或 Li
 
 ### 在 Windows 中安装
 
-运行 `.exe` 完成当前用户的交互式安装。如需便携安装，请解压 `.zip` 并运行 `birdcoder.exe`。Intel 或 AMD PC 选择 Windows x64，ARM PC 选择 Windows arm64。
+运行 `.exe` 完成当前用户的交互式安装。如需便携安装，请解压 `.zip` 并运行 `daxuedazi.exe`。Intel 或 AMD PC 选择 Windows x64，ARM PC 选择 Windows arm64。
 
 ### 在 macOS 中安装
 
-打开 `.dmg`，然后将 BirdCoder 移动到 Applications。如需便携安装，请解压 `.zip` 并打开其中的应用 bundle。Intel Mac 选择 macOS x64，Apple silicon 选择 macOS arm64。未签名的候选版本可能需要从 Finder 右键菜单打开已经验证的应用。
+打开 `.dmg`，然后将 `daxuedazi.app` 移动到 Applications。如需便携安装，请解压 `.zip` 并打开其中的应用 bundle。Intel Mac 选择 macOS x64，Apple silicon 选择 macOS arm64。未签名的候选版本可能需要从 Finder 右键菜单打开已经验证的应用。
 
 ### 在 Linux 中安装
 
 在 Debian 或 Ubuntu 中：
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 deb_arch='amd64'
 sudo apt install "./daxuedazi-${version}-linux-${deb_arch}.deb"
 ```
@@ -526,7 +526,7 @@ ARM64 系统将 `deb_arch` 设为 `arm64`。
 在 Fedora、RHEL 或其他 RPM 系发行版中：
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 rpm_arch='x86_64'
 sudo dnf install "./daxuedazi-${version}-linux-${rpm_arch}.rpm"
 ```
@@ -536,16 +536,16 @@ ARM64 系统将 `rpm_arch` 设为 `aarch64`。
 AppImage 和 tar 归档是便携安装方式：
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 appimage_arch='x86_64'
 tar_arch='x64'
 chmod +x "daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 "./daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 
-mkdir birdcoder
+mkdir daxuedazi
 tar -xzf "daxuedazi-${version}-linux-${tar_arch}.tar.gz" \
-  --strip-components=1 -C birdcoder
-./birdcoder/birdcoder
+  --strip-components=1 -C daxuedazi
+./daxuedazi/daxuedazi
 ```
 
 ARM64 系统使用 `appimage_arch=arm64` 和 `tar_arch=arm64`。

@@ -17,7 +17,7 @@ fork 关系通过经典的双远程 git 配置维持，而不依赖 GitHub 原�
 | 远程 | 地址 | 角色 |
 | --- | --- | --- |
 | `upstream` | `https://github.com/deepseek-ai/deepseek-harness.git` | 同步源（只读） |
-| `origin` | `https://github.com/sdkwork-ai/sdkwork-birdcoder2.git` | 本项目自己的仓库 |
+| `origin` | `https://github.com/sdkwork-ai/sdkwork-daxuedazi.git` | 本项目自己的仓库 |
 
 查看：`git remote -v`
 

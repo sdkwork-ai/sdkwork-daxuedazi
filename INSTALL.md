@@ -4,7 +4,7 @@ English | [中文](INSTALL.zh.md)
 
 This guide installs a runnable DeepSeek Harness through every supported distribution path: npx, a source checkout, Docker built from source, an offline Docker Release archive, Kubernetes from source, an offline Kubernetes Release archive, or a packaged desktop application.
 
-The commands below pin the repository's current version, `0.1.0-rc.13`, which is also the current GitHub Latest. GitHub publishes every fully verified `birdcoder-v*` artifact set as a regular Release, even when its SemVer contains `-rc`; among those public releases, the highest SemVer tag holds the Latest pointer. When a newer release is available, replace the pinned value with the version shown after `birdcoder-v` on the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases). An `-rc` version segment still identifies a release candidate.
+The commands below pin the repository's current version, `0.2.2-rc.2`, which is also the current GitHub Latest. GitHub publishes every fully verified `sdkwork-daxuedazi-v*` artifact set as a regular Release, even when its SemVer contains `-rc`; among those public releases, the highest SemVer tag holds the Latest pointer. When a newer release is available, replace the pinned value with the version shown after `sdkwork-daxuedazi-v` on the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases). An `-rc` version segment still identifies a release candidate.
 
 ## Choose an installation method
 
@@ -47,7 +47,7 @@ The optional `DEEPSEEK_BASE_URL` value must come from the launch environment. Do
 
 ### Data and network exposure
 
-npx, source, and desktop launches use `$DSH_HOME`, or `~/.dsh` when it is unset. They share profiles, settings, credentials, sessions, attachments, and workspace records. Docker uses the `dsh-data` and `dsh-workspace` named volumes. Kubernetes uses the `dsh-data` and `dsh-workspace` persistent volume claims.
+npx and source launches use `$DSH_HOME`, or `~/.dsh` when it is unset; the packaged desktop application uses `~/.daxuedazi`. They share profiles, settings, credentials, sessions, attachments, and workspace records. Docker uses the `dsh-data` and `dsh-workspace` named volumes. Kubernetes uses the `dsh-data` and `dsh-workspace` persistent volume claims.
 
 The Web server does not provide authentication or TLS. The default listeners remain on loopback. Before exposing any Web deployment to another machine, put it behind an authenticated TLS reverse proxy or Ingress and configure the exact browser authority in `DSH_TRUSTED_HOSTS`.
 
@@ -68,7 +68,7 @@ The npx package uses the independently published npm `next` channel and can be o
 npx @deepseek-ai/dsh@next --version
 ```
 
-Use the source, container, or desktop instructions when the installed version must match a specific `birdcoder-v<version>` GitHub tag.
+Use the source, container, or desktop instructions when the installed version must match a specific `sdkwork-daxuedazi-v<version>` GitHub tag.
 
 ### Start the Web UI
 
@@ -138,15 +138,15 @@ If `corepack` is unavailable in the selected Node.js distribution, install Corep
 Clone the current Release tag, install its locked dependencies, and build the packages and Web frontend:
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 corepack enable
 corepack prepare pnpm@11.7.0 --activate
 pnpm install --frozen-lockfile
 pnpm run build
 ```
 
-Omit `--branch birdcoder-v0.1.0-rc.13 --depth 1` only when intentionally following the development branch. A fresh checkout must complete `pnpm run build` before starting the production Web profile.
+Omit `--branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1` only when intentionally following the development branch. A fresh checkout must complete `pnpm run build` before starting the production Web profile.
 
 For local runs, copy the tracked materialization matching your target environment (`.env.standalone.development`, `.env.standalone.test`, or `.env.standalone.production`) to `.env` at the repo root to fill API keys such as `DEEPSEEK_API_KEY`; the file stays gitignored. The `dsh` CLI and desktop shell generate a development/test bootstrap access token automatically at startup (see `pnpm run env:token:ensure`); `pnpm run admin:bootstrap:app` registers the application with the IAM backend. Variables that decide how the process starts or reaches the network (`DEEPSEEK_BASE_URL`, `DSH_*`, proxies) must be exported in the launching shell instead of placed in `.env`.
 
@@ -174,7 +174,7 @@ To move an existing checkout to another tagged Release:
 
 ```sh
 git fetch --tags
-git checkout birdcoder-v0.1.0-rc.13
+git checkout sdkwork-daxuedazi-v0.2.2-rc.2
 pnpm install --frozen-lockfile
 pnpm run build
 ```
@@ -200,8 +200,8 @@ The source container build does not require Node.js or pnpm on the host.
 Clone the current tag and build its native image:
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 docker build -t localhost/deepseek-harness:local .
 ```
 
@@ -251,21 +251,21 @@ GitHub Releases provide native Linux images for `amd64` and `arm64`. There is no
 Run the following in Linux, macOS, or WSL. It detects the host architecture and downloads the current deployment archive, the matching image, and both checksum files:
 
 ```sh
-version='0.1.0-rc.13'
-base="https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases/download/birdcoder-v${version}"
+version='0.2.2-rc.2'
+base="https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases/download/sdkwork-daxuedazi-v${version}"
 case "$(uname -m)" in
   x86_64|amd64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
   *) echo 'unsupported container architecture' >&2; exit 1 ;;
 esac
 
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz.sha256"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 
-sha256sum --check "birdcoder-container-${version}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-${version}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 ```
 
 On macOS, replace both `sha256sum --check` commands with `shasum -a 256 --check`. On Windows, either run the commands in WSL or compare `Get-FileHash -Algorithm SHA256` with the first field in each downloaded `.sha256` file.
@@ -275,16 +275,16 @@ On macOS, replace both `sha256sum --check` commands with `shasum -a 256 --check`
 Load the image, extract the deployment archive, and start its packaged Compose file:
 
 ```sh
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" | docker load
-tar -xzf "birdcoder-container-${version}.tar.gz"
-cd "birdcoder-container-${version}"
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" | docker load
+tar -xzf "daxuedazi-container-${version}.tar.gz"
+cd "daxuedazi-container-${version}"
 export DEEPSEEK_API_KEY='your-key'
 docker compose up -d --wait --wait-timeout 180
 docker compose ps
 curl --fail http://127.0.0.1:4080/
 ```
 
-PowerShell can load the compressed image with `docker load --input "birdcoder-container-image-<version>-linux-<arch>.tar.gz"`. The packaged Compose file already names `localhost/deepseek-harness:<version>`; do not run it with `--build` or `docker compose pull`.
+PowerShell can load the compressed image with `docker load --input "daxuedazi-container-image-<version>-linux-<arch>.tar.gz"`. The packaged Compose file already names `localhost/deepseek-harness:<version>`; do not run it with `--build` or `docker compose pull`.
 
 Open [http://127.0.0.1:4080](http://127.0.0.1:4080). The stop and removal commands are the same as for Docker built from source.
 
@@ -338,15 +338,15 @@ On Windows or macOS, install Docker Desktop, kubectl, and Minikube using the [ku
 Clone the current tag, build the image, start Minikube, and load the image archive into its container runtime:
 
 ```sh
-git clone --branch birdcoder-v0.1.0-rc.13 --depth 1 https://github.com/sdkwork-ai/sdkwork-birdcoder2.git
-cd sdkwork-birdcoder2
+git clone --branch sdkwork-daxuedazi-v0.2.2-rc.2 --depth 1 https://github.com/sdkwork-ai/sdkwork-daxuedazi.git
+cd sdkwork-daxuedazi
 docker build -t localhost/deepseek-harness:local .
-docker save --output birdcoder-container-local.tar localhost/deepseek-harness:local
+docker save --output daxuedazi-container-local.tar localhost/deepseek-harness:local
 minikube start --driver=docker --container-runtime=containerd
-minikube image load birdcoder-container-local.tar
+minikube image load daxuedazi-container-local.tar
 ```
 
-For kind, start a kind cluster and replace the final command with `kind load image-archive birdcoder-container-local.tar`.
+For kind, start a kind cluster and replace the final command with `kind load image-archive daxuedazi-container-local.tar`.
 
 ### Apply and verify
 
@@ -381,30 +381,30 @@ curl --fail http://127.0.0.1:4081/
 Download and verify the same four Release files used by the Docker archive instructions, then start Minikube and load the Release image:
 
 ```sh
-version='0.1.0-rc.13'
-base="https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases/download/birdcoder-v${version}"
+version='0.2.2-rc.2'
+base="https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases/download/sdkwork-daxuedazi-v${version}"
 case "$(uname -m)" in
   x86_64|amd64) arch=amd64 ;;
   aarch64|arm64) arch=arm64 ;;
   *) echo 'unsupported container architecture' >&2; exit 1 ;;
 esac
 
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-${version}.tar.gz.sha256"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz"
-curl --fail --location --remote-name "$base/birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-${version}.tar.gz.sha256"
-sha256sum --check "birdcoder-container-image-${version}-linux-${arch}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-${version}.tar.gz.sha256"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz"
+curl --fail --location --remote-name "$base/daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-${version}.tar.gz.sha256"
+sha256sum --check "daxuedazi-container-image-${version}-linux-${arch}.tar.gz.sha256"
 
 minikube start --driver=docker --container-runtime=containerd
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" \
-  > "birdcoder-container-image-${version}-linux-${arch}.tar"
-minikube image load "birdcoder-container-image-${version}-linux-${arch}.tar"
-tar -xzf "birdcoder-container-${version}.tar.gz"
-cd "birdcoder-container-${version}"
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" \
+  > "daxuedazi-container-image-${version}-linux-${arch}.tar"
+minikube image load "daxuedazi-container-image-${version}-linux-${arch}.tar"
+tar -xzf "daxuedazi-container-${version}.tar.gz"
+cd "daxuedazi-container-${version}"
 ```
 
-On macOS, use `shasum -a 256 --check` for both checksum files. For kind, replace the Minikube image-load command with `kind load image-archive "birdcoder-container-image-<version>-linux-<arch>.tar"`.
+On macOS, use `shasum -a 256 --check` for both checksum files. For kind, replace the Minikube image-load command with `kind load image-archive "daxuedazi-container-image-<version>-linux-<arch>.tar"`.
 
 ### Apply and verify
 
@@ -428,7 +428,7 @@ Keep the port-forward running and open [http://127.0.0.1:4081](http://127.0.0.1:
 The Release does not publish an official registry image. For a multi-node or remote cluster, load the archive into Docker, tag it for a registry you control, push it, and update the Kustomize image replacement before applying the manifests. Every scheduled node must be able to pull the selected architecture:
 
 ```sh
-gzip -dc "birdcoder-container-image-${version}-linux-${arch}.tar.gz" | docker load
+gzip -dc "daxuedazi-container-image-${version}-linux-${arch}.tar.gz" | docker load
 docker tag "localhost/deepseek-harness:${version}" "registry.example.com/deepseek-harness:${version}"
 docker push "registry.example.com/deepseek-harness:${version}"
 cd deployments/kubernetes
@@ -459,7 +459,7 @@ minikube delete
 
 ### Choose an asset
 
-Open the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-birdcoder2/releases), select `birdcoder-v0.1.0-rc.13` or a newer intended release, and download `SHA256SUMS` plus the asset for the operating system and CPU architecture.
+Open the [GitHub Releases page](https://github.com/sdkwork-ai/sdkwork-daxuedazi/releases), select `sdkwork-daxuedazi-v0.2.2-rc.2` or a newer intended release, and download `SHA256SUMS` plus the asset for the operating system and CPU architecture.
 
 | Platform | Architecture | Installer | Portable archive |
 |---|---|---|---|
@@ -475,7 +475,7 @@ Files named `latest*.yml` and `*.blockmap` are update metadata, not installers.
 On Linux, verify only the selected asset because `SHA256SUMS` also lists files that may not be downloaded:
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 asset="daxuedazi-${version}-linux-x86_64.AppImage"
 awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 ```
@@ -483,7 +483,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | sha256sum --check
 On macOS:
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 asset="daxuedazi-${version}-mac-x64.dmg"
 awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 ```
@@ -491,7 +491,7 @@ awk -v name="$asset" '$2 == name' SHA256SUMS | shasum -a 256 --check
 On Windows PowerShell:
 
 ```powershell
-$version = '0.1.0-rc.13'
+$version = '0.2.2-rc.2'
 $asset = "daxuedazi-$version-win-x64.exe"
 $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($asset))$" }
@@ -505,18 +505,18 @@ Release candidates are unsigned. Windows SmartScreen, macOS Gatekeeper, or a Lin
 
 ### Install on Windows
 
-Run the `.exe` for an assisted per-user installation. For a portable installation, extract the `.zip` and run `birdcoder.exe`. Choose Windows x64 for Intel or AMD PCs and Windows arm64 for an ARM-based PC.
+Run the `.exe` for an assisted per-user installation. For a portable installation, extract the `.zip` and run `daxuedazi.exe`. Choose Windows x64 for Intel or AMD PCs and Windows arm64 for an ARM-based PC.
 
 ### Install on macOS
 
-Open the `.dmg`, then move BirdCoder to Applications. For a portable installation, extract the `.zip` and open the application bundle. Choose macOS x64 for an Intel Mac and macOS arm64 for Apple silicon. An unsigned candidate may require opening the verified application from Finder's context menu.
+Open the `.dmg`, then move `daxuedazi.app` to Applications. For a portable installation, extract the `.zip` and open the application bundle. Choose macOS x64 for an Intel Mac and macOS arm64 for Apple silicon. An unsigned candidate may require opening the verified application from Finder's context menu.
 
 ### Install on Linux
 
 On Debian or Ubuntu:
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 deb_arch='amd64'
 sudo apt install "./daxuedazi-${version}-linux-${deb_arch}.deb"
 ```
@@ -526,7 +526,7 @@ Set `deb_arch` to `arm64` on an ARM64 system.
 On Fedora, RHEL, or another RPM-based distribution:
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 rpm_arch='x86_64'
 sudo dnf install "./daxuedazi-${version}-linux-${rpm_arch}.rpm"
 ```
@@ -536,16 +536,16 @@ Set `rpm_arch` to `aarch64` on an ARM64 system.
 The AppImage and tar archive are portable alternatives:
 
 ```sh
-version='0.1.0-rc.13'
+version='0.2.2-rc.2'
 appimage_arch='x86_64'
 tar_arch='x64'
 chmod +x "daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 "./daxuedazi-${version}-linux-${appimage_arch}.AppImage"
 
-mkdir birdcoder
+mkdir daxuedazi
 tar -xzf "daxuedazi-${version}-linux-${tar_arch}.tar.gz" \
-  --strip-components=1 -C birdcoder
-./birdcoder/birdcoder
+  --strip-components=1 -C daxuedazi
+./daxuedazi/daxuedazi
 ```
 
 Use `appimage_arch=arm64` and `tar_arch=arm64` on an ARM64 system.

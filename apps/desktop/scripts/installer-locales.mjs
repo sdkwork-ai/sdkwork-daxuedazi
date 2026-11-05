@@ -61,14 +61,23 @@ export function readInstallerLocales(directory = defaultDirectory) {
 
 /**
  * Generate guarded NSIS LangString declarations from validated JSON resources.
+ *
+ * Installer copy names the product, so every language spells that name as the
+ * `{brand}` placeholder instead of a literal. The name is display copy: it comes
+ * from the selected brand manifest, never from the predecessor product.
  * @param {ReturnType<typeof readInstallerLocales>} locales - Resources for all languages or one isolated native-test build.
+ * @param {string} brandName - Brand display name substituted for every `{brand}` placeholder.
  * @returns {string} UTF-8 NSIS source, with literal dollar signs, quotes and line breaks escaped.
  */
-export function renderInstallerStrings(locales) {
+export function renderInstallerStrings(locales, brandName) {
+  if (typeof brandName !== 'string' || brandName.trim() === '') {
+    throw new Error('installer locales: a brand display name is required')
+  }
+  const substitute = (/** @type {string} */ text) => text.replaceAll('{brand}', brandName)
   const escape = (/** @type {string} */ text) => text.replace(/\$|"|\r|\n/gu, character => ({ '$': '$$', '"': '$\\"', '\r': '$\\r', '\n': '$\\n' })[character])
   return '; Generated from installer/locales/*.json.\n' + locales.map(locale =>
     `!ifdef LANG_${locale.nsisLanguage}\n` + Object.entries(locale.strings).map(([key, text]) =>
-      `LangString ${key} \${LANG_${locale.nsisLanguage}} "${escape(text)}"\n`).join('') + '!endif\n').join('')
+      `LangString ${key} \${LANG_${locale.nsisLanguage}} "${escape(substitute(text))}"\n`).join('') + '!endif\n').join('')
 }
 
 if (import.meta.main) {

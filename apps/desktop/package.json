@@ -9,7 +9,7 @@
     "name": "sdkwork-ai",
     "email": "sdkwork@zowalk.com"
   },
-  "homepage": "https://github.com/sdkwork-ai/sdkwork-birdcoder2",
+  "homepage": "https://github.com/sdkwork-ai/sdkwork-daxuedazi",
   "type": "module",
   "main": "lib/main.js",
   "imports": {

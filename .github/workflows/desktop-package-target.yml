@@ -65,9 +65,13 @@ permissions:
 
 env:
   NODE_VERSION: '24'
-  # The desktop shell's application identity. Packaging fails without it, and
-  # electron-builder names the bundled application from it.
-  DSH_DESKTOP_APP_ID: com.sdkwork.birdcoder
+  # The installed application identity is the selected brand's `desktop.appId`
+  # from `brands/<key>.json`; this lane packages the shipped brand (daxuedazi)
+  # because it sets no DSH_BRAND. Do not pin DSH_DESKTOP_APP_ID here: a lane
+  # default naming another product (this repository once carried
+  # `com.sdkwork.birdcoder`) hashes into that product's Windows installer GUID,
+  # so the installer would inherit that product's `InstallLocation` and upgrade
+  # it in place instead of installing beside it. Packaging refuses such a value.
   # The linux lane has no platform dotenv — its packaging preflight is skipped —
   # so the electron-builder policy embed reads its mandatory-update origin from
   # the environment. The win/mac dotenv lanes never read ambient values.
@@ -165,7 +169,6 @@ jobs:
         shell: bash
         run: |
           cat >> "apps/desktop/${{ inputs.env-file }}" <<'SETTINGS'
-          DSH_DESKTOP_APP_ID=com.sdkwork.birdcoder
           DSH_DESKTOP_AUTO_UPDATE_ENV=test
           DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN=https://harness-test.deepseek.com
           DSH_DESKTOP_MANDATORY_UPDATE_CONFIG={"allowedAuthOrigins":["https://login.example.com"]}

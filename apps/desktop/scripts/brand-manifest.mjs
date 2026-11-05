@@ -48,13 +48,18 @@ const UPSTREAM_IDENTITY = Object.freeze({
   protocol: 'dsh',
   commandName: 'dsh',
   appId: 'com.deepseek.harness',
+  releaseRepository: 'deepseek-ai/deepseek-harness',
 })
+
+/** Reverse-DNS application identifier the upstream application owns; no brand may take it. */
+export const UPSTREAM_APP_ID = UPSTREAM_IDENTITY.appId
 
 const KEY_PATTERN = /^[a-z0-9][a-z0-9-]{0,31}$/u
 const HOME_DIRECTORY_PATTERN = /^\.[a-z0-9][a-z0-9._-]{0,63}$/u
 const COMMAND_PATTERN = /^[a-z][a-z0-9-]{0,31}$/u
 const PROTOCOL_PATTERN = /^[a-z][a-z0-9+.-]{0,31}$/u
 const APP_ID_PATTERN = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/u
+const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/u
 const REGISTRY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u
 const ARTIFACT_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$/u
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
@@ -72,6 +77,7 @@ const WEB_PORT_MAXIMUM = 65_535 - (BRAND_PORT_BLOCK - 1)
 /**
  * @typedef {object} DesktopBrandDesktop
  * @property {string} appId - Reverse-DNS application identifier packaging falls back to when `DSH_DESKTOP_APP_ID` is unset.
+ * @property {string} releaseRepository - GitHub `owner/repo` that publishes this brand's releases; the packaged updater reads `latest.yml` from it, so two brands must never share one repository.
  * @property {string} productName - Electron product name; names userData, the single-instance lock and the logs directory.
  * @property {string} executableName - Installed executable (and macOS `MacOS/<name>`) every launcher names.
  * @property {string} protocol - Custom URL scheme the installed shell registers.
@@ -227,6 +233,10 @@ export function parseBrandManifest(raw, source = 'brand manifest') {
   const executableName = requiredString(desktop, 'executableName', 'desktop.executableName')
   matches(executableName, COMMAND_PATTERN, 'desktop.executableName', 'a lower-case executable name')
 
+  const releaseRepository = requiredString(desktop, 'releaseRepository', 'desktop.releaseRepository')
+  matches(releaseRepository, RELEASE_REPOSITORY_PATTERN, 'desktop.releaseRepository', 'a GitHub owner/repo pair')
+  rejectUpstream(releaseRepository, UPSTREAM_IDENTITY.releaseRepository, 'desktop.releaseRepository')
+
   const registryKey = requiredString(desktop, 'registryKey', 'desktop.registryKey')
   matches(registryKey, REGISTRY_KEY_PATTERN, 'desktop.registryKey', 'a registry key name')
 
@@ -248,7 +258,7 @@ export function parseBrandManifest(raw, source = 'brand manifest') {
       adoptLegacyDshHome: optionalBoolean(home, 'adoptLegacyDshHome', 'home.adoptLegacyDshHome') ?? false,
     }),
     desktop: Object.freeze({
-      appId, productName, executableName, protocol, commandName, registryKey, updaterCacheDirName, artifactPrefix, webPort,
+      appId, releaseRepository, productName, executableName, protocol, commandName, registryKey, updaterCacheDirName, artifactPrefix, webPort,
     }),
   })
 }

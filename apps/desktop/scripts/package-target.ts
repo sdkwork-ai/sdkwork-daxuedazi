@@ -21,7 +21,7 @@ import { macOSDownloadEnvironment, resolveMacOSPackageSettings } from './macos-p
 import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { packagingErrorDetails, packagingStep } from './packaging-step.mjs'
 import { notarizeMacOS } from './notarize-macos.mjs'
-import { resolveDesktopAppId, resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, INSECURE_TLS_ENV } from './desktop-release-environment.mjs'
+import { resolveDesktopInsecureTls, resolveMacOSNotarizationEnvironment, INSECURE_TLS_ENV } from './desktop-release-environment.mjs'
 import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopBuildVersion } from './desktop-build-version.mjs'
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
@@ -29,6 +29,7 @@ import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { resolveMacOSBundleDirectory } from './desktop-application-identity.mjs'
 import { resolveBrand } from './brand-manifest.mjs'
+import { resolveBrandApplicationId } from './brand-application-id.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -439,7 +440,7 @@ export function selectDesktopPackagingEnvironment(
       : loadDesktopPackageEnvironment(target.platform, environment, appRoot, {
         unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
       })),
-    ...(configurationFreeMacOS ? { DSH_DESKTOP_APP_ID: resolveDesktopAppId(environment) } : {}),
+    ...(configurationFreeMacOS ? { DSH_DESKTOP_APP_ID: resolveBrandApplicationId(environment) } : {}),
   }
 }
 

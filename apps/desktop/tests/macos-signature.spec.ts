@@ -173,7 +173,7 @@ describe('desktop macOS release signature', () => {
     expect(config.artifactName).toBe('daxuedazi-${version}-${os}-${arch}.${ext}')
     // Updater metadata is written only when a publish provider is configured,
     // and the release contract requires all four `latest*.yml` channel files.
-    expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-birdcoder2' }])
+    expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-daxuedazi' }])
     expect(config).toMatchObject({
       win: { forceCodeSigning: false, signtoolOptions: { sign: undefined }, target: ['nsis', 'zip'] },
     })
@@ -212,10 +212,12 @@ describe('desktop macOS release signature', () => {
     }, 'darwin', 'arm64')
     expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
     // FORK DIVERGENCE: upstream sets `publish` to null here. The fork keeps the
-    // GitHub provider because electron-builder writes the updater metadata — all
-    // four `latest*.yml` channel files — only when a provider is configured, and
-    // the release contract requires them beside the unsigned installers.
-    expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-birdcoder2' }])
+    // brand's GitHub provider because electron-builder writes the updater
+    // metadata — all four `latest*.yml` channel files — only when a provider is
+    // configured, and the release contract requires them beside the unsigned
+    // installers. The repository follows the brand manifest, so an OEM build
+    // never offers another product's release as an update.
+    expect(config.publish).toEqual([{ provider: 'github', owner: 'sdkwork-ai', repo: 'sdkwork-daxuedazi' }])
   })
 
   it('rejects malformed signing modes', async () => {

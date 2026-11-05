@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import yaml from 'js-yaml'
+import { containerBundleArchive, containerBundleDirectory } from './container-artifacts.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const ASSETS = ['docker-compose.yml', 'deployments/kubernetes', 'etc/topology', 'docs/user/guide/deployment.md', 'docs/user/guide/deployment.zh.md', 'docs/user/guide/deployment.i18n.yaml']
@@ -92,7 +93,7 @@ function main(): void {
     allowPositionals: false,
   })
   const out = resolve(ROOT, values.out)
-  const staging = join(out, `birdcoder-container-${releaseVersion}`)
+  const staging = join(out, containerBundleDirectory(releaseVersion))
   rmSync(staging, { recursive: true, force: true })
   mkdirSync(staging, { recursive: true })
 
@@ -114,7 +115,7 @@ function main(): void {
   })
   writeFileSync(join(staging, 'manifest.json'), `${JSON.stringify({ version: releaseVersion, image: releaseImage, files: hashes }, null, 2)}\n`)
 
-  const archive = join(out, `birdcoder-container-${releaseVersion}.tar.gz`)
+  const archive = join(out, containerBundleArchive(releaseVersion))
   rmSync(archive, { force: true })
   // Both archive names are relative and the process runs inside `out`: GNU tar
   // parses an archive argument containing a colon as a `host:path` remote spec,

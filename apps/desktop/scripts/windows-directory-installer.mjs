@@ -2,6 +2,7 @@
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
+import { resolveBrand } from './brand-manifest.mjs'
 
 const require = createRequire(import.meta.url)
 const templates = join(dirname(require.resolve('app-builder-lib/package.json')), 'templates/nsis')
@@ -52,7 +53,29 @@ export function directoryInstallerExits(source) {
   return source.replaceAll(/^(\s*)Quit\s*$/gm, '$1!ifndef BUILD_UNINSTALLER\n$1Call dshCleanupDirectories\n$1!endif\n$1Quit')
 }
 
-/** Install the build-only NSIS adapter without replacing electron-builder's signed bootstrap path. */
+/**
+ * Build the defines the patched NSIS compute hook injects.
+ *
+ * `DSH_UPDATER_CACHE_NAME` names the directory the installer log and the
+ * uninstaller target. It must be the brand's `desktop.updaterCacheDirName`
+ * (Section 2 of the OEM standard): electron-builder's own value is derived from
+ * the package name this fork shares with upstream, so a brand build would leave
+ * its downloaded updates behind and delete a directory shared by every brand
+ * built from that package name.
+ * @param updaterCacheDirName - Brand updater cache directory.
+ * @param tool - Absolute path of the copied 7-Zip executable.
+ * @param sourceTool - Absolute path of the toolset's 7-Zip executable.
+ * @returns NSIS define lines.
+ */
+export function directoryInstallerDefines(updaterCacheDirName, tool, sourceTool) {
+  return `!define DSH_UPDATER_CACHE_NAME "${updaterCacheDirName}"\n`
+    + `!define DSH_SEVENZIP_PATH "${tool}"\n`
+    + `!define DSH_SEVENZIP_LICENSE_DIR "${dirname(dirname(sourceTool))}"\n`
+}
+
+/**
+ * Install the directory-installer patches on the pinned NSIS target.
+ */
 export function installWindowsDirectoryInstaller() {
   // The package entry initializes the platform classes before their mutually dependent leaves.
   require('app-builder-lib')
@@ -80,7 +103,8 @@ export function installWindowsDirectoryInstaller() {
     const uninstaller = join(directory, 'uninstaller.nsh')
     await writeFile(uninstaller, directoryUninstaller(await readFile(join(templates, 'uninstaller.nsh'), 'utf8')))
     adapted = replaceOnce(adapted, '!include "uninstaller.nsh"', `!include "${uninstaller}"`)
-    return `!define DSH_UPDATER_CACHE_NAME "${this.packager.appInfo.updaterCacheDirName}"\n!define DSH_SEVENZIP_PATH "${tool}"\n!define DSH_SEVENZIP_LICENSE_DIR "${dirname(dirname(sourceTool))}"\n${await compute.call(this, adapted, ...args)}`
+    return directoryInstallerDefines(resolveBrand(process.env).desktop.updaterCacheDirName, tool, sourceTool)
+      + await compute.call(this, adapted, ...args)
   }
 }
 

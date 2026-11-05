@@ -1,5 +1,5 @@
 image:
-  repository: registry.sdkwork.com/apps/sdkwork-birdcoder
+  repository: registry.sdkwork.com/apps/sdkwork-birdcoder2
   # tag is used for development and testing only.
   # Production deployments MUST set digest to an immutable SHA256 digest
   # (e.g. sha256:abc123...) and leave tag empty.
