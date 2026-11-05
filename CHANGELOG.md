@@ -74,9 +74,9 @@
 
 * 75 个 fork 自有包（70 个 `packages/*`、5 个 `apps/sdkwork-*`，含 `packages/host/sdkwork-desktop-carrier`、`packages/bundle/sdkwork-desktop-app`、`packages/client/ui-sdkwork-*` 等）的版本从 `0.2.2-alpha.7` 统一到 `0.2.2-rc.1`，`verify-version-sync` 报告 450 个清单一致。`DshFamily.verifyVersions` 要求 dsh 家族共享同一个版本，否则 `pack:pack-local-packages` 在打包中途失败——六个平台的桌面打包都会在 pack 阶段直接失败；此前只有上游同步带来的 375 个成员被推进，fork 自有包漏在 alpha.7。
 * 排查并定位了 Windows 上桌面打包在 `prepare-dsh` 阶段停滞的根因，并撤回了先前的临时规避：运行时内置的 pnpm 11.28.5 在把 store 使用方登记为 `store/v11/projects/<hash>` 时，会留下普通空目录而非目录联接，随后用 `fs.promises.unlink` 删除该目录被 Windows 以 `EPERM` 拒绝；先前引入的 `pnpm-windows-junction-unlink.cjs`（`--require` 注入、把 EPERM 退化为 `rmSync`）只能让这一步反复重试，反而把快速失败变成无界循环，已随本次提交移除。同一台机器上 pnpm 12.4.1 可正常完成该登记，11.28.5 不可，且用单个依赖的最小工程、全新 store 均可复现，属环境侧行为而非本仓代码缺陷；运行时 pnpm 版本是上游自 2026-10-07 起的固定 pin（`apps/desktop/package.json`、`packageManager`、specs 多处引用），本版不改动，桌面打包以 CI 的干净 runner 为准。
-* 32 个 SDKWork 兄弟仓 pin 再次前进到各自 `origin/main` 的最新提交（`sdkwork-iam` → `920b01af`、`sdkwork-web-framework` → `11baa767`、`sdkwork-agents` → `052b9185`、`sdkwork-account` → `e12912b6` 等），`sdkwork-core`、`sdkwork-ui`、`sdkwork-utils`、`sdkwork-appbase`、`sdkwork-catalog`、`sdkwork-database` 已在最新处未动；本地仍由 `pnpm-workspace.yaml` 以 `../sdkwork-*` 相对路径解析，发布车道由 `scripts/sdkwork-sources.manifest.json` 的 pin 克隆同名兄弟仓，两种形态共用同一份 pin 记录。`agent.workflow.json` 的 `dependencies[].ref` 与 manifest 逐条对齐——`verify-sdkwork-dependencies` 要求两处记录逐字一致，否则 `build --profile local` 直接失败。
+* 32 个 SDKWork 兄弟仓 pin 再次前进到各自 `origin/main` 的最新提交（`sdkwork-iam` → `920b01af`、`sdkwork-web-framework` → `11baa767`、`sdkwork-agents` → `052b9185`、`sdkwork-account` → `e12912b6` 等），`sdkwork-core`、`sdkwork-ui`、`sdkwork-utils`、`sdkwork-appbase`、`sdkwork-catalog`、`sdkwork-database` 已在最新处未动；本地仍由 `pnpm-workspace.yaml` 以 `../sdkwork-*` 相对路径解析，发布车道由 `scripts/sdkwork-sources.manifest.json` 的 pin 克隆同名兄弟仓，两种形态共用同一份 pin 记录。`agent.workflow.json` 的 `dependencies[].ref` 与 manifest 逐条对齐——`verify-sdkwork-dependencies` 要求两处记录逐字一致，否则 `build --profile local` 直接失败。本轮结尾随上游同步（上游 `3fd30a5a68`）再次整体前进到各自当前 `origin/main`（如 `sdkwork-cloudrouter` → `9389adb2`、`sdkwork-documents` → `b6ed3a3c`），两条 pin 记录依旧逐字一致。
 * 容器部署的安装期配置全部改为环境变量可覆盖，安装时不必改 Compose 文件：`DSH_WEB_PORT` 同时决定容器内监听端口与发布端口，健康检查读取同一变量；`DSH_PUBLISH_HOST`/`DSH_PUBLISH_PORT` 调整宿主机侧；`DSH_DATA_DIR`/`DSH_WORKSPACE_DIR` 接受宿主路径，把 `/data`、`/workspace` 从托管命名卷改为绑定挂载。`verify-container` 逐项断言这些变量，`release:verify-container-bundle` 在发布包上复核同一套定义。
-* `plugins/dsh-im`（v5.10.0，`c826bfa4`）、`plugins/dsh-mcp-connector`（v0.2.93，`80f61822`）、`plugins/dsh-skill-market`（v2.0.7，`4cda9309`）已在其跟踪分支最新处；`plugins/dsh-better-sidebar` 本轮随上游跟到 `v0.30.0`（`11e6c8e6`，43 个提交）：该版本把基线抬到 DSH 0.2.2-rc.1，peer 与 `engines.dsh` 都要求 `>=0.2.2-rc.1`，与本次发布的主机版本一致，旧 pin（`0.29.0`）的 peer 仍停在 `^0.2.1-rc.1`。上一版因它在 workspace 混合布局下与宿主 vendor Cordis 4.1.0 的 module augmentation 不合并（`Property 'settings' does not exist on type 'Context'`）而未采纳，本轮上游按宿主 toolchain 出包后该阻塞解除，子模块随之前进。
+* `plugins/dsh-im`（v5.10.0，`c826bfa4`）、`plugins/dsh-skill-market`（v2.0.7，`4cda9309`）已在其跟踪分支最新处；本轮上游同步把 `plugins/dsh-mcp-connector` 跟到 `v0.2.94`（`2057af5`，release 提交，只抬版本号与启动期工具发现，`peerDependencies`/`engines` 与依赖集合未变）；`plugins/dsh-better-sidebar` 本轮随上游跟到 `v0.30.0`（`11e6c8e6`，43 个提交）：该版本把基线抬到 DSH 0.2.2-rc.1，peer 与 `engines.dsh` 都要求 `>=0.2.2-rc.1`，与本次发布的主机版本一致，旧 pin（`0.29.0`）的 peer 仍停在 `^0.2.1-rc.1`。上一版因它在 workspace 混合布局下与宿主 vendor Cordis 4.1.0 的 module augmentation 不合并（`Property 'settings' does not exist on type 'Context'`）而未采纳，本轮上游按宿主 toolchain 出包后该阻塞解除，子模块随之前进。
 * `sdkwork-iam` pin 前进到 `920b01af`（`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 逐字一致）：`pnpm-workspace.yaml` 已把 `sdkwork-iam-pc-oauth` 列为成员，而旧 pin 上发布车道克隆出的兄弟仓没有这个目录，工作区解析会在打包前就失败。
 * 插件随子模块前进把 devDependencies 从 `0.2.1-rc.1` 抬到 `0.2.2-rc.1`，锁文件里 0.2.1-rc.1 的 700 余条 registry 解析随之消失，改由工作区链接提供；`pnpm install --frozen-lockfile` 通过。
 
@@ -94,6 +94,18 @@
 * 前端插件加载前的启动页渲染 fork 品牌 lockup（图形在名称上方，`boot-brand.ts`），不再回落到上游 wordmark；标记同时是文档 favicon 的同一份栅格。
 * 知识库服务（`ui-sdkwork-knowledge`）新增目录与检索接口 `knowledgeBases`，供上面三行消费。
 
+#### 本轮自有改动（IAM 登录深链与 OEM 品牌身份，`e5a14485ea`）
+
+* IAM 登录深链与浏览器交接按本仓品牌落地：deep-link 回调注册与 OAuth client id 使用 `daxuedazi://auth/callback`（clientId `daxuedazi`），客户端 id 默认由 `sdkwork.iamRedirectUri` 派生、可被 profile 的 `sdkwork.iamClientId` 覆盖，品牌定制构建只改 OEM profile；授权路径、参数与深链结构保持上游一致。
+* `packages/host/sdkwork-oem` 的配置面新增 `iamRedirectUri` / `iamClientId` 读取与派生逻辑，`agent.app.config.json` 声明对应的 relying-party 注册；`verify-oem-identity` 把这两个字段纳入品牌身份断言，配套 `docs/releases/v0.2.2-rc.1/oem-iam-client-brand` 指南（中英双语与配对记录）。
+* 待处理 PKCE 流程持久化在渲染进程存储（仅 verifier 与 state，兑换成功或过期即清除），浏览器登录在桌面应用退出后才完成时，deep link 重新拉起应用仍能完成登录；兑换携带稳定的安装级 device id，新登录只替换该设备在同一应用下的旧会话。
+
+#### 本轮新增（登录与桌面端）
+
+* 产品登录入口在「浏览器交接」状态下新增一行安静操作「内置弹窗登录」：它复用共享 `LoginPanel` 的次要操作排版，调起的仍是 `modal` 设置所调起的同一个账户表单（`IamService.openSignInMethods()`），所以浏览器登录无法完成时不用改 Host 设置也能进应用。可见性由 `IamService.usesBrowserHandoff()` 单一判据决定——已配置 `signInMethod: modal`、或页面没有桌面端 deep-link 桥接时该行不出现，避免与 Sign in 重复。`LoginPanel` 的样式让这一行跟在操作列最后一个按钮之后，双按钮列（桌面欢迎窗的 API key 页）渲染像素不变。
+* 桌面端 IAM 会话文件（`<DSH_HOME>/iam/session.json`）在系统提供密文存储（Electron `safeStorage`：DPAPI / Keychain / libsecret）时整体加密后落盘，写入仍是临时文件 + 原子改名 + `0600`；没有可用密文服务时保持明文，读到无法解密的信封按「无会话」处理。Host/CLI 等外部读者改走应用 IPC 桥，不再直接读文件。
+* IAM 回调（deep link）落到正在运行的工作区时把它带到前台：待完成的 PKCE 流程与 deep-link 监听只存在于工作区渲染进程，重启时的回调仍由 `openInitialWindow` 处理。
+* 开发运行打开的独立 Renderer DevTools 会重新贴回产品图标（`devtools-icon.ts`），Windows 任务栏分组与缩略图不再退化成 `electron.exe` 的默认图标。
 #### 开发体验
 
 * `desktop:dev` 的参数解析抽到 `development-arguments.ts`，并先丢掉 argv 里的 `--` 分隔符：`pnpm desktop:dev -- --gateway domain` 这种 pnpm 文档写法此前会被 `parseArgs` 当成位置参数而直接报错。fork 的开发车道身份派生（`development-identity.ts` 按品牌端口段与品牌 home 派生）在该解析器之后应用，两套逻辑并存。
@@ -112,6 +124,9 @@
 * 合并未删除任何文件（`git diff --diff-filter=D` 为空），`sdkwork-*` / `ui-sdkwork-*` 包与目录无丢失；`plugins/dsh-better-sidebar` 子模块指针随上游前进到 `11e6c8e6`（v0.30.0）。
 * 品牌契约再次逐项复验：`FishLogo` 仍只在 ui-primitives，`BirdLogo`/`BirdWordmark`/`LoginPanel` 未受影响，`createBootBrand()` 接管启动页，窗口与安装器图形仍是当前仓库资产。
 * 版本线复验：`grep '"version": "0.2.2-rc.1"'` 命中 450 个 `package.json`，`@deepseek-ai/dsh-sdkwork*` 家族无成员落后在 alpha 线。
+* 本轮第三次同步（`82bb8a137d`..`2f68255a1b`，3 个上游提交）走 `--no-ff` 真实合并：10 个冲突全部按 fork-first 落地——`CHANGELOG.md`（fork 自有条目 + 上游新增条目取并集，不叠加历史版本）、`agent.workflow.json` 与 `sdkwork-sources.manifest.json`（兄弟仓 pin 取上游更新的 ref）、`main.ts`（保留 fork 的 `resolveApplicationIcon` 导入）、`welcome-window.ts` 与 `devtools-icon.ts`（保留 fork 的 AGENTS.md 注释引用）、`iam-deep-links.spec.ts`（保留 `daxuedazi://` scheme）、`iam-session.spec.ts`（采纳上游注释）、`ui-sdkwork-iam` 三份 README（保留 fork 文本，与 upstream 语义一致仅品牌改名）；无源码功能冲突、无文件删除。
+* 合并未删除任何文件（`git diff --diff-filter=D` 为空），`sdkwork-*` / `ui-sdkwork-*` 包与目录无丢失；`plugins/dsh-mcp-connector` 子模块随上游前进到 `2057af5`（v0.2.94）。
+* 品牌契约再次逐项复验：`FishLogo` 仍只在 ui-primitives，`BirdLogo`/`BirdWordmark`/`LoginPanel` 未受影响，`createBootBrand()` 接管启动页，窗口与安装器图形仍是当前仓库资产，IAM 深链 scheme 保持 `daxuedazi://auth/callback`。
 
 ### 测试与文档
 

@@ -396,18 +396,28 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
   }
 
   /**
+   * Whether the login panel's Sign in gesture hands the flow to the system
+   * browser, leaving the in-app account form as the alternate path.
+   * @returns true when the configured gesture is the browser hand-off and this page carries the desktop bridge.
+   */
+  usesBrowserHandoff(): boolean {
+    return this.currentSettings().signInMethod === 'browser' && this.browserSignInAvailable()
+  }
+
+  /**
    * The login panel's Sign in gesture, dispatched by the `signInMethod`
    * setting: `browser` (the default) hands the flow to the system browser and
    * returns through the desktop deep link; `modal` raises the in-app account
    * methods. The browser gesture needs the tenant application's OAuth
    * relying-party registration — the app manifest declares it — so a
-   * deployment whose tenant has not applied it sets `modal`. A page without
+   * deployment whose tenant has not applied it sets `modal`, or reaches the
+   * same in-app form from the entry's quiet in-app login link. A page without
    * the desktop bridge can never receive the deep link, so it always uses the
    * in-app form.
    */
   startSignIn(): void {
     if (this.isSignedIn()) return
-    if (this.currentSettings().signInMethod === 'browser' && this.browserSignInAvailable()) {
+    if (this.usesBrowserHandoff()) {
       this.startBrowserSignIn()
       return
     }
@@ -557,15 +567,18 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
       await this.repersistAndApplySession(backup)
     }
     // A cold-start deep link arrives before the user interacts; process it once
-    // the session has settled so the callback can redeem its code.
+    // the session has settled so the callback can redeem its code. The pending
+    // PKCE flow is durable (renderer storage), so a browser login finished
+    // after the app exited still completes when the deep link relaunches it.
     const desktop = this.ensureDesktopLogin()
     if (desktop !== undefined) {
       try {
         await desktop.completePendingCallbackFromLaunch()
       } catch (error) {
-        // The pending PKCE flow lives in page memory, so a callback delivered
-        // to a fresh process has nothing to redeem. That is not a failed
-        // login: the user simply starts the browser login again.
+        // No pending flow means the callback belongs to an older attempt
+        // (expired, already redeemed, or started by a build that kept the flow
+        // in memory only). That is not a failed login: the user starts the
+        // browser login again from the app.
         if (!isSdkworkDesktopAuthError(error) || error.code !== 'no-pending-flow') {
           this.desktopFailed = true
           this.notifyDesktop()

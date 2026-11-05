@@ -95,6 +95,8 @@ describe('durable IAM session file', () => {
     expect(typeof onDisk.payload).toBe('string')
     expect(JSON.stringify(onDisk)).not.toContain('auth-token')
     expect(JSON.stringify(onDisk)).not.toContain('refresh-token')
+    // Without the OS secret store the encrypted file is unreadable, not
+    // silently treated as a corrupted plaintext session.
     expect(readIamSessionFile(path)).toBeUndefined()
   })
 

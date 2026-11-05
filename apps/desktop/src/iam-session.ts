@@ -113,7 +113,8 @@ export function normalizeIamSession(value: unknown, now: () => string = () => ne
 /**
  * Read the durable session.
  * @param path - absolute session file path.
- * @returns the stored record, or undefined when the file is absent, unreadable, or incomplete.
+ * @param secretStorage - OS-backed storage that can decrypt an encrypted file.
+ * @returns the stored record, or undefined when the file is absent, unreadable, encrypted without a usable secret store, or incomplete.
  */
 export function readIamSessionFile(
   path: string,
@@ -146,8 +147,13 @@ export function readIamSessionFile(
 
 /**
  * Write the durable session atomically with owner-only permissions.
+ *
+ * When the operating-system secret store is available the JSON payload is
+ * encrypted with it; the plaintext fallback only applies where the platform
+ * offers no usable secret service.
  * @param path - absolute session file path.
  * @param record - complete session record.
+ * @param secretStorage - OS-backed storage used to encrypt the payload.
  */
 export function writeIamSessionFile(
   path: string,
