@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/host/sdkwork-template-install/README.md
+/:
+  en: 460ae17a6ad4f3c1
+  zh: 8510de15071539d4
+/deepseek-ai-dsh-sdkwork-template-install:
+  en: 45ae5eb2cd068688
+  zh: cfa63206a8f18f17
+/deepseek-ai-dsh-sdkwork-template-install/summary:
+  en: 30259f1aa4bd960f
+  zh: 98b281a0757ca9cc
+/deepseek-ai-dsh-sdkwork-template-install/model-experience:
+  en: 4f87247e41a182bd
+  zh: 9f9bb6e537ff73d3
+/deepseek-ai-dsh-sdkwork-template-install/known-limitations-and-deferred-work:
+  en: af26b920032e493d
+  zh: 16b555bcbbda1b5f

@@ -1,5 +1,7 @@
 # Git-linked plugins
 
+English | [中文](README.zh.md)
+
 Third-party DSH plugins this fork ships **inside the repository** rather than
 asking the user to install them. Each entry is a Git submodule that is also a
 pnpm workspace member, so `pnpm install` links the plugin and installs its own

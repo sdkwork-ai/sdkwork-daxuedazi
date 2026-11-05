@@ -10,6 +10,10 @@ description: "SDKWork 模板安装 Remote：在调用方选定目录下做含落
 
 `sdkworkTemplateInstall` 命名空间的宿主 Remote 持有者：唯一动词 `writeFile`，携带绝对目标目录、目标相对路径与 base64 内容。线上层拒绝不干净路径（段内分隔符、`..`、Windows 保留设备名、以点/空格结尾的段）、非 base64 内容以及超过 32 MiB 线上限的载荷；其背后的 `sdkwork-template-install` 能力会复查落点约束并按需创建父目录写入。浏览器的模板安装规划器（`ui-sdkwork-deploy` 的 `templateInstall.ts`）驱动这些写入。
 
+## 模型体验
+
+无：该 Remote 只把调用方提供的字节搬到调用方选定的路径，不贡献任何面向模型的内容——没有工具、没有上下文、没有 Session 事件。
+
 ## 已知限制与后续工作
 
 - 每次调用写一个文件；若模板普遍携带数千文件，后续可加分块归档动词（begin/push/finish）。

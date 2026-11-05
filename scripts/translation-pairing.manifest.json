@@ -9,6 +9,7 @@
     "apps/sdkwork-birdcoder2-flutter-mobile/",
     "apps/sdkwork-birdcoder2-h5/",
     "apps/sdkwork-birdcoder2-mini-program/",
+    "apps/sdkwork-birdcoder2-pad/",
     "apps/sdkwork-birdcoder2-pc/",
     "docs/AGENTS.md",
     "docs/cordis-api/inherited.md",
@@ -16,6 +17,10 @@
     "docs/i18n/terminology.md",
     "docs/i18n/translation-prompt.md",
     "docs/runbooks/",
+    "plugins/dsh-better-sidebar/",
+    "plugins/dsh-im/",
+    "plugins/dsh-mcp-connector/",
+    "plugins/dsh-skill-market/",
     "sdks/sdkwork-birdcoder2-app-sdk/"
   ]
 }

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Every non-code application mode — video, image, app store, knowledge base, courses, drive, assets, scheduled tasks, marketplace, account, Token Plan, and the Work/Document placeholders — names itself in the chrome the shell already draws: the desktop's native title bar, the browser tab on the web. Switching modes retitles the window; leaving a mode restores the product name. Code mode is untouched, because the Session title already names the window there. One projection serves both compositions, with no in-page bar to keep in sync.
+Every non-code application mode — video, image, app store, knowledge base, courses, drive, assets, scheduled tasks, Plugins, account, Token Plan, and the Work/Document placeholders — names itself in the chrome the shell already draws: the desktop's native title bar, the browser tab on the web. Switching modes retitles the window; leaving a mode restores the product name. Code mode is untouched, because the Session title already names the window there. One projection serves both compositions, with no in-page bar to keep in sync.
 
 ## Table of Contents
 
