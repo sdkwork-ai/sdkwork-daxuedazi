@@ -4,7 +4,7 @@ import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { WINDOW_ICON_RELATIVE_PATH, resolveWindowIcon } from '../src/app-icon.ts'
+import { WINDOW_ICON_RELATIVE_PATH, resolveApplicationIcon, resolveWindowIcon } from '../src/app-icon.ts'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const BUILD_DIR = join(APP_ROOT, 'build')
@@ -51,6 +51,14 @@ describe('desktop app icon', () => {
     expect(resolveWindowIcon(join(tmpdir(), 'dsh-missing-app'), 'win32')).toBeUndefined()
   })
 
+  it('resolves one startup raster for the Dock and for windows, independent of the platform', () => {
+    // macOS uses this for the Dock (a packaged app takes its bundle icon);
+    // Windows and Linux reuse it as the window icon. The lookup is product
+    // identity and reads no OEM or brand field.
+    expect(resolveApplicationIcon(APP_ROOT)).toBe(join(APP_ROOT, WINDOW_ICON_RELATIVE_PATH))
+    expect(resolveApplicationIcon(join(tmpdir(), 'dsh-missing-app'))).toBeUndefined()
+  })
+
   it('ships a square PNG window raster generated from the canonical product mark', () => {
     const canonical = readFileSync(CANONICAL_RASTER)
     expect(canonical.subarray(1, 4).toString('latin1')).toBe('PNG')
@@ -85,7 +93,7 @@ describe('desktop About-panel rasters', () => {
     expect(pngSize(raster)).toEqual({ width: ABOUT_SIZE, height: ABOUT_SIZE })
   })
 
-  it('draws the canonical BirdCoder mark, not the monochrome upstream glyph', async () => {
+  it('draws the canonical 学伴AI mark, not the monochrome upstream glyph', async () => {
     // Upstream shipped its whale here and no packaging option could rebrand it,
     // so the guard measures the artwork itself: the fork mark is colourful, and
     // the upstream glyph was a near-black silhouette on a light plate.
@@ -120,7 +128,7 @@ describe('desktop packaging icon wiring', () => {
     vi.unstubAllEnvs()
   })
 
-  it('names the BirdCoder rasters for every packaged platform instead of relying on defaults', async () => {
+  it('names the 学伴AI rasters for every packaged platform instead of relying on defaults', async () => {
     const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
     const config = createElectronBuilderConfig(RELEASE_ENVIRONMENT, 'darwin', 'arm64')
     expect(config.directories.buildResources).toBe('build')

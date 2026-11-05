@@ -105,6 +105,88 @@ it('fails when a brand declares no port at all', () => {
   expect(verifyOemIdentity(root).failures.some(failure => failure.includes('desktop.webPort'))).toBe(true)
 })
 
+it('fails when the OEM scene chrome loses its hidden defaults or its client gate', () => {
+  const defaults = fixture()
+  edit(defaults, 'packages/host/sdkwork-oem/src/config.ts',
+    text => text.replace('sceneSwitcher: false, skillTags: false', 'sceneSwitcher: true, skillTags: true'))
+  expect(verifyOemIdentity(defaults).failures.some(failure => failure.includes('ui.sceneSwitcher'))).toBe(true)
+
+  const gate = fixture()
+  edit(gate, 'packages/client/ui-sdkwork-app-modes/src/client/index.ts',
+    text => text.replace('if (showSceneSwitcher) {', 'if (true) {'))
+  expect(verifyOemIdentity(gate).failures.some(failure => failure.includes('before the OEM gate')
+    && failure.includes('ui-sdkwork-app-modes'))).toBe(true)
+
+  const skills = fixture()
+  edit(skills, 'packages/client/ui-sdkwork-skills/src/client/index.ts',
+    text => text.replace('readOemSkillTags()', 'true'))
+  expect(verifyOemIdentity(skills).failures.some(failure => failure.includes('strip switch that renders nothing'))).toBe(true)
+})
+
+it('fails when a storefront row loses its hidden default or its sidebar mapping', () => {
+  const defaults = fixture()
+  edit(defaults, 'packages/host/sdkwork-oem/src/config.ts',
+    text => text.replace('appStore: false, templateLibrary: false, demandHall: false',
+      'appStore: true, templateLibrary: true, demandHall: true'))
+  const droppedDefaults = verifyOemIdentity(defaults).failures
+  for (const field of ['ui.appStore', 'ui.templateLibrary', 'ui.demandHall']) {
+    expect(droppedDefaults.some(failure => failure.includes(field))).toBe(true)
+  }
+
+  const unmapped = fixture()
+  edit(unmapped, 'packages/client/ui-sdkwork-sidebar/src/client/layout.ts',
+    text => text.replace("{ id: 'sdkwork-template-library', shipsVisible: readOemTemplateLibrary },", ''))
+  expect(verifyOemIdentity(unmapped).failures.some(failure => failure.includes('sdkwork-template-library')
+    && failure.includes('would show in the sidebar'))).toBe(true)
+
+  const override = fixture()
+  edit(override, 'packages/client/ui-sdkwork-sidebar/src/client/layout.ts',
+    text => text.replace('readonly shown: readonly string[]', 'readonly ignored: readonly string[]'))
+  expect(verifyOemIdentity(override).failures.some(failure => failure.includes('explicitly showed'))).toBe(true)
+})
+
+it('fails when the merge instructions drop the product-surface contracts', () => {
+  const root = fixture()
+  edit(root, 'AGENTS.md', text => text.replace('## OEM scene chrome (merge-stable contract)', '## Something else'))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('OEM scene chrome'))).toBe(true)
+
+  const marketplace = fixture()
+  edit(marketplace, 'AGENTS.md', text => text.replace('## OEM marketplace surfaces (merge-stable contract)', '## Something else'))
+  expect(verifyOemIdentity(marketplace).failures.some(failure => failure.includes('OEM marketplace surfaces'))).toBe(true)
+
+  const brands = fixture()
+  edit(brands, 'brands/README.md', text => text.replaceAll('ui.sceneSwitcher', 'ui.somethingElse'))
+  expect(verifyOemIdentity(brands).failures.some(failure => failure.includes('brands/README.md'))).toBe(true)
+})
+
+it('fails when a merge restores the upstream hero tagline', () => {
+  const root = fixture()
+  edit(root, 'packages/client/ui-conversation/src/client/locales.ts',
+    text => text.replace("'hero.headline': '帮助大学生成长与实现梦想'", "'hero.headline': '探索未至之境'"))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('shipped zh hero line'))).toBe(true)
+})
+
+it('fails when the startup icon wiring or raster disappears', () => {
+  const wiring = fixture()
+  edit(wiring, 'apps/desktop/src/main.ts', text => text.replace('app.dock?.setIcon(startupIcon)', ''))
+  expect(verifyOemIdentity(wiring).failures.some(failure => failure.includes('Dock or Windows taskbar'))).toBe(true)
+
+  const reader = fixture()
+  edit(reader, 'apps/desktop/src/app-icon.ts', text => text.replace('export function resolveApplicationIcon', 'function resolveApplicationIcon'))
+  expect(verifyOemIdentity(reader).failures.some(failure => failure.includes('resolveApplicationIcon'))).toBe(true)
+
+  const raster = fixture()
+  rmSync(join(raster, 'apps/desktop/build/icon.ico'))
+  expect(verifyOemIdentity(raster).failures.some(failure => failure.includes('build/icon.ico'))).toBe(true)
+})
+
+it('fails when the OEM profile tries to select another startup icon', () => {
+  const root = fixture()
+  edit(root, 'packages/host/sdkwork-oem/src/config.ts',
+    text => text.replace('if (source.icon !== undefined) {', 'if (false) {'))
+  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('rejects a profile-supplied startup icon'))).toBe(true)
+})
+
 it('fails when the merge instructions point nowhere', () => {
   const root = fixture()
   edit(root, 'FORK_SYNC.md', text => text.replaceAll('verify-oem-identity', 'nothing-here'))

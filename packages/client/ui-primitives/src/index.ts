@@ -80,8 +80,9 @@ export type { LoginAction, LoginPanelProps, LoginWelcomeCopy } from './LoginPane
 export {
   DEFAULT_BRAND_NAME, DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, DEFAULT_IAM_CLIENT_ID,
   DEFAULT_IAM_REDIRECT_URI, OEM_BOOT_GLOBAL,
-  readOemBrandName, readOemEnvironment, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl, readOemIamClientId,
-  readOemIamRedirectUri, readOemShowApiKeyEntry,
+  readOemAppStore, readOemBrandName, readOemDemandHall, readOemEnvironment, readOemIamAuthorizeBaseUrl,
+  readOemIamBaseUrl, readOemIamClientId, readOemIamRedirectUri, readOemSceneSwitcher, readOemShowApiKeyEntry,
+  readOemSkillTags, readOemTemplateLibrary,
 } from './oem-brand.ts'
 export { BrandWordmark } from './BrandWordmark.tsx'
 export type { BrandWordmarkProps } from './BrandWordmark.tsx'

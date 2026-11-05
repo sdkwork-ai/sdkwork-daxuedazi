@@ -29,6 +29,7 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { readOemSceneSwitcher, readOemSkillTags } from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only: the mode-rail/mode.page slot declarations (the frame's own
 // slots live in ui-layout; the rail's entry seat is this package's contract).
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -149,10 +150,22 @@ interface StripPreference {
  * placeholder pages, the hero scene switcher with its submission observer, the
  * skill-tag strip, and the display-preference rows, each once its slot
  * declaration is on the ledger.
+ *
+ * The scene chrome is OEM-gated: the shipped profile turns
+ * `ui.sceneSwitcher` / `ui.skillTags` off (see AGENTS.md, "OEM scene chrome"),
+ * so the pills, the strip, and their preference rows are not registered at
+ * all. Registering a dead seat and hiding it in CSS would leave the General and
+ * Skills pages offering switches for surfaces that cannot render.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sdkwork-app-modes: dictionaries')
+
+  // The deployment's product chrome. A page without the OEM projection leaves
+  // both on, which keeps the upstream/fork developer surface intact for tests
+  // and OEM-free compositions; the Host always publishes the shipped profile.
+  const showSceneSwitcher = readOemSceneSwitcher()
+  const showSkillTags = readOemSkillTags()
 
   // The hero scene staging: the pills write it, the submission observer below
   // consumes it. The instance lives with the plugin so a staged pick survives
@@ -254,19 +267,22 @@ export function apply(ctx: ClientContext): void {
   // navigates when the session's first message lands. Nothing on the Code
   // surface raises the sign-in overlay: a staged scene whose destination page
   // needs a session lands on that page's signed-out notice. The seat carries a
-  // store so the General page's switch can hide the pills live.
-  ctx.slots.inject('conversation.hero.modeSwitch', () => ctx.slots.register({
-    name: 'conversation.hero.modeSwitch',
-    locale: NS,
-    store: heroSwitchStore,
-    // Root-scoped and store-bearing, so the inject factory receives its baked
-    // actions alone (ui-slots' InjectParams).
-    inject: (actions: BoundActions<typeof heroSwitchStore>): HeroModeSwitchInjected => {
-      heroSwitchSeatActions = actions
-      syncAppModes()
-      return { scene: heroScene }
-    },
-  }, HeroModeSwitch))
+  // store so the General page's switch can hide the pills live. An OEM profile
+  // that turns `ui.sceneSwitcher` off never registers the seat.
+  if (showSceneSwitcher) {
+    ctx.slots.inject('conversation.hero.modeSwitch', () => ctx.slots.register({
+      name: 'conversation.hero.modeSwitch',
+      locale: NS,
+      store: heroSwitchStore,
+      // Root-scoped and store-bearing, so the inject factory receives its baked
+      // actions alone (ui-slots' InjectParams).
+      inject: (actions: BoundActions<typeof heroSwitchStore>): HeroModeSwitchInjected => {
+        heroSwitchSeatActions = actions
+        syncAppModes()
+        return { scene: heroScene }
+      },
+    }, HeroModeSwitch))
+  }
 
   // The skill manager's suggestion preference, mirrored for the strip. The
   // injection is optional by construction: a deployment that does not compose
@@ -291,48 +307,53 @@ export function apply(ctx: ClientContext): void {
     heroActions?.sync(tags)
   }
 
-  ctx.inject(['skillPreferences'], (prefsCtx) => {
-    const prefs = prefsCtx.skillPreferences
-    readTagPreference = () => {
-      const snapshot = prefs.getSnapshot()
-      return {
-        hiddenTags: snapshot.hiddenTags,
-        pinnedTags: snapshot.pinnedTags,
-        showSceneTags: snapshot.showSceneTags,
+  if (showSkillTags) {
+    ctx.inject(['skillPreferences'], (prefsCtx) => {
+      const prefs = prefsCtx.skillPreferences
+      readTagPreference = () => {
+        const snapshot = prefs.getSnapshot()
+        return {
+          hiddenTags: snapshot.hiddenTags,
+          pinnedTags: snapshot.pinnedTags,
+          showSceneTags: snapshot.showSceneTags,
+        }
       }
-    }
-    prefsCtx.effect(
-      () => prefs.subscribe(syncPrefs),
-      'ui-sdkwork-app-modes: skill preference mirror',
-    )
-    syncPrefs()
-  })
+      prefsCtx.effect(
+        () => prefs.subscribe(syncPrefs),
+        'ui-sdkwork-app-modes: skill preference mirror',
+      )
+      syncPrefs()
+    })
+  }
 
   // The staged scene's skill tags: the strip docked below the composer card
   // (ui-conversation's composer dock, which the hero card renders too).
   // Clicking a tag lands the same `/name ` literal a '/'-menu pick lands, in
   // replace mode, through the session's public draft write; the strip follows
-  // the staged scene and vanishes with the hero once the session engages.
-  ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
-    name: 'conversation.composer.dock',
-    id: 'hero-scene-skills',
-    locale: NS,
-    store: stripStore,
-    // This seat is session-scoped AND declares a store, so the declaration
-    // derives a TWO-parameter factory list — `(sessionId, actions)` (ui-slots'
-    // InjectParams, realized in that order by ui-renderer's runInject). The id
-    // is not needed here; the baked actions are, and they arrive SECOND.
-    // Reading only the first parameter would bind the session id String into
-    // `stripActions`, and the first `syncPrefs` below would die on
-    // `stripActions?.sync is not a function`.
-    inject: (_sessionId, actions: StripActions): SceneSkillTagsInjected => {
-      stripActions = actions
-      // Re-sync at registration so no snapshot is lost between the service
-      // subscription above and the first render.
-      syncPrefs()
-      return { scene: heroScene }
-    },
-  }, SceneSkillTags))
+  // the staged scene and vanishes with the hero once the session engages. An
+  // OEM profile that turns `ui.skillTags` off never registers either seat.
+  if (showSkillTags) {
+    ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
+      name: 'conversation.composer.dock',
+      id: 'hero-scene-skills',
+      locale: NS,
+      store: stripStore,
+      // This seat is session-scoped AND declares a store, so the declaration
+      // derives a TWO-parameter factory list — `(sessionId, actions)` (ui-slots'
+      // InjectParams, realized in that order by ui-renderer's runInject). The id
+      // is not needed here; the baked actions are, and they arrive SECOND.
+      // Reading only the first parameter would bind the session id String into
+      // `stripActions`, and the first `syncPrefs` below would die on
+      // `stripActions?.sync is not a function`.
+      inject: (_sessionId, actions: StripActions): SceneSkillTagsInjected => {
+        stripActions = actions
+        // Re-sync at registration so no snapshot is lost between the service
+        // subscription above and the first render.
+        syncPrefs()
+        return { scene: heroScene }
+      },
+    }, SceneSkillTags))
+  }
 
   // The same strip's cold-start half. Before a Workspace is picked there is no
   // Session at all, so the session-scoped composer dock above cannot render —
@@ -340,19 +361,21 @@ export function apply(ctx: ClientContext): void {
   // exactly that state, carrying the below-card position instead. The two
   // seats are exclusive by construction, so the strip never doubles; with no
   // draft to write to yet, this variant's tags render disabled.
-  ctx.slots.inject('conversation.hero.dock', () => ctx.slots.register({
-    name: 'conversation.hero.dock',
-    id: 'hero-scene-skills-cold',
-    locale: NS,
-    store: heroStore,
-    // Root-scoped, so the derived list is `[actions]` alone — the same store
-    // declaration, one parameter fewer than the session seat above.
-    inject: (actions: StripActions): SceneSkillTagsInjected => {
-      heroActions = actions
-      syncPrefs()
-      return { scene: heroScene }
-    },
-  }, HeroSceneSkillTags))
+  if (showSkillTags) {
+    ctx.slots.inject('conversation.hero.dock', () => ctx.slots.register({
+      name: 'conversation.hero.dock',
+      id: 'hero-scene-skills-cold',
+      locale: NS,
+      store: heroStore,
+      // Root-scoped, so the derived list is `[actions]` alone — the same store
+      // declaration, one parameter fewer than the session seat above.
+      inject: (actions: StripActions): SceneSkillTagsInjected => {
+        heroActions = actions
+        syncPrefs()
+        return { scene: heroScene }
+      },
+    }, HeroSceneSkillTags))
+  }
 
   // The submission observer: a non-code staging is consumed when the current
   // session's first message lands (the list row's blank bit flips), and the
@@ -362,32 +385,35 @@ export function apply(ctx: ClientContext): void {
   // The flip — not "row is non-blank" — is the trigger, so an already-active
   // session (or another plugin dispatching a prompt into a fresh one) never
   // consumes a staging by accident; a session switch re-arms the baseline.
-  ctx.effect(() => {
-    // Baseline on the snapshot as it stands at setup: the first notification
-    // must be able to carry the flip, not re-arm an empty baseline.
-    const initial = ctx.sessions.list.getSnapshot()
-    let lastCurrent: SessionListState['current'] = initial.current
-    let lastBlank: boolean | undefined
-      = initial.current === undefined ? undefined : initial.byId[initial.current]?.blank
-    return ctx.sessions.list.subscribe(() => {
-      const snapshot = ctx.sessions.list.getSnapshot()
-      const current = snapshot.current
-      const summary = current === undefined ? undefined : snapshot.byId[current]
-      if (current !== lastCurrent) {
-        // Another session became current: re-arm on its own blank bit instead
-        // of letting the previous session's history trigger a navigation.
-        lastCurrent = current
+  // No scene switcher means no staging writer, so the observer is not mounted.
+  if (showSceneSwitcher) {
+    ctx.effect(() => {
+      // Baseline on the snapshot as it stands at setup: the first notification
+      // must be able to carry the flip, not re-arm an empty baseline.
+      const initial = ctx.sessions.list.getSnapshot()
+      let lastCurrent: SessionListState['current'] = initial.current
+      let lastBlank: boolean | undefined
+        = initial.current === undefined ? undefined : initial.byId[initial.current]?.blank
+      return ctx.sessions.list.subscribe(() => {
+        const snapshot = ctx.sessions.list.getSnapshot()
+        const current = snapshot.current
+        const summary = current === undefined ? undefined : snapshot.byId[current]
+        if (current !== lastCurrent) {
+          // Another session became current: re-arm on its own blank bit instead
+          // of letting the previous session's history trigger a navigation.
+          lastCurrent = current
+          lastBlank = summary?.blank
+          return
+        }
+        const staged = heroScene.get()
+        if (lastBlank === true && summary?.blank === false && staged !== 'code') {
+          heroScene.set('code')
+          ctx.layout.setMode(staged)
+        }
         lastBlank = summary?.blank
-        return
-      }
-      const staged = heroScene.get()
-      if (lastBlank === true && summary?.blank === false && staged !== 'code') {
-        heroScene.set('code')
-        ctx.layout.setMode(staged)
-      }
-      lastBlank = summary?.blank
-    })
-  }, 'ui-sdkwork-app-modes: hero scene submission observer')
+      })
+    }, 'ui-sdkwork-app-modes: hero scene submission observer')
+  }
 
   // The sidebar-visibility boot default: once the scope resolves, apply the
   // persisted value to the frame (off collapses the sidebar to its control
@@ -440,12 +466,15 @@ export function apply(ctx: ClientContext): void {
       setVisible: (value) => { void scope.set(HERO_SWITCH_VISIBLE_FIELD, value) },
     }
   }
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'app-modes-hero-switch',
-    order: 31,
-    locale: NS,
-    store: heroSwitchRowStore,
-    inject: injectHeroSwitchRow,
-  }, SettingsToggleRow))
+  // A profile that never renders the pills must not offer a switch for them.
+  if (showSceneSwitcher) {
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'app-modes-hero-switch',
+      order: 31,
+      locale: NS,
+      store: heroSwitchRowStore,
+      inject: injectHeroSwitchRow,
+    }, SettingsToggleRow))
+  }
 }

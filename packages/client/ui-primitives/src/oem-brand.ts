@@ -62,6 +62,79 @@ export function readOemShowApiKeyEntry(
 }
 
 /**
+ * Read whether the deployment renders the new-session scene switcher.
+ * @param source - projection value; defaults to the page global.
+ * @returns false only when the deployment turned the switcher off; a page
+ *   without the OEM projection keeps the fork's developer chrome.
+ */
+export function readOemSceneSwitcher(
+  source: unknown = (globalThis as Record<string, unknown>)[OEM_BOOT_GLOBAL],
+): boolean {
+  return readOemChromeFlag(source, 'sceneSwitcher')
+}
+
+/**
+ * Read whether the deployment renders the staged scene's skill-tag strip.
+ * @param source - projection value; defaults to the page global.
+ * @returns false only when the deployment turned the strip off; a page
+ *   without the OEM projection keeps the fork's developer chrome.
+ */
+export function readOemSkillTags(
+  source: unknown = (globalThis as Record<string, unknown>)[OEM_BOOT_GLOBAL],
+): boolean {
+  return readOemChromeFlag(source, 'skillTags')
+}
+
+/**
+ * Read whether the deployment ships the App Store's sidebar quick entry
+ * visible by default.
+ * @param source - projection value; defaults to the page global.
+ * @returns false only when the deployment ships the row hidden (the user's own
+ *   switch still applies); a page without the OEM projection ships it visible.
+ */
+export function readOemAppStore(
+  source: unknown = (globalThis as Record<string, unknown>)[OEM_BOOT_GLOBAL],
+): boolean {
+  return readOemChromeFlag(source, 'appStore')
+}
+
+/**
+ * Read whether the deployment ships the template library's sidebar quick entry
+ * visible by default.
+ * @param source - projection value; defaults to the page global.
+ * @returns false only when the deployment ships the row hidden (the user's own
+ *   switch still applies); a page without the OEM projection ships it visible.
+ */
+export function readOemTemplateLibrary(
+  source: unknown = (globalThis as Record<string, unknown>)[OEM_BOOT_GLOBAL],
+): boolean {
+  return readOemChromeFlag(source, 'templateLibrary')
+}
+
+/**
+ * Read whether the deployment ships the demand hall's sidebar quick entry
+ * visible by default.
+ * @param source - projection value; defaults to the page global.
+ * @returns false only when the deployment ships the row hidden (the user's own
+ *   switch still applies); a page without the OEM projection ships it visible.
+ */
+export function readOemDemandHall(
+  source: unknown = (globalThis as Record<string, unknown>)[OEM_BOOT_GLOBAL],
+): boolean {
+  return readOemChromeFlag(source, 'demandHall')
+}
+
+/** The `ui` fields one deployment profile can turn off. */
+type OemChromeFlag = 'sceneSwitcher' | 'skillTags' | 'appStore' | 'templateLibrary' | 'demandHall'
+
+function readOemChromeFlag(source: unknown, field: OemChromeFlag): boolean {
+  if (!record(source)) return true
+  const ui = source.ui
+  if (!record(ui)) return true
+  return ui[field] !== false
+}
+
+/**
  * Read the SDKWork IAM app-api origin from one page projection.
  * @param source - projection value; defaults to the page global.
  * @returns the validated origin, or undefined when the page carries none.

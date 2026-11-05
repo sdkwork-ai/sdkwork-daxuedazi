@@ -44,6 +44,7 @@ describe('resolveOemConfig', () => {
     expect(defaultOemConfig()).toEqual({
       environment: 'production',
       brand: { name: DEFAULT_BRAND_NAME, companyName: DEFAULT_COMPANY_NAME, showApiKeyEntry: false },
+      ui: { sceneSwitcher: false, skillTags: false, appStore: false, templateLibrary: false, demandHall: false },
       application: { origins: [...DEFAULT_APPLICATION_ORIGINS] },
       sdkwork: {
         iamBaseUrl: 'https://api.birdcoder.com',
@@ -261,6 +262,49 @@ describe('resolveOemConfig', () => {
       .toThrow(/brand\.showApiKeyEntry must be a boolean/)
   })
 
+  it('hides the scene chrome unless a deployment opts in, per lifecycle too', () => {
+    expect(resolveOemConfig(undefined).ui).toMatchObject({ sceneSwitcher: false, skillTags: false })
+    const shown = resolveOemConfig({ ui: { sceneSwitcher: true, skillTags: true } })
+    expect(shown.ui).toMatchObject({ sceneSwitcher: true, skillTags: true })
+    expect(resolveOemConfig({
+      ui: { sceneSwitcher: false, skillTags: false },
+      environments: { staging: { ui: { skillTags: true } } },
+    }, 'oem.json', 'staging').ui).toMatchObject({ sceneSwitcher: false, skillTags: true })
+    expect(() => resolveOemConfig({ ui: { sceneSwitcher: 'yes' } }))
+      .toThrow(/ui\.sceneSwitcher must be a boolean/)
+    expect(() => resolveOemConfig({ ui: { skillTags: 1 } }))
+      .toThrow(/ui\.skillTags must be a boolean/)
+  })
+
+  it('hides the marketplace surfaces unless a deployment opts in, per lifecycle too', () => {
+    expect(resolveOemConfig(undefined).ui).toMatchObject({ appStore: false, templateLibrary: false, demandHall: false })
+    const shown = resolveOemConfig({ ui: { appStore: true, templateLibrary: true, demandHall: true } })
+    expect(shown.ui).toMatchObject({ appStore: true, templateLibrary: true, demandHall: true })
+    expect(resolveOemConfig({
+      ui: { appStore: false, templateLibrary: false, demandHall: false },
+      environments: { staging: { ui: { demandHall: true } } },
+    }, 'oem.json', 'staging').ui).toEqual({
+      sceneSwitcher: false,
+      skillTags: false,
+      appStore: false,
+      templateLibrary: false,
+      demandHall: true,
+    })
+    for (const field of ['appStore', 'templateLibrary', 'demandHall'] as const) {
+      expect(() => resolveOemConfig({ ui: { [field]: 'yes' } }))
+        .toThrow(new RegExp(`ui\\.${field} must be a boolean`))
+    }
+  })
+
+  it('refuses a profile-supplied startup icon', () => {
+    // The icon is build-time identity; a deployment replaces the generated
+    // rasters, it does not point the profile at another image.
+    expect(() => resolveOemConfig({ brand: { icon: 'acme.ico' } }))
+      .toThrow(/brand\.icon is not configurable/)
+    expect(() => resolveOemConfig({ ui: { icon: 'acme.png' } }))
+      .toThrow(/ui\.icon is not configurable/)
+  })
+
   it('keeps an explicit endpoint base and strips its trailing slash', () => {
     const config = resolveOemConfig({
       deepseek: {
@@ -366,6 +410,7 @@ describe('oemBootConfig', () => {
     expect(oemBootConfig(config)).toEqual({
       environment: 'production',
       brand: { name: 'Acme', companyName: DEFAULT_COMPANY_NAME, showApiKeyEntry: false },
+      ui: { sceneSwitcher: false, skillTags: false, appStore: false, templateLibrary: false, demandHall: false },
       sdkwork: {
         iamBaseUrl: 'https://api.birdcoder.com',
         iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',

@@ -85,6 +85,12 @@ export interface SkillsSectionInjected {
    * @param show - whether the strip should render.
    */
   setShowSceneTags: (show: boolean) => void
+  /**
+   * Whether this deployment renders the new-session tag strip at all. When it
+   * does not, the page omits the master switch instead of offering a control
+   * for a surface that cannot render.
+   */
+  showSceneTagsControl: boolean
   /** Refetch the catalog for the current session, or the composition-wide inventory when there is none. */
   reload: () => void
 }
@@ -278,7 +284,7 @@ interface SkillGroupView {
  * @returns the section element tree.
  */
 export function SkillsSection({
-  useStore, setEnabled, setSuggested, setShowSceneTags, reload, t,
+  useStore, setEnabled, setSuggested, setShowSceneTags, showSceneTagsControl, reload, t,
 }: SkillsSectionProps): ReactNode {
   const status = useStore(s => s.status)
   const rows = useStore(s => s.rows)
@@ -342,18 +348,20 @@ export function SkillsSection({
       <h2 className={css.heading}>{t('title')}</h2>
       <p className={css.intro}>{t('intro')}</p>
 
-      <div className={css.stripCard}>
-        <div className={css.stripCopy}>
-          <div className={css.stripTitle}>{t('strip.title')}</div>
-          <p className={css.stripHint}>{t('strip.hint')}</p>
+      {showSceneTagsControl && (
+        <div className={css.stripCard}>
+          <div className={css.stripCopy}>
+            <div className={css.stripTitle}>{t('strip.title')}</div>
+            <p className={css.stripHint}>{t('strip.hint')}</p>
+          </div>
+          <Switch
+            checked={showSceneTags}
+            disabled={!writable || showSceneTagsPending}
+            label={t('strip.switch')}
+            onChange={(next) => { setShowSceneTags(next) }}
+          />
         </div>
-        <Switch
-          checked={showSceneTags}
-          disabled={!writable || showSceneTagsPending}
-          label={t('strip.switch')}
-          onChange={(next) => { setShowSceneTags(next) }}
-        />
-      </div>
+      )}
 
       <div className={css.toolbar}>
         <Input

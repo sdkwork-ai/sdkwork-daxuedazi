@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-05-oem-startup-icon.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-05-oem-startup-icon.md
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy:
+  en: af5162f883ca88bd
+  zh: 6f803755568b057f
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy/problem:
+  en: cfc072f8c128d77f
+  zh: 0b92250a222d17ab
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy/decision:
+  en: f572a2359ad438cb
+  zh: c785b6dd75acc431
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy/alternatives-considered:
+  en: 18bd7c321aed1b4c
+  zh: 26272fe645084849
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy/consequences:
+  en: e854827b3284644c
+  zh: 7bff7eab33118200
+/agent-note-the-startup-icon-is-explicit-product-identity-not-oem-copy/testing:
+  en: d39bdb0bdcfef5bb
+  zh: 69c2647737ea573c

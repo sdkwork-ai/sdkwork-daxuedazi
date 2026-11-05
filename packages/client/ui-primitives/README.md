@@ -181,6 +181,7 @@ The package enforces one separation: presentational React atoms with zero Cordis
 | [`src/plugin-artwork.tsx`](src/plugin-artwork.tsx) | Fixed-palette plugin artwork with per-instance SVG def ids |
 | [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | Height limits for bottom-anchored overlays |
 | [`src/settings-form/`](src/settings-form/) | The settings page kit: the staged form model over a settings scope, the value and secret fields, and the form frame |
+| [`src/oem-brand.ts`](src/oem-brand.ts) | Page-bootstrap OEM values: display brand, IAM origins/client/callback, resolved lifecycle, and the `readOemSceneSwitcher` / `readOemSkillTags` / `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` product-surface flags |
 
 <a id="input-modality"></a>
 ### Input modality

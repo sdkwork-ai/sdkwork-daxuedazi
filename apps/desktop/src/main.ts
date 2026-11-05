@@ -32,7 +32,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
-import { resolveWindowIcon } from './app-icon.ts'
+import { resolveApplicationIcon, resolveWindowIcon } from './app-icon.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
@@ -505,6 +505,15 @@ async function main(): Promise<void> {
   // A malformed OEM profile fails the launch before any window, menu, or tray
   // copy is built, so the fatal report can name the file that needs fixing.
   oem()
+  // The startup icon is product identity, not OEM copy: the Dock and the
+  // Windows taskbar identity carry the raster generated from the canonical mark,
+  // and no profile or brand field can redirect them (AGENTS.md, "OEM startup
+  // icon"). The Dock needs the explicit image in an unpackaged run; a packaged
+  // app takes its bundle icon. Windows needs the brand's AppUserModelID so the
+  // running process and the installed shortcut share one taskbar identity.
+  const startupIcon = resolveApplicationIcon(app.getAppPath())
+  if (process.platform === 'darwin' && !app.isPackaged && startupIcon !== undefined) app.dock?.setIcon(startupIcon)
+  if (process.platform === 'win32') app.setAppUserModelId?.(brand.desktop.appId)
   const desktopSettings = await readDesktopSettings(app.getPath('userData'))
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR

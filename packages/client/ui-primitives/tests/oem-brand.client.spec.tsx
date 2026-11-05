@@ -5,8 +5,9 @@ import { cleanup, render } from '@testing-library/react'
 import { BirdWordmark } from '../src/BirdWordmark.tsx'
 import {
   DEFAULT_BRAND_NAME, DEFAULT_IAM_CLIENT_ID, DEFAULT_IAM_REDIRECT_URI, OEM_BOOT_GLOBAL,
-  readOemBrandName, readOemEnvironment, readOemIamAuthorizeBaseUrl, readOemIamBaseUrl, readOemIamClientId,
-  readOemIamRedirectUri, readOemShowApiKeyEntry,
+  readOemAppStore, readOemBrandName, readOemDemandHall, readOemEnvironment, readOemIamAuthorizeBaseUrl,
+  readOemIamBaseUrl, readOemIamClientId, readOemIamRedirectUri, readOemSceneSwitcher,
+  readOemShowApiKeyEntry, readOemSkillTags, readOemTemplateLibrary,
 } from '../src/oem-brand.ts'
 
 const BOOT = { brand: { name: 'Acme Coder', companyName: 'Acme' } }
@@ -39,6 +40,47 @@ describe('readOemShowApiKeyEntry', () => {
     expect(readOemShowApiKeyEntry({ brand: { showApiKeyEntry: 'yes' } })).toBe(false)
     expect(readOemShowApiKeyEntry({ brand: { showApiKeyEntry: false } })).toBe(false)
     expect(readOemShowApiKeyEntry({ brand: { showApiKeyEntry: true } })).toBe(true)
+  })
+})
+
+describe('OEM scene chrome', () => {
+  it('hides each surface only when the projection turns it off explicitly', () => {
+    // No page projection: an OEM-free composition keeps the fork's developer
+    // chrome, which is what tests and upstream builds mount.
+    expect(readOemSceneSwitcher()).toBe(true)
+    expect(readOemSkillTags()).toBe(true)
+    expect(readOemSceneSwitcher({ brand: { name: 'Acme' } })).toBe(true)
+    expect(readOemSkillTags({ brand: { name: 'Acme' } })).toBe(true)
+    expect(readOemSceneSwitcher({ ui: { sceneSwitcher: 'no' } })).toBe(true)
+    expect(readOemSkillTags({ ui: { skillTags: 0 } })).toBe(true)
+    // The shipped Host projection publishes the hidden defaults.
+    expect(readOemSceneSwitcher({ ui: { sceneSwitcher: false, skillTags: true } })).toBe(false)
+    expect(readOemSkillTags({ ui: { sceneSwitcher: true, skillTags: false } })).toBe(false)
+    expect(readOemSceneSwitcher({ ui: { sceneSwitcher: true, skillTags: false } })).toBe(true)
+    expect(readOemSkillTags({ ui: { sceneSwitcher: false, skillTags: true } })).toBe(true)
+  })
+})
+
+describe('OEM marketplace surfaces', () => {
+  it('hides each storefront surface only when the projection turns it off explicitly', () => {
+    // No page projection: an OEM-free composition keeps the fork's storefront
+    // surfaces, which is what the component specs and the assembled fixtures mount.
+    expect(readOemAppStore()).toBe(true)
+    expect(readOemTemplateLibrary()).toBe(true)
+    expect(readOemDemandHall()).toBe(true)
+    expect(readOemAppStore({ brand: { name: 'Acme' } })).toBe(true)
+    expect(readOemTemplateLibrary({ ui: { appStore: false } })).toBe(true)
+    expect(readOemDemandHall({ ui: { templateLibrary: false } })).toBe(true)
+    expect(readOemAppStore({ ui: { appStore: 'no' } })).toBe(true)
+    expect(readOemTemplateLibrary({ ui: { templateLibrary: 0 } })).toBe(true)
+    expect(readOemDemandHall({ ui: { demandHall: null } })).toBe(true)
+    // The shipped Host projection publishes the hidden defaults, one flag each.
+    expect(readOemAppStore({ ui: { appStore: false } })).toBe(false)
+    expect(readOemTemplateLibrary({ ui: { templateLibrary: false } })).toBe(false)
+    expect(readOemDemandHall({ ui: { demandHall: false } })).toBe(false)
+    expect(readOemAppStore({ ui: { appStore: true, templateLibrary: false } })).toBe(true)
+    expect(readOemTemplateLibrary({ ui: { templateLibrary: true, demandHall: false } })).toBe(true)
+    expect(readOemDemandHall({ ui: { demandHall: true, appStore: false } })).toBe(true)
   })
 })
 

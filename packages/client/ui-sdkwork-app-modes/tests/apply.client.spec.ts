@@ -6,7 +6,8 @@
  * never opens the sign-in overlay from the Code surface; the boot default and
  * the row writes ride the settings scope; teardown cascades. */
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { OEM_BOOT_GLOBAL } from '@deepseek-ai/dsh-client-ui-primitives'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { createSnapshotStore, type SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
@@ -37,6 +38,10 @@ const HERO_SWITCH = 'conversation.hero.modeSwitch'
 const DOCK = 'conversation.composer.dock'
 const HERO_DOCK = 'conversation.hero.dock'
 const ROW = 'settings.general.item'
+
+afterEach(() => {
+  Reflect.deleteProperty(globalThis, OEM_BOOT_GLOBAL)
+})
 
 /** The list row id brand, cast at the fixture boundary only. */
 type SessionIdOf = NonNullable<SessionListState['current']>
@@ -260,6 +265,30 @@ describe('ui-sdkwork-app-modes apply', () => {
     expect(rows.map(e => e.options.id)).toEqual(['app-modes-sidebar', 'app-modes-hero-switch'])
     expect(rows.map(e => e.options.order)).toEqual([30, 31])
     for (const row of rows) expect(row.locale).toBe('appMode')
+  })
+
+  it('registers no scene chrome, and no preference rows for it, when the OEM profile turns it off', async () => {
+    Reflect.set(globalThis, OEM_BOOT_GLOBAL, { ui: { sceneSwitcher: false, skillTags: false } })
+    const b = await bench()
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    // The developer chrome the shipped product does not offer: no hero pills,
+    // no strip in either scope, and no General scene-switch row.
+    expect(b.slots.entries(HERO_SWITCH)).toHaveLength(0)
+    expect(b.slots.entries(DOCK)).toHaveLength(0)
+    expect(b.slots.entries(HERO_DOCK)).toHaveLength(0)
+    const rows = b.slots.entries(ROW).filter(e => e.component === SettingsToggleRow)
+    expect(rows.map(e => e.options.id)).toEqual(['app-modes-sidebar'])
+  })
+
+  it('keeps the two OEM chrome switches independent', async () => {
+    Reflect.set(globalThis, OEM_BOOT_GLOBAL, { ui: { sceneSwitcher: true, skillTags: false } })
+    const b = await bench()
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    expect(b.slots.entries(HERO_SWITCH)).toHaveLength(1)
+    expect(b.slots.entries(DOCK)).toHaveLength(0)
+    expect(b.slots.entries(HERO_DOCK)).toHaveLength(0)
+    const rows = b.slots.entries(ROW).filter(e => e.component === SettingsToggleRow)
+    expect(rows.map(e => e.options.id)).toContain('app-modes-hero-switch')
   })
 
   it('mirrors registered rail-entry keys into the shell as entries come and go', async () => {

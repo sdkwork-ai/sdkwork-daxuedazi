@@ -164,8 +164,15 @@ Everything listed here is OEM content: upstream owns the surrounding code, this 
 | `apps/desktop/src/command-*.ts` + `scripts/command-path.ps1` | Command ownership receipt, Windows PATH key and mutex stem, all from the manifest | Keep the manifest-derived names; never hardcode a brand |
 | `apps/desktop/installer/*` + `scripts/installer.nsh` | Installer artwork and copy, path row, run/launch checks, removal targets; the uninstaller retires only `%APPDATA%<productName>` | Keep the fork installer files and merge upstream's NSIS fixes by meaning |
 | Artifact-name derivations: `package-target.ts`, `package-macos.ts`, `prepare-cli.ts`, `smoke-packaged-runtime.ts`, `desktop-upload-plan.ts`, `desktop-build-version-discovery.ts`, `retain-desktop-ci.ts`, `installed-update-distribution.ts`, `scripts/release/assemble-github-release.ts` | Every produced, uploaded and retained file starts with the selected brand's `artifactPrefix` | Keep the derivation; a literal `deepseek-harness-`, `birdcoder-` or `daxuedazi-` stem is a merge defect |
-| `packages/host/sdkwork-oem` | OEM profile schema, shipped display brand, IAM callback default whose scheme is the brand protocol | Keep the profile contract; the callback scheme must follow `desktop.protocol` |
-| `packages/client/ui-primitives/src/oem-brand.ts` | Browser fallback of the same IAM callback | Keep both defaults in step |
+| `packages/host/sdkwork-oem` | OEM profile schema, shipped display brand, the `ui.sceneSwitcher` / `ui.skillTags` product-chrome defaults, the `ui.appStore` / `ui.templateLibrary` / `ui.demandHall` shipped-visibility defaults, IAM callback default whose scheme is the brand protocol | Keep the profile contract; the callback scheme must follow `desktop.protocol`; all five surface fields default to `false`, so the shipped build mounts neither the scene chrome nor a storefront row in the sidebar |
+| `packages/client/ui-primitives/src/oem-brand.ts` | Browser fallback of the same IAM callback, plus the `readOemSceneSwitcher` / `readOemSkillTags` / `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` readers every client gate and the sidebar default use | Keep both defaults in step; these readers remain the only way a client reads the surface flags |
+| `packages/client/ui-sdkwork-app-modes` | The scene-pill seat, the two skill-strip seats, the submission observer, and the General scene-switch row are registered only when the OEM flags allow them | Keep the `readOemSceneSwitcher` / `readOemSkillTags` gates; an unconditional registration is a merge defect |
+| `packages/client/ui-sdkwork-skills` | The Skills page omits the strip master switch when `ui.skillTags` is off; per-skill suggestion switches stay | Keep the `readOemSkillTags` gate on the strip switch only |
+| `packages/client/ui-sdkwork-sidebar` | The sidebar layout preference ships `sdkwork-appstore`, `sdkwork-template-library`, and `sdkwork-demand-hall` hidden through `shippedHiddenEntryIds()`; it stores the ids the user explicitly hid and the ids the user explicitly showed, so the Settings → Sidebar switches stay effective | Keep the three id/reader pairs and the explicit-show list; a merge that drops either shows the storefronts to every shipped user or re-hides a row the user turned on |
+| Startup icon: `apps/desktop/src/app-icon.ts`, `apps/desktop/src/main.ts`, `apps/desktop/src/welcome-window.ts`, `apps/desktop/build/icon.{png,ico,icns}`, `apps/desktop/resources/icon*.png`, `resources/tray-windows.ico`, `renderer/assets/welcome-bird.png`, `apps/desktop/scripts/electron-builder-config.mjs` | The 学伴AI mascot every launch surface shows: Dock image, Windows taskbar identity, Welcome and main windows, tray, installer and packaged targets | Keep the canonical raster and every wiring point; no profile or brand field may select another image (`brand.icon` / `ui.icon` are rejected), and a merge that drops `resolveApplicationIcon` / `resolveWindowIcon` or the builder's `brandIcon(...)` entries is a defect |
+| `packages/client/ui-sdkwork-appstore` | The App Store rail entry, keyed page, sidebar quick entry, and SDKWork host adapter, all mounted so the sidebar row and its Settings switch stay reachable | Keep the plugin mounted; the sidebar preference, not the plugin, hides the row by default |
+| `packages/client/ui-sdkwork-template-library` | The template-library quick entry, keyed page, and SDKWork host adapter, all mounted so the sidebar row and its Settings switch stay reachable | Keep the plugin mounted; the sidebar preference, not the plugin, hides the row by default |
+| `packages/client/ui-sdkwork-demand-hall` | The demand-hall quick entry, keyed page, SDKWork host adapter, and demand-to-project port, all mounted so the sidebar row and its Settings switch stay reachable | Keep the plugin mounted; the sidebar preference, not the plugin, hides the row by default |
 | Docs and gates: `AGENTS.md` OEM sections, this page, `FORK_SYNC.md`, `INSTALL*.md`, `docs/user/guide/desktop*.md`, `apps/desktop/README*.md` | The described identities, paths, commands, artifact names and merge rules | Keep the OEM statements; merge upstream's new prose around them |
 | Tests and snapshots: `apps/desktop/tests/*brand*`, `*identity*`, `*packaging*`, `*publication*`, `expected/*` | The assertions and fixtures that pin the OEM values | Keep the OEM expectations; refresh a snapshot only when the contract itself changes |
 
@@ -174,6 +181,10 @@ Merge rules:
 - Resolve per file, never per tree: no `git checkout --ours .`, `--theirs .`, `-X ours`, `-X theirs`, and never delete a file to silence a conflict.
 - When upstream rewrote a file this fork owns, take upstream's structure and re-apply the OEM fields above; a file that lost them is a merge defect, not a resolution.
 - When upstream's launcher or builder reintroduces a fixed port, re-apply the brand-block derivation. A merge that leaves `19388`, `19389`, `9222`, `9229` or `9230` as a default in `apps/desktop/scripts/dev.ts` is a merge defect, even if every other OEM value survived.
+- A merge that mounts the hero scene pills or the composer skill strip unconditionally is the same kind of defect: the shipped profile hides both through `ui.sceneSwitcher` / `ui.skillTags`, and `verify-oem-identity` fails when the gates disappear.
+- A merge that replaces the startup icon wiring with an Electron default, or an OEM profile that tries to select another image, is a merge/product defect: the startup icon is build-time identity, and `verify-oem-identity` asserts the canonical raster plus every launch surface that shows it.
+- A merge that registers the App Store, template library, or demand hall only when the OEM flag is on is the same kind of defect: the plugins must stay mounted so Settings → Sidebar can offer their switches, and the shipped-hidden mapping in `ui-sdkwork-sidebar` is what hides the rows. A merge that removes a plugin, drops an id from `shippedHiddenEntryIds()`, or hardcodes "hidden" outside the preference is a merge defect.
+- An OEM deployment that promotes a storefront sets the corresponding field to `true` in `oem.json` so the row starts visible; the user's own switch still wins. Never move the visibility decision into the plugin or the composition.
 - Run the verification below before `scripts/sync-upstream.sh anchor`; the sync's `verify` step calls the same gate.
 - Snapshot and fixture updates are legitimate only when the contract changes; never regenerate them to turn a red OEM check green.
 
@@ -184,6 +195,13 @@ pnpm run verify-oem-identity
 pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/brand-home.spec.ts \
   apps/desktop/tests/brand-host-port.spec.ts apps/desktop/tests/development-identity.spec.ts \
   apps/desktop/tests/desktop-application-identity.spec.ts apps/desktop/tests/installer-packaging.spec.ts \
+  packages/host/sdkwork-oem packages/client/ui-primitives/tests/oem-brand.client.spec.tsx \
+  packages/client/ui-sdkwork-app-modes/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-skills/tests/skills-section.client.spec.tsx \
+  packages/client/ui-sdkwork-sidebar/tests/layout.client.spec.ts \
+  packages/client/ui-sdkwork-appstore/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-template-library/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-demand-hall/tests/apply.client.spec.ts \
   scripts/verify-oem-identity.spec.ts
 ```
 
@@ -194,6 +212,6 @@ pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/test
   them the way it replaces the rasters. The Desktop command-management copy in
   `apps/desktop/src/locale.ts` names the shipped `daxuedazi` command, so a build
   of another brand must re-spell those strings.
-- Icon and artifact artwork is generated from the canonical BirdCoder raster.
+- Icon and artifact artwork is generated from the canonical 学伴AI raster.
 - `desktop.executableName` names the installed binary; an OEM build must ship a
   binary of that name, which electron-builder derives from the same field.

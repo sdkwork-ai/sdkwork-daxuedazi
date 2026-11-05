@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-05-oem-scene-chrome.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-05-oem-scene-chrome.md
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile:
+  en: 46d9f665359fce0e
+  zh: 726fbc92640438f3
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile/problem:
+  en: 90f6ca12bf6ab047
+  zh: a8e54d30d73c1b3d
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile/decision:
+  en: 2c1081549e122ed0
+  zh: 2d72f5584f47e59c
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile/alternatives-considered:
+  en: 9240752e040d3ea6
+  zh: 813362d2c3e7b81e
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile/consequences:
+  en: 0f2fe5e7aa92ae5d
+  zh: b0bcb33d81c3cca0
+/agent-note-oem-builds-hide-the-scene-chrome-through-the-profile/testing:
+  en: bfbbc19b119d7d33
+  zh: 0b091aaa511b7643

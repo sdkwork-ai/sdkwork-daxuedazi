@@ -9,9 +9,11 @@
  * The page lists every row the column can currently draw — quick entries,
  * registry pages, and global panel rows — and one switch per row. A switch
  * writes the persisted preference immediately, so the column behind the
- * settings dialog re-renders live and there is no draft step to lose. The
- * page renders the published layout, never its own optimism: a row the
- * preference cannot hide (the fixed panel launcher) is not listed at all.
+ * settings dialog re-renders live and there is no draft step to lose. Rows the
+ * deployment ships hidden (the SDKWork storefronts) are listed with their
+ * switch off, so the user can turn them on. The page renders the published
+ * layout, never its own optimism: a row the preference cannot hide (the fixed
+ * panel launcher) is not listed at all.
  *
  * Groups follow the column's own reading order, so a reader who wants "the
  * second quick entry" finds it where it sits on the column rather than in an
@@ -48,7 +50,7 @@ export type SidebarLayoutSectionInjected = {
    * @param visible - whether the column draws the row.
    */
   setVisible: (id: string, visible: boolean) => void
-  /** Restore the shipped preference: every entry visible. */
+  /** Restore the shipped preference: the deployment's hidden entries hidden, every explicit choice cleared. */
   reset: () => void
 }
 

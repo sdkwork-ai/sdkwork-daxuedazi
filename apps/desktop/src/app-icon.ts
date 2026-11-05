@@ -1,11 +1,16 @@
 /**
- * Fork-owned window icon for the BirdCoder desktop shell.
+ * Fork-owned startup and window icon for the desktop shell.
  *
- * The product mark is the BirdCoder bird, never the upstream DeepSeek fish (see
- * AGENTS.md → "BirdCoder brand assets"). `build/icon.png` is generated from the
- * canonical `apps/web/public/favicon.png` by `scripts/generate-icons.mjs` and is
- * the only icon this shell passes to Electron, so an upstream rewrite of the
- * window options cannot silently fall back to the default Electron icon.
+ * The product mark is the 学伴AI orange mascot, never the upstream DeepSeek
+ * fish (see AGENTS.md → "BirdCoder brand assets" and "OEM startup icon").
+ * `build/icon.png` is generated from the canonical `apps/web/public/favicon.png`
+ * by `scripts/generate-icons.mjs` and is the only icon this shell passes to
+ * Electron, so an upstream rewrite of the window options cannot silently fall
+ * back to the default Electron icon.
+ *
+ * The icon is build-time product identity: no OEM profile, brand manifest, or
+ * locale field selects it. A deployment that must change the mark replaces the
+ * generated rasters in the build (AGENTS.md, "OEM startup icon").
  */
 
 import { existsSync } from 'node:fs'
@@ -13,6 +18,20 @@ import { join } from 'node:path'
 
 /** Shipped raster, relative to the application directory. */
 export const WINDOW_ICON_RELATIVE_PATH = join('build', 'icon.png')
+
+/**
+ * Resolve the shipped product raster for a startup surface.
+ *
+ * macOS needs it for the Dock in an unpackaged run (a packaged app takes its
+ * bundle icon); Windows and Linux windows pass it to Electron. The lookup is
+ * deliberately independent of the OEM profile and the brand manifest.
+ * @param appPath - Value of `app.getAppPath()`: the application directory or its asar archive.
+ * @returns The icon path, or undefined when the shipped raster is absent.
+ */
+export function resolveApplicationIcon(appPath: string): string | undefined {
+  const icon = join(appPath, WINDOW_ICON_RELATIVE_PATH)
+  return existsSync(icon) ? icon : undefined
+}
 
 /**
  * Resolve the icon Electron draws for a window on this host.
@@ -29,6 +48,5 @@ export function resolveWindowIcon(
   platform: NodeJS.Platform = process.platform,
 ): string | undefined {
   if (platform === 'darwin') return undefined
-  const icon = join(appPath, WINDOW_ICON_RELATIVE_PATH)
-  return existsSync(icon) ? icon : undefined
+  return resolveApplicationIcon(appPath)
 }

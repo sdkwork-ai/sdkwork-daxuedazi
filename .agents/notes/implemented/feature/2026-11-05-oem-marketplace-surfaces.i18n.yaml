@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-05-oem-marketplace-surfaces.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-05-oem-marketplace-surfaces.md
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches:
+  en: e37cad358b294fa8
+  zh: ae800a88f690815c
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches/problem:
+  en: 9444d9c392118562
+  zh: 28d6db72b71510ce
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches/decision:
+  en: 3903b1e6dcaf1c0e
+  zh: aefb8b1846453755
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches/alternatives-considered:
+  en: 79ea044dbc6f2690
+  zh: e46ef67a536e6fbf
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches/consequences:
+  en: 4961f7560d01afa7
+  zh: e2efaa293def0c7c
+/agent-note-oem-builds-hide-the-sdkwork-storefront-rows-behind-user-switches/testing:
+  en: 6ec379bb94d82749
+  zh: 0fe86c7b7e86bfb1

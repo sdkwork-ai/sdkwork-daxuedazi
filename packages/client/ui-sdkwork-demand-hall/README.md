@@ -16,6 +16,8 @@ The embedded surface is the App Store storefront's demand hall page and keeps it
 
 The demand detail page also carries the host-provided **create project and start** action: the plugin turns the selected demand into a new Workspace and session, and sends the demand brief as that session's first prompt.
 
+The surface is a shipped-hidden sidebar row: the entry, page, and Settings → Sidebar switch always mount. See the [sidebar package](../ui-sdkwork-sidebar/README.md) for the shipped-hidden preference.
+
 ## Table of Contents
 
 - [Runtime requirements](#runtime-requirements)

@@ -12,6 +12,8 @@ kind: "package-reference"
 
 SDKWork 应用商店模式。该浏览器插件拥有 `appstore` 侧栏入口、打开同一模式的侧边栏快捷入口，并通过 `@sdkwork/appstore-pc-embed` 挂载 SDKWork 应用商店 PC 表面。它注册 `sidebar.actions` 快捷入口与 keyed 的 `mode.rail.entry`、`mode.page` 贡献；选择任一入口都会切换布局模式，框架会在中栏渲染对应页面。
 
+出厂构建中该侧栏行默认隐藏，可在设置 → 侧栏中用开关打开；出厂隐藏偏好见[侧栏包](../ui-sdkwork-sidebar/README.zh.md)。
+
 ## 目录
 
 - [运行时要求](#runtime-requirements)

@@ -69,12 +69,16 @@ function stateOf(overrides: Partial<SkillsSectionState> = {}): SkillsSectionStat
 }
 
 /** Build the store-backed props the renderer would compose. */
-function mount(overrides: Partial<SkillsSectionState> = {}) {
+function mount(
+  overrides: Partial<SkillsSectionState> = {},
+  chrome: { showSceneTagsControl?: boolean } = {},
+) {
   const store = createSnapshotStore<SkillsSectionState>(stateOf(overrides))
   const injected = {
     setEnabled: vi.fn(),
     setSuggested: vi.fn(),
     setShowSceneTags: vi.fn(),
+    showSceneTagsControl: chrome.showSceneTagsControl ?? true,
     reload: vi.fn(),
   }
   // The shell composes the rest of the section runtime share (the global
@@ -241,6 +245,21 @@ describe('SkillsSection', () => {
     cleanup()
     mount({ pending: ['birdcoder-daily-dev'] })
     expect(stripSwitch().hasAttribute('disabled')).toBe(false)
+  })
+
+  it('keeps the whole-suggestion switch while the deployment renders the strip', () => {
+    mount()
+    expect(screen.queryByRole('switch', { name: en['strip.switch'] })).not.toBeNull()
+  })
+
+  it('omits the strip switch when the OEM profile turns the strip off', () => {
+    // The shipped product hides the composer strip entirely (AGENTS.md, "OEM
+    // scene chrome"), so the page must not offer a switch for a surface that
+    // cannot render. Per-skill controls stay: they still choose what a
+    // deployment that opts back in would suggest.
+    mount({}, { showSceneTagsControl: false })
+    expect(screen.queryByRole('switch', { name: en['strip.switch'] })).toBeNull()
+    expect(switchOf('birdcoder-daily-dev')).toBeTruthy()
   })
 
   it('reflects a stored suppression instead of the click', () => {

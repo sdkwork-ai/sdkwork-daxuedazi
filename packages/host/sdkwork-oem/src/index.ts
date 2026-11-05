@@ -7,7 +7,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import Schema from '@deepseek-ai/schemastery'
-import { OEM_BOOT_GLOBAL, oemBootConfig, readOemConfig, resolveOemEnvironment, type OemApplicationConfig, type OemBrandConfig, type OemConfig, type OemDeepSeekConfig, type OemEnvironment, type OemSdkworkConfig } from './config.ts'
+import { OEM_BOOT_GLOBAL, oemBootConfig, readOemConfig, resolveOemEnvironment, type OemApplicationConfig, type OemBrandConfig, type OemConfig, type OemDeepSeekConfig, type OemEnvironment, type OemSdkworkConfig, type OemUiConfig } from './config.ts'
 
 export * from './config.ts'
 
@@ -58,6 +58,14 @@ export class OemService {
    */
   get brand(): OemBrandConfig {
     return this.config.brand
+  }
+
+  /**
+   * Product chrome the deployment chose to render.
+   * @returns the resolved UI surface.
+   */
+  get ui(): OemUiConfig {
+    return this.config.ui
   }
 
   /**

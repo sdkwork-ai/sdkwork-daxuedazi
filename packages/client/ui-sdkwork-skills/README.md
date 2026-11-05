@@ -56,6 +56,8 @@ The page's switch is intentionally direction-neutral: it renders "shown / not sh
 
 `showSceneTags` answers a different question from both lists: whether the suggestion strip exists at all. Turning it off renders neither seat and leaves `hiddenSceneTags` / `pinnedSceneTags` untouched, so turning it back on restores exactly the row the user had. The two levels are deliberate — a reader who never wants suggestions should not have to empty the strip one pill at a time, and a reader who only wants different pills should not have to discover that the strip itself can disappear. Writing the switch never reads or rewrites the lists: it is one boolean field in the same durable section, so a refused write snaps the switch back like every other control on the page.
 
+The switch itself is OEM-gated (AGENTS.md, "OEM scene chrome"): when the shipped OEM profile turns `ui.skillTags` off, `ui-sdkwork-app-modes` mounts no strip at all, and this page omits the master switch instead of offering a control for a surface that cannot render. The per-skill suggestion switches stay — they still choose what a deployment that opts back in would suggest.
+
 ## How a disabled skill disappears
 
 The suppression is a provider, not a filter, because a filter would have to live at each consumer. The registry merges candidates per layer and a candidate's `rank` decides same-name winners inside a layer:

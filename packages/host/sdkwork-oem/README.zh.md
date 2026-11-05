@@ -9,11 +9,11 @@ kind: "package-reference"
 
 ## 摘要
 
-OEM 部署保留 DeepSeek 官方登录验证流程，只替换其运行的域名。本包在启动时解析一个 JSON 配置，作为 `ctx.oem` 提供，并通过 Web 索引注入发布显示品牌（`__DSH_OEM__`）。账号行从该服务读取 `platformOrigin` 与 `inferenceOrigin`；账号路由与 Web 搜索行读取各自的接口基址。无配置时使用出厂 BirdCoder 域名与品牌；未挂载本配置的组合保持自身的官方默认值。没有配置时所有行解析为官方域名与 BirdCoder 品牌，上游构建行为不变。
+OEM 部署保留 DeepSeek 官方登录验证流程，只替换其运行的域名。本包在启动时解析一个 JSON 配置，作为 `ctx.oem` 提供，并通过 Web 索引注入发布显示品牌与产品外观开关（`__DSH_OEM__`）。账号行从该服务读取 `platformOrigin` 与 `inferenceOrigin`；账号路由与 Web 搜索行读取各自的接口基址。无配置时使用出厂 BirdCoder 域名与品牌；未挂载本配置的组合保持自身的官方默认值。没有配置时所有行解析为官方域名与 BirdCoder 品牌，上游构建行为不变。
 
 ## 品牌标识
 
-本仓库交付的应用显示品牌是 **学伴AI**；Logo 仍是 BirdCoder 小鸟（`apps/web/public/favicon.png`，桌面、欢迎页与安装器图标均由它派生），发布文件按品牌清单的 `desktop.artifactPrefix` 拼写（`daxuedazi-<version>-<os>-<arch>`），API 服务域名保留 BirdCoder 拼写。OEM profile 的默认 `brand.name` 是 **学伴AI**，因此没有 OEM 配置的构建仍然呈现学伴AI。
+本仓库交付的应用显示品牌是 **学伴AI**；Logo 是学伴AI 橙色吉祥物（`apps/web/public/favicon.png`，桌面、欢迎页与安装器图标均由它派生），发布文件按品牌清单的 `desktop.artifactPrefix` 拼写（`daxuedazi-<version>-<os>-<arch>`），API 服务域名保留 BirdCoder 拼写。OEM profile 的默认 `brand.name` 是 **学伴AI**，因此没有 OEM 配置的构建仍然呈现学伴AI。
 
 部署方可以把 `brand.name` 设为其他名称，客户端与 Desktop 的显示文案会在渲染时跟随。但这只改变显示名称：今后若 OEM 采用其他品牌，必须在同一次构建中同时替换构建期 Logo 位图——应用图标、安装器品牌图，以及 `apps/desktop/renderer/assets/welcome-bird.png`。`oem.json` 不会替换图片资源。
 
@@ -36,6 +36,13 @@ SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数�
   "brand": {
     "name": "Acme Coder",
     "companyName": "Acme"
+  },
+  "ui": {
+    "sceneSwitcher": false,
+    "skillTags": false,
+    "appStore": false,
+    "templateLibrary": false,
+    "demandHall": false
   },
   "application": {
     "origins": ["https://birdcoder.com"]
@@ -61,6 +68,11 @@ SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数�
 | `brand.name` | `学伴AI` | 客户端文案、侧栏字标、文档标题与 Desktop 原生文案使用的显示名 |
 | `brand.companyName` | `SDKWork` | 需要厂商名的界面 |
 | `brand.showApiKeyEntry` | `false` | 是否在桌面欢迎窗口、SDKWork IAM 登录入口与 Web 账号弹窗的“登录”旁显示“添加 API Key”备用入口。该入口配置的是 DeepSeek 官方提供方密钥；产品入口是 SDKWork 账号登录，因此默认隐藏，只有部署显式开启时才显示 |
+| `ui.sceneSwitcher` | `false` | 是否渲染新建会话英雄区的代码 / 媒体 / 文档场景切换器。出厂配置隐藏它：学生产品不是开发工作台，这些胶囊宣传的场景也未必由部署提供。渲染出厂配置但把该字段设为 true 的页面会恢复通用设置里的“显示场景切换”偏好 |
+| `ui.skillTags` | `false` | 是否渲染输入框下方按场景提供的技能标签条，以及技能页上的标签条总开关。隐藏原因相同：标签条推荐的是学生产品不呈现的 `birdcoder-*` 开发技能 |
+| `ui.appStore` | `false` | 是否让应用商店的侧栏快捷入口默认可见。模式栏入口、键控页面与商店本身始终挂载，设置 → 侧栏也会列出该行及其开关，用户可自行打开；设为 `true` 时每个用户初始即看到该行 |
+| `ui.templateLibrary` | `false` | 是否让模板库的侧栏快捷入口默认可见。入口、页面与设置开关始终挂载，用户可自行打开该行 |
+| `ui.demandHall` | `false` | 是否让需求大厅的侧栏快捷入口默认可见。入口、页面与设置开关始终挂载，用户可自行打开该行 |
 | `application.origins` | `["https://birdcoder.com"]` | 本部署对外提供 Web 应用的源；浏览器登录回调必须命中其中之一。回环地址仍供 Desktop 与本地使用 |
 | `sdkwork.iamBaseUrl` | `https://api.birdcoder.com` | SDKWork IAM PC 登录客户端的 app-api 源。生成的路径（`/app/v3/api/auth/...`）与 `X-Platform: pc` 请求头保持不变，只替换域名。非默认值会在所有环境层级替换 `ui-sdkwork-env` profile 的源；默认值则让环境 profile 继续生效 |
 | `sdkwork.iamAuthorizeBaseUrl` | `https://platform.birdcoder.com` | 桌面浏览器登录使用的托管 IAM 授权源。应用打开 `<origin>/iam/v3/oauth/authorize`；登录页保持 `/auth/...` 路径，并通过 `sdkwork.iamRedirectUri` 深链返回 |
@@ -73,6 +85,12 @@ SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数�
 | `deepseek.messagesBaseUrl` | `https://api.birdcoder.com/anthropic` | 账号路由的 Messages 基址；派生为 `<inferenceOrigin>/anthropic` |
 | `deepseek.webSearchBaseUrl` | `https://api.birdcoder.com/anthropic/v1` | 搜索基址；派生为 `<inferenceOrigin>/anthropic/v1` |
 | `deepseek.webApiBaseUrl` | `https://api.birdcoder.com/v1/tools` | Search/Fetch API 基址；派生为 `<inferenceOrigin>/v1/tools` |
+
+`ui.sceneSwitcher` 与 `ui.skillTags` 由浏览器从页面投影读取，因此决定客户端“挂不挂载”：false 表示座位根本不会注册（对应偏好行也一并消失），而不是用 CSS 藏起来。部署把某一项重新打开后，用户对该表面的持久偏好也随之恢复。
+
+`ui.appStore`、`ui.templateLibrary` 与 `ui.demandHall` 是三个商店行的出厂可见性，不是挂载决策。三个插件始终注册各自的侧栏入口、页面与设置 → 侧栏开关；字段为 `false` 时，侧栏偏好（`packages/client/ui-sdkwork-sidebar/src/client/layout.ts`）让该行默认隐藏，用户自己的开关会立即覆盖它。偏好分别保存用户显式隐藏与显式显示的 id，因此部署以后把某行改为默认可见时，用户已做的选择仍然有效。由于 Host 总会发布出厂配置，没有 `oem.json` 的构建同样隐藏这三行——这是产品默认值，不是缺少配置。
+
+配置从不选择图片。启动图标（Dock 图像、Windows 任务栏身份、欢迎窗口与主窗口、托盘、安装器）是构建期产品身份，由规范位图生成；`brand.icon` 与 `ui.icon` 在加载时被拒绝，需要更换标志的部署应在构建中替换生成的位图。
 
 DeepSeek API Key vendor（`llm-deepseek`）刻意不在 OEM 配置范围内：它的端点、密钥处理以及模型设置页的 `https://api.deepseek.com/anthropic` 占位符都保持 DeepSeek。OEM 自有模型网关应作为独立 provider 路由接入，而不是改写 DeepSeek vendor。
 
@@ -129,6 +147,8 @@ DeepSeek API Key vendor（`llm-deepseek`）不在本表内：它仍使用 DeepSe
 - SDKWork IAM 客户端的所有 PC 路径都由生成 SDK 基于 `sdkwork.iamBaseUrl` 派生；不得在 `ui-sdkwork-iam` 中拼写 IAM API 路径或第二个 IAM 源。桌面流程保持 `/iam/v3/oauth/authorize` 与 `/auth/desktop/launch` 原样；其 `client_id` 与 `redirect_uri` 来自 `sdkwork.iamClientId` 与 `sdkwork.iamRedirectUri`，深链接收端按该重定向精确匹配，而不是接受共享该 scheme 的任意 URL。
 - 端点字面量——出厂 BirdCoder 默认值（`https://platform.birdcoder.com`、`https://api.birdcoder.com`）与部署可显式恢复的官方值（`https://platform.deepseek.com`、`https://api.deepseek.com`）——只允许出现在具名默认常量（`PUBLIC_BASE_URL`、`DEEPSEEK_DEFAULT_BASE_URL`、`DEEPSEEK_WEB_API_BASE_URL`、本解析器的 `DEFAULT_*`/`OFFICIAL_*`）、测试，以及 `deepseek-account-platform/src/index.ts` 中记录在案的官方 API issuer 守卫里。修改出厂默认值属于产品变更，不是上游同步。
 - 新的品牌文案通过 `LocaleRuntime.setBrand`（客户端）或 `resolveDesktopLocale(locale, brand)`（桌面端）渲染；显示文案中新增字面量 "BirdCoder" 即回归。构建期标识（`productName`、应用标识、操作系统 URL scheme、`daxuedazi` 命令、安装器位图、Web manifest、文档站标识）不进入运行期配置；`sdkwork.iamRedirectUri` 只命名回调路径，不能替换打包外壳注册的 scheme。
+- 场景外观保持由配置控制：`ui.sceneSwitcher` 与 `ui.skillTags` 默认为 `false`，且只能通过 `ui-primitives` 的 `readOemSceneSwitcher` / `readOemSkillTags` 读取。合并把胶囊或标签条硬编码回出厂构建属于缺陷，不是中性的上游变更；`pnpm run verify-oem-identity` 会因此失败。
+- SDKWork 商店行同样保持由配置控制：`ui.appStore`、`ui.templateLibrary`、`ui.demandHall` 默认为 `false`，只能通过 `ui-primitives` 的 `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` 读取，并且只喂给侧栏的出厂隐藏映射（`ui-sdkwork-sidebar` 的 `shippedHiddenEntryIds`）。三个插件及其设置开关始终保持挂载。合并删除插件、从映射中丢掉某个 id，或在偏好之外把行藏起来，属于缺陷；`pnpm run verify-oem-identity` 会因此失败。
 - 新端点必须加入 OEM schema、从 `inferenceOrigin` 派生，并在 `packages/bundle/base/tests/base.spec.ts` 中断言。
 
 每次上游合并后重新验证（第一条 grep 只允许匹配上述常量与守卫；两个计数必须成立）：

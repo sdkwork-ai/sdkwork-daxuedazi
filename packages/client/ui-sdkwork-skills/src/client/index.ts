@@ -30,6 +30,7 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
+import { readOemSkillTags } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 // Type-only: pulls the ctx.remote merge (skills namespace + the forwarded
@@ -288,6 +289,10 @@ export function apply(ctx: ClientContext): void {
       setEnabled: (name, enabled) => { void writePreference(DISABLED_SKILLS_FIELD, name, !enabled) },
       setSuggested: (name, shown, sceneDefault) => { void writeSuggested(name, shown, sceneDefault) },
       setShowSceneTags: (show) => { void writeShowSceneTags(show) },
+      // The scene chrome is an OEM-product decision (AGENTS.md, "OEM scene
+      // chrome"): a deployment that turns `ui.skillTags` off never renders the
+      // strip, so the page must not offer its master switch either.
+      showSceneTagsControl: readOemSkillTags(),
       reload: () => { void load(session) },
     }
   }

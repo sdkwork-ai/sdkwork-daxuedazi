@@ -152,6 +152,39 @@ export interface OemBrandConfig {
   readonly showApiKeyEntry: boolean
 }
 
+/**
+ * Deployment switches for product surfaces the shipped build keeps out of the
+ * way.
+ *
+ * The scene chrome switches decide whether the client mounts the fork's
+ * developer-workbench surfaces at all. The marketplace switches decide the
+ * shipped default of one sidebar quick entry each: the entry, its page, and the
+ * Settings switch always mount, and `false` ships the row hidden so each user
+ * can turn it on; a deployment that promotes a storefront sets its field to
+ * true and every user starts with the row visible.
+ */
+export interface OemUiConfig {
+  /** Whether the new-session hero renders the Code/Media/Document scene switcher. */
+  readonly sceneSwitcher: boolean
+  /** Whether the composer renders the staged scene's skill-tag strip. */
+  readonly skillTags: boolean
+  /**
+   * Whether the App Store's sidebar quick entry ships visible. The rail entry,
+   * the keyed page, and the store itself mount either way.
+   */
+  readonly appStore: boolean
+  /**
+   * Whether the template library's sidebar quick entry ships visible. The
+   * entry and its keyed page mount either way.
+   */
+  readonly templateLibrary: boolean
+  /**
+   * Whether the demand hall's sidebar quick entry ships visible. The entry and
+   * its keyed page mount either way.
+   */
+  readonly demandHall: boolean
+}
+
 /** The deployment's own hosted application surface. */
 export interface OemApplicationConfig {
   /**
@@ -186,21 +219,30 @@ export interface OemDeepSeekConfig {
 export interface OemConfig {
   readonly environment: OemEnvironment
   readonly brand: OemBrandConfig
+  readonly ui: OemUiConfig
   readonly application: OemApplicationConfig
   readonly sdkwork: OemSdkworkConfig
   readonly deepseek: OemDeepSeekConfig
 }
 
-/** Browser-visible subset injected into the page bootstrap: the display brand, IAM origins, OAuth client, and lifecycle. */
+/** Browser-visible subset injected into the page bootstrap: the display brand, product chrome, IAM origins, OAuth client, and lifecycle. */
 export interface OemBootConfig {
   readonly environment: OemEnvironment
   readonly brand: OemBrandConfig
+  readonly ui: OemUiConfig
   readonly sdkwork: OemSdkworkConfig
 }
 
 /** Raw OEM fields one environment can override; every field is optional. */
 export interface OemEnvironmentOverride {
   readonly brand?: { readonly name?: unknown; readonly companyName?: unknown; readonly showApiKeyEntry?: unknown }
+  readonly ui?: {
+    readonly sceneSwitcher?: unknown
+    readonly skillTags?: unknown
+    readonly appStore?: unknown
+    readonly templateLibrary?: unknown
+    readonly demandHall?: unknown
+  }
   readonly application?: { readonly origins?: unknown }
   readonly sdkwork?: {
     readonly iamBaseUrl?: unknown
@@ -236,6 +278,7 @@ export function defaultOemConfig(environment: OemEnvironment = 'production'): Oe
   return {
     environment,
     brand: { name: DEFAULT_BRAND_NAME, companyName: DEFAULT_COMPANY_NAME, showApiKeyEntry: false },
+    ui: { sceneSwitcher: false, skillTags: false, appStore: false, templateLibrary: false, demandHall: false },
     application: { origins: [...DEFAULT_APPLICATION_ORIGINS] },
     sdkwork: {
       iamBaseUrl: DEFAULT_IAM_BASE_URL,
@@ -427,11 +470,21 @@ export function resolveOemConfig(
     if (!Object.hasOwn(ENVIRONMENT_ORIGINS, key)) throw new Error(`oem: environments.${key} is not a supported lifecycle`)
   }
   const override = optionalRecord(environments[environment], `environments.${environment}`)
-  const section = (key: 'brand' | 'application' | 'sdkwork' | 'deepseek'): Record<string, unknown> => ({
+  const section = (key: 'brand' | 'ui' | 'application' | 'sdkwork' | 'deepseek'): Record<string, unknown> => ({
     ...optionalRecord(root[key], key),
     ...optionalRecord(override[key], `environments.${environment}.${key}`),
   })
   const brand = section('brand')
+  const ui = section('ui')
+  // The startup icon is build-time identity, not a profile value: a deployment
+  // that needs another mark replaces the generated rasters in the build. Reject
+  // an attempted override instead of silently ignoring it (AGENTS.md, "OEM
+  // startup icon").
+  for (const [where, source] of [['brand', brand], ['ui', ui]] as const) {
+    if (source.icon !== undefined) {
+      throw new Error(`oem: ${where}.icon is not configurable; the startup icon is build-time identity (replace the rasters in the build)`)
+    }
+  }
   const application = section('application')
   const sdkwork = section('sdkwork')
   const deepseek = section('deepseek')
@@ -503,6 +556,13 @@ export function resolveOemConfig(
       ),
       showApiKeyEntry: optionalBoolean(brand, 'showApiKeyEntry', 'brand.showApiKeyEntry')
         ?? defaults.brand.showApiKeyEntry,
+    },
+    ui: {
+      sceneSwitcher: optionalBoolean(ui, 'sceneSwitcher', 'ui.sceneSwitcher') ?? defaults.ui.sceneSwitcher,
+      skillTags: optionalBoolean(ui, 'skillTags', 'ui.skillTags') ?? defaults.ui.skillTags,
+      appStore: optionalBoolean(ui, 'appStore', 'ui.appStore') ?? defaults.ui.appStore,
+      templateLibrary: optionalBoolean(ui, 'templateLibrary', 'ui.templateLibrary') ?? defaults.ui.templateLibrary,
+      demandHall: optionalBoolean(ui, 'demandHall', 'ui.demandHall') ?? defaults.ui.demandHall,
     },
     application: {
       origins: originList(application.origins, 'application.origins', allowLoopbackHttp, allowInsecureHttp),
@@ -592,6 +652,7 @@ export function oemBootConfig(config: OemConfig): OemBootConfig {
   return {
     environment: config.environment,
     brand: { ...config.brand },
+    ui: { ...config.ui },
     sdkwork: { ...config.sdkwork },
   }
 }

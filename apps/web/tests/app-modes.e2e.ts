@@ -2,10 +2,14 @@
 // Web assembled scenarios: the app-mode surface — the WeChat-desktop-style
 // mode rail entries from ui-sdkwork-app-modes plus independent Knowledge Base, Assets,
 // Search, Token Plan, App Store, and SDKWork Agents generation packages; each
-// non-code mode dispatches its keyed page. The shipped rail layout shows the
-// five fixed modes (Code, Video, Image, Knowledge Base, Assets), App Store, and
-// the pinned Token Plan; Search and the remaining user-owned entries start
-// hidden and are enabled in the customize dialog, where the plus button opens it.
+// non-code mode dispatches its keyed page. The fixture mounts no OEM page
+// projection, so it exercises the developer composition: the shipped rail
+// layout shows the five fixed modes (Code, Video, Image, Knowledge Base,
+// Assets), App Store, and the pinned Token Plan. A deployment publishing the
+// shipped profile (`ui.appStore: false`) keeps the same rail entry and hides
+// only the App Store sidebar row, which Settings → Sidebar can switch back on.
+// Search and the remaining user-owned entries start hidden and are enabled in
+// the customize dialog, where the plus button opens it.
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { installAssembledBootEnv, mountAssembledApp } from './assembled-boot.ts'
@@ -63,8 +67,9 @@ it('renders the shipped layout and dispatches feature-owned mode pages', async (
   const frame = document.querySelector('[data-mode]')!
   expect(frame.getAttribute('data-mode')).toBe('code')
 
-  // Switching to App Store dispatches the feature-owned keyed page. App Store
-  // ships visible in the layout, so the seat is already there. The anonymous
+  // Switching to App Store dispatches the feature-owned keyed page. This
+  // fixture has no OEM projection, so the sidebar row is visible too; the
+  // shipped profile hides only that row, never the rail entry. The anonymous
   // assembled fixture has no SDKWork access token, so the SDK rejects the
   // request before dispatch and the page settles into the retry state.
   const widened = entries
@@ -125,8 +130,8 @@ it('enables Search from the customize dialog, then searches the catalog and open
   // Search ships hidden like every other user-owned entry: no seat in the
   // default layout, and the dialog's row starts unchecked and checkable.
   expect(within(rail).queryByRole('button', { name: 'Search mode' })).toBeNull()
-  // App Store is the exception among the hideable modes: it ships visible and
-  // its row starts checked.
+  // App Store is the exception among the hideable modes: when the deployment
+  // mounts it, it ships visible and its row starts checked.
   expect(within(rail).getByRole('button', { name: 'App Store mode' })).toBeTruthy()
   fireEvent.click(within(rail).getByRole('button', { name: 'Customize icons' }))
   const dialog = await screen.findByRole('dialog', { name: 'Customize the mode rail' })

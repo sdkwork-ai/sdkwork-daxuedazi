@@ -12,6 +12,8 @@ English | [中文](README.zh.md)
 
 The SDKWork App Store application mode. This browser plugin owns the `appstore` rail entry, the sidebar quick entry that opens the same mode, and mounts the SDKWork App Store PC surface through `@sdkwork/appstore-pc-embed`. It registers the `sidebar.actions` quick entry plus keyed `mode.rail.entry` and `mode.page` contributions; selecting either entry changes the layout mode, and the frame renders the page in the center column.
 
+The sidebar row ships hidden in the shipped build and is one switch in Settings → Sidebar; see the [sidebar package](../ui-sdkwork-sidebar/README.md) for the shipped-hidden preference.
+
 ## Table of Contents
 
 - [Runtime requirements](#runtime-requirements)

@@ -397,7 +397,10 @@
 
     # Independent App Store mode: the SDKWork catalog client, keyed rail entry,
     # keyed mode page, and the sidebar quick entry that opens it, all consuming
-    # shared ui-sdkwork-env and ui-sdkwork-iam services.
+    # shared ui-sdkwork-env and ui-sdkwork-iam services. The sidebar row ships
+    # hidden unless the deployment's OEM profile sets `ui.appStore: true`; the
+    # row and its Settings → Sidebar switch always mount (AGENTS.md, "OEM
+    # marketplace surfaces").
     - id: ui-sdkwork-appstore
       name: '@deepseek-ai/dsh-client-ui-sdkwork-appstore'
 
@@ -419,15 +422,14 @@
 
     # SDKWork quick entries in the sidebar's New Session button area
     # (ui-sidebar's `sidebar.actions` list seat): the new-conversation entry
-    # (the shell capsule's capability, now plugin-owned) and, from
-    # `ui-sdkwork-appstore` above, the App Store entry that switches the frame
-    # to the same `appstore` mode page the rail entry selects.
+    # (the shell capsule's capability, now plugin-owned). The App Store entry
+    # belongs to `ui-sdkwork-appstore` above and ships hidden unless the OEM
+    # profile marks it visible; Settings → Sidebar always offers its switch.
     - id: ui-sdkwork-new-chat
       name: '@deepseek-ai/dsh-client-ui-sdkwork-new-chat'
 
     # Pull Request is hidden: its quick entry was the mode's only way in, so
-    # the sidebar carries the App Store entry in that seat instead and the
-    # keyed placeholder page goes with the entry. Remove this `disabled` to
+    # the keyed placeholder page goes with the entry. Remove this `disabled` to
     # restore both.
     - id: ui-sdkwork-git-pullrequest
       name: '@deepseek-ai/dsh-client-ui-sdkwork-git-pullrequest'
@@ -513,14 +515,18 @@
 
     # Template Library: the sidebar quick entry below the market entry and its
     # keyed page hosting the SDKWork App Store templates catalog, opened as a
-    # code-surface overlay like the market page.
+    # code-surface overlay like the market page. The row ships hidden unless the
+    # OEM profile sets `ui.templateLibrary: true`; the row and its Settings →
+    # Sidebar switch always mount (AGENTS.md, "OEM marketplace surfaces").
     - id: ui-sdkwork-template-library
       name: '@deepseek-ai/dsh-client-ui-sdkwork-template-library'
 
     # Demand Hall: the sidebar quick entry below the template-library entry and
     # its keyed page hosting the SDKWork App Store demand hall (publish and
     # claim development demands), opened as a code-surface overlay like the
-    # template-library page.
+    # template-library page. The row ships hidden unless the OEM profile sets
+    # `ui.demandHall: true`; the row and its Settings → Sidebar switch always
+    # mount.
     - id: ui-sdkwork-demand-hall
       name: '@deepseek-ai/dsh-client-ui-sdkwork-demand-hall'
 

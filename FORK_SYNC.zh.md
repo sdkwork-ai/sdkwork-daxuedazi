@@ -84,6 +84,8 @@ scripts/sync-upstream.sh anchor     # 记录新的上游 tip，随合并一起�
 | --- | --- |
 | 品牌资产、sdkwork 组件/插件/路由/vendor、fork 独有文件 | 保留本仓库版本 |
 | 命中 [OEM 自有内容清单](brands/README.zh.md#oem-owned-surfaces) 的文件 | 取上游结构，再把 OEM 字段重新落回去；丢失字段的文件属于合并缺陷 |
+| 控制 OEM 产品表面（`ui.sceneSwitcher` / `ui.skillTags` 场景外观，`ui.appStore` / `ui.templateLibrary` / `ui.demandHall` 商店行默认可见性）的文件 | 保留配置门禁：出厂构建既不挂载英雄区场景胶囊与输入框下方技能标签条，也隐藏应用商店、模板库与需求大厅的侧栏行，同时保留设置里的开关；无条件挂载、删除商店插件，或在侧栏偏好之外隐藏行，属于合并缺陷 |
+| 承载启动图标（Dock、Windows 任务栏身份、欢迎/主窗口、托盘、安装器）的文件 | 保留学伴AI 规范位图与每个接线点：`brand.icon` / `ui.icon` 会被拒绝，合并把显式图标换成 Electron 默认值即属缺陷 |
 | 上游核心功能代码 | 采上游版本 |
 | 两边都改过同一表面 | 两边行为都保留，以上游结构为基线 |
 | 上游删除了本 fork 改过的文件 | 逐文件判断，并把结论写进报告 |
@@ -102,7 +104,7 @@ scripts/sync-upstream.sh anchor     # 记录新的上游 tip，随合并一起�
 2. 没有残留冲突标记、没有未解决的索引条目；
 3. 相对回滚点消失的路径，上游也已不再提供（没有误删）；
 4. **本 fork 从未改动过的文件，在合并结果里必须与上游逐字节一致**——这一项才抓得住「上游内容被静默吞掉」，逐文件看冲突清单永远看不出来；
-5. 品牌表面、sdkwork 包与锚点里记录的保留/删除清单仍然成立——`pnpm run verify-oem-identity` 覆盖 [brands/README.zh.md](brands/README.zh.md#oem-owned-surfaces) 里的 OEM 自有内容（出厂品牌取值、`~/.daxuedazi` home 规则、品牌之间互不重叠的[端口块](brands/README.zh.md#ports)以及保持该布局的源码通道派生、IAM 回调 scheme、产物命名派生与文档指引），`verify` 的第 5 步会调用它。
+5. 品牌表面、sdkwork 包与锚点里记录的保留/删除清单仍然成立——`pnpm run verify-oem-identity` 覆盖 [brands/README.zh.md](brands/README.zh.md#oem-owned-surfaces) 里的 OEM 自有内容（出厂品牌取值、`~/.daxuedazi` home 规则、品牌之间互不重叠的[端口块](brands/README.zh.md#ports)以及保持该布局的源码通道派生、IAM 回调 scheme、OEM 场景外观默认值及其客户端门禁、OEM 商店行默认值及其侧栏出厂隐藏映射、产物命名派生与文档指引），`verify` 的第 5 步会调用它。
 
 它同时报告版本家族（`package.json` == 上游最新 tag == `CHANGELOG.md` 首个标题）。
 只有全部通过，`anchor` 才会推进锚点。

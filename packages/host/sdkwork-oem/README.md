@@ -9,11 +9,11 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-An OEM deployment keeps the official DeepSeek verification flow and moves only the origins it runs against. This package resolves one JSON profile at boot, provides it as `ctx.oem`, and publishes the display brand (`__DSH_OEM__`) through the Web index injection. The account row reads `platformOrigin` and `inferenceOrigin` from it; the account route and the web-search rows read their endpoint bases. Without a profile every row resolves the shipped BirdCoder endpoints and brand; a composition that does not mount this profile keeps its own official defaults.
+An OEM deployment keeps the official DeepSeek verification flow and moves only the origins it runs against. This package resolves one JSON profile at boot, provides it as `ctx.oem`, and publishes the display brand and product chrome (`__DSH_OEM__`) through the Web index injection. The account row reads `platformOrigin` and `inferenceOrigin` from it; the account route and the web-search rows read their endpoint bases. Without a profile every row resolves the shipped BirdCoder endpoints and brand; a composition that does not mount this profile keeps its own official defaults.
 
 ## Brand identity
 
-The application shipped by this repository presents the display brand **学伴AI**; the logo is still the BirdCoder bird (`apps/web/public/favicon.png`, from which the desktop, welcome, and installer marks derive), the release files are spelled from the brand manifest's `desktop.artifactPrefix` (`daxuedazi-<version>-<os>-<arch>`), and the API service origins keep their BirdCoder spelling. The OEM profile's default `brand.name` is **学伴AI**, so an OEM build with no profile still presents 学伴AI.
+The application shipped by this repository presents the display brand **学伴AI**; the logo is the 学伴AI orange mascot (`apps/web/public/favicon.png`, from which the desktop, welcome, and installer marks derive), the release files are spelled from the brand manifest's `desktop.artifactPrefix` (`daxuedazi-<version>-<os>-<arch>`), and the API service origins keep their BirdCoder spelling. The OEM profile's default `brand.name` is **学伴AI**, so an OEM build with no profile still presents 学伴AI.
 
 A deployment may set another `brand.name`; every client and Desktop display string then follows at render time. That is a display-name change only: a future OEM that adopts another brand must also replace the build-time logo rasters — app icons, installer brand images, and `apps/desktop/renderer/assets/welcome-bird.png` — in the same build. `oem.json` never swaps image assets.
 
@@ -36,6 +36,13 @@ The profile path is `DSH_OEM_CONFIG`, then `$DSH_HOME/oem.json`. A missing file 
   "brand": {
     "name": "Acme Coder",
     "companyName": "Acme"
+  },
+  "ui": {
+    "sceneSwitcher": false,
+    "skillTags": false,
+    "appStore": false,
+    "templateLibrary": false,
+    "demandHall": false
   },
   "application": {
     "origins": ["https://birdcoder.com"]
@@ -61,6 +68,11 @@ The profile path is `DSH_OEM_CONFIG`, then `$DSH_HOME/oem.json`. A missing file 
 | `brand.name` | `学伴AI` | Display name substituted into the client locale copy, the sidebar wordmark, the document title, and every Desktop native string |
 | `brand.companyName` | `SDKWork` | Vendor name for surfaces that need one |
 | `brand.showApiKeyEntry` | `false` | Offer the "Add API Key" fallback next to Sign in on the desktop welcome window, the SDKWork IAM sign-in entry, and the web account dialog. That fallback configures the official DeepSeek provider key; the SDKWork account login is the product's entry, so it stays hidden unless a deployment opts in |
+| `ui.sceneSwitcher` | `false` | Render the new-session hero's Code/Media/Document scene switcher. The shipped profile hides it: the student product is not the developer workbench, and the pills advertise scenes whose surfaces a deployment may not offer. A page that renders the shipped profile but sets this true gets the General "Show scene switcher" preference back |
+| `ui.skillTags` | `false` | Render the staged scene's built-in skill-tag strip below the composer, and the Skills page's strip master switch. Hidden for the same reason: the strip suggests `birdcoder-*` developer skills the student product does not present |
+| `ui.appStore` | `false` | Ship the App Store's sidebar quick entry visible. The rail entry, the keyed page, and the store itself always mount, and Settings → Sidebar lists the row with its switch, so a user can turn it on; `true` starts every user with the row visible |
+| `ui.templateLibrary` | `false` | Ship the template library's sidebar quick entry visible. The entry, its page, and its Settings switch always mount; a user can turn the row on |
+| `ui.demandHall` | `false` | Ship the demand hall's sidebar quick entry visible. The entry, its page, and its Settings switch always mount; a user can turn the row on |
 | `application.origins` | `["https://birdcoder.com"]` | Public origins this deployment serves the Web app from; a browser sign-in callback must match one of them. Loopback stays accepted for Desktop and local use |
 | `sdkwork.iamBaseUrl` | `https://api.birdcoder.com` | SDKWork IAM app-api origin for the PC login client. The generated paths (`/app/v3/api/auth/...`) and the `X-Platform: pc` header are unchanged; only this domain moves. A value different from the shipped default replaces the `ui-sdkwork-env` profile origin in every tier, while the default leaves the environment profile in control |
 | `sdkwork.iamAuthorizeBaseUrl` | `https://platform.birdcoder.com` | Hosted IAM authorization origin for the desktop browser-login flow. The app opens `<origin>/iam/v3/oauth/authorize`; the login pages keep their `/auth/...` paths and return through `sdkwork.iamRedirectUri` |
@@ -73,6 +85,12 @@ The profile path is `DSH_OEM_CONFIG`, then `$DSH_HOME/oem.json`. A missing file 
 | `deepseek.messagesBaseUrl` | `https://api.birdcoder.com/anthropic` | Account-route Messages base; derived as `<inferenceOrigin>/anthropic` |
 | `deepseek.webSearchBaseUrl` | `https://api.birdcoder.com/anthropic/v1` | Anthropic-compatible search base; derived as `<inferenceOrigin>/anthropic/v1` |
 | `deepseek.webApiBaseUrl` | `https://api.birdcoder.com/v1/tools` | Search and Fetch API base; derived as `<inferenceOrigin>/v1/tools` |
+
+`ui.sceneSwitcher` and `ui.skillTags` are read by the browser from the page projection, so they gate what the client mounts: false means the seat is never registered (and its preference row disappears), not merely hidden. A deployment that opts one back in also gets the user's durable preference for it.
+
+`ui.appStore`, `ui.templateLibrary`, and `ui.demandHall` are the storefront rows' shipped visibility, not a mount decision. The three plugins always register their sidebar entry, their page, and their Settings → Sidebar switch; a `false` field makes the sidebar preference (`packages/client/ui-sdkwork-sidebar/src/client/layout.ts`) ship that row hidden, and the user's own switch immediately overrides it. The preference stores the ids the user explicitly hid and the ids the user explicitly showed, so a row a deployment promotes later still follows a user's choice. Because the Host always publishes the shipped profile, a build with no `oem.json` hides the three rows — that is the product's default, not a missing configuration.
+
+The profile never selects images. The startup icon (the Dock image, the Windows taskbar identity, the Welcome and main windows, the tray, and the installer) is build-time product identity generated from the canonical raster; `brand.icon` and `ui.icon` are rejected at load, and a deployment that needs another mark replaces the generated rasters in the build.
 
 The DeepSeek API-key vendor (`llm-deepseek`) is intentionally outside the OEM profile: its endpoint, key handling, and the Models page's `https://api.deepseek.com/anthropic` placeholder stay DeepSeek. An OEM model gateway belongs to a separate provider route, not to the DeepSeek vendor.
 
@@ -129,6 +147,8 @@ Upstream syncs must preserve these rules:
 - The SDKWork IAM client derives every PC path from the generated SDK under `sdkwork.iamBaseUrl`; never spell an IAM API path or a second IAM origin in `ui-sdkwork-iam`. The desktop flow keeps `/iam/v3/oauth/authorize` and `/auth/desktop/launch` verbatim; its `client_id` and `redirect_uri` come from `sdkwork.iamClientId` and `sdkwork.iamRedirectUri`, and the deep-link receiver matches that redirect exactly rather than any URL sharing the scheme.
 - Endpoint literals — the shipped BirdCoder defaults (`https://platform.birdcoder.com`, `https://api.birdcoder.com`) and the official values a deployment can restore (`https://platform.deepseek.com`, `https://api.deepseek.com`) — live only in named default constants (`PUBLIC_BASE_URL`, `DEEPSEEK_DEFAULT_BASE_URL`, `DEEPSEEK_WEB_API_BASE_URL`, this resolver’s `DEFAULT_*`/`OFFICIAL_*`), tests, and the documented public-API issuer guard in `deepseek-account-platform/src/index.ts`. A merge that changes a shipped default is a product change, not a sync.
 - New branded copy renders through `LocaleRuntime.setBrand` (client) or `resolveDesktopLocale(locale, brand)` (Desktop); a new literal "BirdCoder" in display copy is the regression. Build-time identity (`productName`, application identifier, the OS URL scheme, `daxuedazi` command, installer rasters, web manifest, docs site name) stays out of runtime config; `sdkwork.iamRedirectUri` names the callback path but cannot replace the scheme the packaged shell registers.
+- The scene chrome stays profile-gated: `ui.sceneSwitcher` and `ui.skillTags` default to `false` and are read only through `readOemSceneSwitcher` / `readOemSkillTags` in `ui-primitives`. A merge that hardcodes the pills or the strip back into the shipped build is a defect, not a neutral upstream change; `pnpm run verify-oem-identity` fails on it.
+- The SDKWork storefront rows stay profile-gated too: `ui.appStore`, `ui.templateLibrary`, and `ui.demandHall` default to `false`, are read only through `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` in `ui-primitives`, and feed only the sidebar's shipped-hidden mapping (`shippedHiddenEntryIds` in `ui-sdkwork-sidebar`). The three plugins and their Settings switches stay mounted. A merge that removes a plugin, drops an id from the mapping, or hides the row outside the preference is a defect; `pnpm run verify-oem-identity` fails on it.
 - A new endpoint joins the OEM schema, derives from `inferenceOrigin`, and is asserted in `packages/bundle/base/tests/base.spec.ts`.
 
 Re-verify after every upstream merge (the first grep must match only the constants and guard named above; the two counts must hold):

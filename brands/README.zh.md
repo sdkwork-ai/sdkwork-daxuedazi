@@ -110,8 +110,15 @@
 | `apps/desktop/src/command-*.ts` + `scripts/command-path.ps1` | 命令归属回执、Windows PATH 键与互斥体名，全部来自清单 | 保留清单派生名，绝不写死品牌 |
 | `apps/desktop/installer/*` + `scripts/installer.nsh` | 安装器位图与文案、路径行、运行/启动检查、删除目标；卸载只清理 `%APPDATA%<productName>` | 保留本分支安装器文件，按语义合并上游的 NSIS 修复 |
 | 产物命名派生：`package-target.ts`、`package-macos.ts`、`prepare-cli.ts`、`smoke-packaged-runtime.ts`、`desktop-upload-plan.ts`、`desktop-build-version-discovery.ts`、`retain-desktop-ci.ts`、`installed-update-distribution.ts`、`scripts/release/assemble-github-release.ts` | 每个产出、上传、留存的文件名都以所选品牌的 `artifactPrefix` 开头 | 保留派生；出现字面 `deepseek-harness-`、`birdcoder-` 或 `daxuedazi-` 前缀即属合并缺陷 |
-| `packages/host/sdkwork-oem` | OEM profile schema、出厂显示品牌、IAM 回调默认值（scheme 即品牌 protocol） | 保留 profile 契约；回调 scheme 必须跟随 `desktop.protocol` |
-| `packages/client/ui-primitives/src/oem-brand.ts` | 同一 IAM 回调的浏览器兜底 | 两处默认值必须同步 |
+| `packages/host/sdkwork-oem` | OEM profile schema、出厂显示品牌、`ui.sceneSwitcher` / `ui.skillTags` 产品外观默认值、`ui.appStore` / `ui.templateLibrary` / `ui.demandHall` 出厂可见性默认值、IAM 回调默认值（scheme 即品牌 protocol） | 保留 profile 契约；回调 scheme 必须跟随 `desktop.protocol`；五个界面字段默认全部为 `false`，因此出厂构建既不挂载场景外观，也不在侧栏显示商店行 |
+| `packages/client/ui-primitives/src/oem-brand.ts` | 同一 IAM 回调的浏览器兜底，以及每个客户端门禁与侧栏默认值使用的 `readOemSceneSwitcher` / `readOemSkillTags` / `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` 读取器 | 两处默认值必须同步；客户端只能通过这些读取器读取界面开关 |
+| `packages/client/ui-sdkwork-app-modes` | 只有在 OEM 开关允许时才注册场景胶囊座位、两个技能标签条座位、提交观察者与通用设置中的场景切换行 | 保留 `readOemSceneSwitcher` / `readOemSkillTags` 门禁；无条件注册属于合并缺陷 |
+| `packages/client/ui-sdkwork-skills` | `ui.skillTags` 关闭时技能页不显示标签条总开关；逐技能的推荐开关保留 | 只在标签条总开关上保留 `readOemSkillTags` 门禁 |
+| `packages/client/ui-sdkwork-sidebar` | 侧栏布局偏好通过 `shippedHiddenEntryIds()` 出厂隐藏 `sdkwork-appstore`、`sdkwork-template-library`、`sdkwork-demand-hall` 三行；它分别保存用户显式隐藏与显式显示的 id，因此设置 → 侧栏里的开关始终有效 | 保留三组 id/读取器映射与显式显示列表；合并丢掉任一项都会让商店行重新出现在出厂侧栏，或把用户已打开的行重新隐藏 |
+| 启动图标：`apps/desktop/src/app-icon.ts`、`apps/desktop/src/main.ts`、`apps/desktop/src/welcome-window.ts`、`apps/desktop/build/icon.{png,ico,icns}`、`apps/desktop/resources/icon*.png`、`resources/tray-windows.ico`、`renderer/assets/welcome-bird.png`、`apps/desktop/scripts/electron-builder-config.mjs` | 每个启动表面显示的学伴AI 吉祥物：Dock 图像、Windows 任务栏身份、欢迎窗口与主窗口、托盘、安装器与各打包目标 | 保留规范位图与每个接线点；任何 profile 或品牌字段都不得选择另一张图片（`brand.icon` / `ui.icon` 会被拒绝），合并丢掉 `resolveApplicationIcon` / `resolveWindowIcon` 或打包器的 `brandIcon(...)` 条目即属缺陷 |
+| `packages/client/ui-sdkwork-appstore` | 应用商店的模式栏入口、键控页面、侧栏快捷入口与 SDKWork 宿主适配器全部挂载，保证侧栏行与设置开关可达 | 保持插件挂载；隐藏默认值属于侧栏偏好，不属于插件 |
+| `packages/client/ui-sdkwork-template-library` | 模板库的快捷入口、键控页面与 SDKWork 宿主适配器全部挂载，保证侧栏行与设置开关可达 | 保持插件挂载；隐藏默认值属于侧栏偏好，不属于插件 |
+| `packages/client/ui-sdkwork-demand-hall` | 需求大厅的快捷入口、键控页面、SDKWork 宿主适配器与需求转项目端口全部挂载，保证侧栏行与设置开关可达 | 保持插件挂载；隐藏默认值属于侧栏偏好，不属于插件 |
 | 文档与门禁：`AGENTS.md` 的 OEM 小节、本页、`FORK_SYNC.md`、`INSTALL*.md`、`docs/user/guide/desktop*.md`、`apps/desktop/README*.md` | 其中描述的身份、路径、命令、产物名与合并规则 | 保留 OEM 陈述，把上游新增叙述合并进来 |
 | 测试与快照：`apps/desktop/tests/*brand*`、`*identity*`、`*packaging*`、`*publication*`、`expected/*` | 锁定 OEM 取值的断言与 fixture | 保留 OEM 期望；仅当契约本身变化时才刷新快照 |
 
@@ -120,6 +127,10 @@
 - 按文件逐个解决，绝不按整树处理：禁止 `git checkout --ours .`、`--theirs .`、`-X ours`、`-X theirs`，也禁止删除文件来掩盖冲突。
 - 当上游重写了本分支拥有的文件时，取上游的结构并重新落上表中列出的 OEM 字段；丢失字段的文件属于合并缺陷，不是解决结果。
 - 当上游重新引入固定端口时，把品牌端口块派生重新落回去：`apps/desktop/scripts/dev.ts` 里若仍以 `19388`、`19389`、`9222`、`9229` 或 `9230` 作为默认值，即使其他 OEM 取值都在，也属于合并缺陷。
+- 合并后无条件挂载英雄区场景胶囊或输入框下方技能标签条，属于同一类缺陷：出厂配置通过 `ui.sceneSwitcher` / `ui.skillTags` 隐藏两者，门禁消失时 `verify-oem-identity` 会失败。
+- 合并把启动图标接线换成 Electron 默认值，或 OEM 配置试图选择另一张图片，同样属于合并/产品缺陷：启动图标是构建期身份，`verify-oem-identity` 会校验规范位图以及每个显示它的启动表面。
+- 合并后只在 OEM 开关开启时才注册应用商店、模板库或需求大厅，同样属于合并缺陷：插件必须保持挂载，设置 → 侧栏才能提供它们的开关，隐藏默认值由 `ui-sdkwork-sidebar` 的出厂隐藏映射负责。合并删除插件、从 `shippedHiddenEntryIds()` 里丢掉某个 id，或把「隐藏」硬编码到偏好之外，即属合并缺陷。
+- 想突出某个商店界面的 OEM 部署在 `oem.json` 中把对应字段设为 `true`，让该行默认可见；用户自己的开关仍然优先。绝不把可见性决策挪进插件或组合。
 - 在执行 `scripts/sync-upstream.sh anchor` 之前跑下面的校验；同步脚本的 `verify` 步骤会调用同一门禁。
 - 只有契约本身变化时才更新快照与 fixture；绝不为把红色的 OEM 检查变绿而重新生成。
 
@@ -130,11 +141,18 @@ pnpm run verify-oem-identity
 pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/brand-home.spec.ts \
   apps/desktop/tests/brand-host-port.spec.ts apps/desktop/tests/development-identity.spec.ts \
   apps/desktop/tests/desktop-application-identity.spec.ts apps/desktop/tests/installer-packaging.spec.ts \
+  packages/host/sdkwork-oem packages/client/ui-primitives/tests/oem-brand.client.spec.tsx \
+  packages/client/ui-sdkwork-app-modes/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-skills/tests/skills-section.client.spec.tsx \
+  packages/client/ui-sdkwork-sidebar/tests/layout.client.spec.ts \
+  packages/client/ui-sdkwork-appstore/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-template-library/tests/apply.client.spec.ts \
+  packages/client/ui-sdkwork-demand-hall/tests/apply.client.spec.ts \
   scripts/verify-oem-identity.spec.ts
 ```
 
 ## 尚未按品牌配置
 
 - 安装器文案与原生窗口字符串来自 `apps/desktop/scripts/locale*` 与 NSIS include；在 OEM 构建像替换位图那样替换它们之前，这些文案沿用出厂品牌。`apps/desktop/src/locale.ts` 中的桌面命令管理文案写的是出厂 `daxuedazi` 命令，构建其他品牌时必须重新拼写这些字符串。
-- 图标与产物美术由 BirdCoder 的规范位图生成。
+- 图标与产物美术由学伴AI 的规范位图生成。
 - `desktop.executableName` 决定已安装的二进制名；OEM 构建必须提供同名二进制，electron-builder 由同一字段派生它。

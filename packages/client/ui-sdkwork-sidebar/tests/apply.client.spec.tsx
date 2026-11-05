@@ -259,12 +259,12 @@ describe('ui-sdkwork-sidebar apply', () => {
       const section = sectionInject(b.slots)
       section.setVisible('quick', false)
       expect(injected.hooks.layout.getSnapshot().hidden).toEqual(['quick'])
-      expect(JSON.parse(localStorage.getItem(SIDEBAR_LAYOUT_STORAGE_KEY) ?? '{}')).toEqual({ hidden: ['quick'] })
+      expect(JSON.parse(localStorage.getItem(SIDEBAR_LAYOUT_STORAGE_KEY) ?? '{}')).toEqual({ hidden: ['quick'], shown: [] })
       // A separate instance (the next page load) reads the same preference.
       expect(createSidebarLayoutPreference().get()).toEqual(['quick'])
       section.reset()
       expect(injected.hooks.layout.getSnapshot().hidden).toEqual([])
-      expect(JSON.parse(localStorage.getItem(SIDEBAR_LAYOUT_STORAGE_KEY) ?? '{}')).toEqual({ hidden: [] })
+      expect(JSON.parse(localStorage.getItem(SIDEBAR_LAYOUT_STORAGE_KEY) ?? '{}')).toEqual({ hidden: [], shown: [] })
     } finally {
       await contributor.dispose()
       await sidebar.dispose()

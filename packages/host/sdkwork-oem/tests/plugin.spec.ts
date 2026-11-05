@@ -51,6 +51,7 @@ describe('sdkwork-oem plugin', () => {
     }))
     const ctx = await mount(configFile)
     expect(ctx.oem.brand).toEqual({ name: 'Acme Coder', companyName: 'Acme', showApiKeyEntry: false })
+    expect(ctx.oem.ui).toMatchObject({ sceneSwitcher: false, skillTags: false })
     expect(ctx.oem.application.origins).toEqual(['https://birdcoder.com'])
     expect(ctx.oem.sdkwork.iamBaseUrl).toBe('https://api.birdcoder.com')
     expect(ctx.oem.sdkwork.iamAuthorizeBaseUrl).toBe('https://platform.birdcoder.com')
@@ -68,6 +69,7 @@ describe('sdkwork-oem plugin', () => {
       value: {
         environment: 'production',
         brand: { name: 'Acme', companyName: 'SDKWork', showApiKeyEntry: false },
+        ui: { sceneSwitcher: false, skillTags: false, appStore: false, templateLibrary: false, demandHall: false },
         sdkwork: {
           iamBaseUrl: 'https://api.birdcoder.com',
           iamAuthorizeBaseUrl: 'https://platform.birdcoder.com',
