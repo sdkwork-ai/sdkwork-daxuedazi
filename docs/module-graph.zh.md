@@ -234,6 +234,7 @@ flowchart TD
     pkg_client_ui_sdkwork_music_models["client-ui-sdkwork-music-models"]
     pkg_client_ui_sdkwork_new_chat["client-ui-sdkwork-new-chat"]
     pkg_client_ui_sdkwork_oem["client-ui-sdkwork-oem"]
+    pkg_client_ui_sdkwork_official_accounts["client-ui-sdkwork-official-accounts"]
     pkg_client_ui_sdkwork_pdf_preview["client-ui-sdkwork-pdf-preview"]
     pkg_client_ui_sdkwork_persona["client-ui-sdkwork-persona"]
     pkg_client_ui_sdkwork_pptx_preview["client-ui-sdkwork-pptx-preview"]
@@ -1723,6 +1724,7 @@ flowchart TD
 | [`client-ui-sdkwork-music-models`](../packages/client/ui-sdkwork-music-models) | `client` | — |
 | [`client-ui-sdkwork-new-chat`](../packages/client/ui-sdkwork-new-chat) | `client` | — |
 | [`client-ui-sdkwork-oem`](../packages/client/ui-sdkwork-oem) | `client` | — |
+| [`client-ui-sdkwork-official-accounts`](../packages/client/ui-sdkwork-official-accounts) | `client` | — |
 | [`client-ui-sdkwork-pdf-preview`](../packages/client/ui-sdkwork-pdf-preview) | `client` | — |
 | [`client-ui-sdkwork-persona`](../packages/client/ui-sdkwork-persona) | `client` | — |
 | [`client-ui-sdkwork-pptx-preview`](../packages/client/ui-sdkwork-pptx-preview) | `client` | — |
