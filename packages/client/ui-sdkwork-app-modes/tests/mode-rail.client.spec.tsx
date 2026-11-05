@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
  * Mode rail shell spec: the shell renders one keyed entry seat per visible
- * mode in the user's layout order (the shipped layout shows the first five),
- * then the plus button that opens the customize dialog and the pinned mode;
+ * mode in the user's layout order (the shipped layout shows the five fixed
+ * modes), then the plus button that opens the customize dialog and the pinned
+ * mode;
  * the panel-shortcut seat sits directly above the Settings seat, both outside
  * the entries group (neither is an app mode). Hiding the active mode returns
  * the frame to the default mode, so no rail state strands the user. Entry
@@ -57,7 +58,7 @@ const standard = {
   usePanelInfo, useResource,
 }
 
-/** The shipped layout: the fixed modes plus Chat visible. */
+/** The shipped layout: the fixed modes visible, every hideable mode hidden. */
 function shippedLayout(): RailLayoutState {
   return { order: CUSTOMIZABLE_MODES, hidden: DEFAULT_HIDDEN }
 }
@@ -122,11 +123,11 @@ describe('ModeRail', () => {
         registered={registeredOf([...MODE_ORDER])}
       />,
     )
-    // The shipped layout shows the five fixed modes plus App Store; Token Plan
-    // stays pinned at the group's end.
+    // The shipped layout shows the five fixed modes only; Token Plan stays
+    // pinned at the group's end and every hideable mode starts hidden.
     expect(record.map(r => r.key)).toEqual(
       [...DEFAULT_VISIBLE_MODES, PINNED_MODE, 'mode.rail.panel', 'mode.rail.settings'])
-    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'video', 'image', 'appstore', 'knowledge', 'assets'])
+    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'video', 'image', 'knowledge', 'assets'])
     const group = container.querySelector('[role="group"]')!
     expect(group.getAttribute('aria-label')).toBe('rail.label')
     const tokenPlan = group.querySelector('[data-entry="token-plan"]')!

@@ -181,7 +181,7 @@ kind: "package-library"
 | [`src/plugin-artwork.tsx`](src/plugin-artwork.tsx) | 固定配色插件插画，SVG def id 按实例生成 |
 | [`src/useAnchoredMaxHeight.ts`](src/useAnchoredMaxHeight.ts) | 底部锚定浮层的高度限制 |
 | [`src/settings-form/`](src/settings-form/) | 设置页套件：基于设置 scope 的暂存表单模型、值字段与密文字段、表单框架 |
-| [`src/oem-brand.ts`](src/oem-brand.ts) | 页面启动期的 OEM 值：显示品牌、IAM 域名/客户端/回调、解析后的生命周期，以及 `readOemSceneSwitcher` / `readOemSkillTags` / `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` 产品界面开关 |
+| [`src/oem-brand.ts`](src/oem-brand.ts) | 页面启动期的 OEM 值：显示品牌、IAM 域名/客户端/回调、解析后的生命周期，以及 `readOemSceneSwitcher` / `readOemSkillTags` / `readOemAppStore` / `readOemTemplateLibrary` / `readOemDemandHall` 产品界面开关（场景挂载与商店行出厂可见性） |
 
 <a id="input-modality"></a>
 ### 输入模态

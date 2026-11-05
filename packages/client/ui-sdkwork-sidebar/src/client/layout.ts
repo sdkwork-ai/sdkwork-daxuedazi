@@ -69,11 +69,11 @@ export interface SidebarItem {
   readonly order: number
 }
 
-/** What the shell and the settings page read: the rows the column can draw and the hidden ids. */
+/** What the shell and the settings page read: the rows the column can draw and the ids it must not draw. */
 export interface SidebarLayoutSnapshot {
   /** Every row the column can draw, grouped and ordered. */
   readonly items: readonly SidebarItem[]
-  /** Ids the user switched off; any id not listed here renders. */
+  /** Ids the column does not draw: the user's hides plus the deployment's shipped-hidden rows. */
   readonly hidden: readonly string[]
 }
 

@@ -5,11 +5,11 @@
 // non-code mode dispatches its keyed page. The fixture mounts no OEM page
 // projection, so it exercises the developer composition: the shipped rail
 // layout shows the five fixed modes (Code, Video, Image, Knowledge Base,
-// Assets), App Store, and the pinned Token Plan. A deployment publishing the
-// shipped profile (`ui.appStore: false`) keeps the same rail entry and hides
-// only the App Store sidebar row, which Settings → Sidebar can switch back on.
-// Search and the remaining user-owned entries start hidden and are enabled in
-// the customize dialog, where the plus button opens it.
+// Assets) and the pinned Token Plan; App Store and every other hideable mode
+// start hidden and are enabled in the customize dialog, where the plus button
+// opens it. A deployment publishing the shipped profile (`ui.appStore: false`)
+// additionally hides the App Store sidebar row, which Settings → Sidebar can
+// switch back on.
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { installAssembledBootEnv, mountAssembledApp } from './assembled-boot.ts'
@@ -51,12 +51,12 @@ it('renders the shipped layout and dispatches feature-owned mode pages', async (
   mountAssembledApp()
 
   // The frame renders the mode rail beside the sidebar from the boot graph;
-  // the shipped layout shows the fixed modes, the customize plus, and
-  // the pinned Token Plan.
+  // the shipped layout shows the five fixed modes, the customize plus, and the
+  // pinned Token Plan. App Store and every other hideable mode start hidden.
   const rail = await railOf()
   const entries = within(rail).getAllByRole('button')
   expect(entries.map(button => button.getAttribute('aria-label'))).toEqual([
-    'Code mode', 'Video generation mode', 'Image generation mode', 'App Store mode', 'Knowledge mode', 'Assets mode', 'Customize icons', 'Token Plan',
+    'Code mode', 'Video generation mode', 'Image generation mode', 'Knowledge mode', 'Assets mode', 'Customize icons', 'Token Plan',
   ])
   // Code is the boot mode: its entry carries the active highlight.
   expect(entries[0]!.getAttribute('aria-pressed')).toBe('true')
@@ -67,25 +67,27 @@ it('renders the shipped layout and dispatches feature-owned mode pages', async (
   const frame = document.querySelector('[data-mode]')!
   expect(frame.getAttribute('data-mode')).toBe('code')
 
-  // Switching to App Store dispatches the feature-owned keyed page. This
-  // fixture has no OEM projection, so the sidebar row is visible too; the
-  // shipped profile hides only that row, never the rail entry. The anonymous
-  // assembled fixture has no SDKWork access token, so the SDK rejects the
-  // request before dispatch and the page settles into the retry state.
-  const widened = entries
-  fireEvent.click(widened[3]!)
+  // App Store is hidden in the shipped layout; the customize dialog brings it
+  // back. Switching to it dispatches the feature-owned keyed page. The
+  // anonymous assembled fixture has no SDKWork access token, so the SDK
+  // rejects the request before dispatch and the page settles into the retry
+  // state.
+  await showRailModes(['Show App Store'])
+  fireEvent.click(within(await railOf()).getByRole('button', { name: 'App Store mode' }))
   const appStorePage = await modePageOf('appstore')
   expect(frame.getAttribute('data-mode')).toBe('appstore')
-  expect(within(appStorePage).getByRole('heading', { name: 'Discover apps' })).toBeTruthy()
-  expect((await within(appStorePage).findByRole('alert')).textContent).toContain('The App Store could not be loaded. Try again later.')
+  // The page mounts the SDKWork storefront surface; its own loading and
+  // network state belong to the embed package, so this scenario pins the mode
+  // dispatch rather than the storefront's content.
+  expect(appStorePage.getAttribute('data-appstore-surface')).toBe('sdkwork')
   expect(fetch).not.toHaveBeenCalled()
-  expect(widened[3]!.getAttribute('aria-pressed')).toBe('true')
+  expect(within(await railOf()).getByRole('button', { name: 'App Store mode' }).getAttribute('aria-pressed')).toBe('true')
 
   // Switching to Video dispatches the SDKWork Agents video generation page.
   // Generation needs a session, so the anonymous fixture gets the page's own
   // sign-in notice instead of the generation surface, and nothing reaches the
   // network until the user signs in.
-  fireEvent.click(widened[1]!)
+  fireEvent.click(within(await railOf()).getByRole('button', { name: 'Video generation mode' }))
   const videoPage = await modePageOf('video')
   expect(frame.getAttribute('data-mode')).toBe('video')
   expect(videoPage.getAttribute('data-creative-surface')).toBe('sdkwork')
@@ -94,12 +96,12 @@ it('renders the shipped layout and dispatches feature-owned mode pages', async (
   expect(videoPage.querySelector('[data-auth-required="true"]')).not.toBeNull()
   expect(within(videoPage).queryByRole('textbox', { name: 'Video prompt' })).toBeNull()
   expect(fetch).not.toHaveBeenCalled()
-  expect(widened[1]!.getAttribute('aria-pressed')).toBe('true')
+  expect(within(await railOf()).getByRole('button', { name: 'Video generation mode' }).getAttribute('aria-pressed')).toBe('true')
 
   // Switching to Image dispatches the embedded SDKWork Agents creative (生成)
   // page, which states the same requirement: signed out, the notice stands in
   // for the creative surface.
-  fireEvent.click(widened[2]!)
+  fireEvent.click(within(await railOf()).getByRole('button', { name: 'Image generation mode' }))
   const imagePage = await modePageOf('image')
   expect(frame.getAttribute('data-mode')).toBe('image')
   expect(imagePage.getAttribute('data-creative-surface')).toBe('sdkwork')
@@ -108,17 +110,17 @@ it('renders the shipped layout and dispatches feature-owned mode pages', async (
   expect(imagePage.querySelector('[data-auth-required="true"]')).not.toBeNull()
   expect(within(imagePage).queryByText('你好，想创作什么？')).toBeNull()
   expect(fetch).not.toHaveBeenCalled()
-  expect(widened[2]!.getAttribute('aria-pressed')).toBe('true')
+  expect(within(await railOf()).getByRole('button', { name: 'Image generation mode' }).getAttribute('aria-pressed')).toBe('true')
 
   // The rail stays the recovery path: back to Code restores the workbench
   // (the placeholder page unmounts; the sidebar never left).
-  fireEvent.click(widened[0]!)
+  fireEvent.click(within(await railOf()).getByRole('button', { name: 'Code mode' }))
   await waitFor(() => {
     expect(document.querySelector('[data-mode-page="video"]')).toBeNull()
   })
   expect(screen.queryByRole('tree', { name: 'Sessions' })).not.toBeNull()
   expect(frame.getAttribute('data-mode')).toBe('code')
-  expect(widened[0]!.getAttribute('aria-pressed')).toBe('true')
+  expect(within(await railOf()).getByRole('button', { name: 'Code mode' }).getAttribute('aria-pressed')).toBe('true')
 })
 
 it('enables Search from the customize dialog, then searches the catalog and opens a hit', async () => {
@@ -130,12 +132,12 @@ it('enables Search from the customize dialog, then searches the catalog and open
   // Search ships hidden like every other user-owned entry: no seat in the
   // default layout, and the dialog's row starts unchecked and checkable.
   expect(within(rail).queryByRole('button', { name: 'Search mode' })).toBeNull()
-  // App Store is the exception among the hideable modes: when the deployment
-  // mounts it, it ships visible and its row starts checked.
-  expect(within(rail).getByRole('button', { name: 'App Store mode' })).toBeTruthy()
+  // App Store is no exception: it also ships hidden and its row starts
+  // unchecked, so the customize dialog is the way to bring it back.
+  expect(within(rail).queryByRole('button', { name: 'App Store mode' })).toBeNull()
   fireEvent.click(within(rail).getByRole('button', { name: 'Customize icons' }))
   const dialog = await screen.findByRole('dialog', { name: 'Customize the mode rail' })
-  expect((within(dialog).getByRole('checkbox', { name: 'Show App Store' }) as HTMLInputElement).checked).toBe(true)
+  expect((within(dialog).getByRole('checkbox', { name: 'Show App Store' }) as HTMLInputElement).checked).toBe(false)
   const searchCheck = within(dialog).getByRole('checkbox', { name: 'Show Search' }) as HTMLInputElement
   expect(searchCheck.disabled).toBe(false)
   expect(searchCheck.checked).toBe(false)
@@ -330,8 +332,9 @@ it('customizes the rail through the plus dialog and resets to the shipped layout
 it('keeps the mode rail mounted while the sidebar is collapsed', async () => {
   mountAssembledApp()
   const rail = await railOf()
-  // The shipped layout: six entries, the customize plus, the pinned Token Plan.
-  expect(within(rail).getAllByRole('button')).toHaveLength(8)
+  // The shipped layout: five fixed entries, the customize plus, the pinned
+  // Token Plan.
+  expect(within(rail).getAllByRole('button')).toHaveLength(7)
 
   // Collapse the sidebar through its rail toggle; the mode rail stays.
   const collapse = await screen.findByRole('button', { name: 'Collapse sidebar' })

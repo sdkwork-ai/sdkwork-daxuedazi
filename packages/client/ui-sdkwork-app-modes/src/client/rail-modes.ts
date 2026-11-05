@@ -42,18 +42,18 @@ export function isFixedMode(mode: RailModeId): boolean {
 }
 
 /**
- * Hideable modes the shipped layout nevertheless shows. App Store is the
- * storefront surface the product highlights on first run, yet it stays
- * user-owned: the customize dialog can uncheck it and the store keeps that
- * choice. Its sidebar quick entry is separately hidden by the sidebar
- * preference's shipped default.
+ * Hideable modes the shipped layout shows besides the fixed set. It is empty:
+ * the product ships App Store and every other hideable mode hidden, and the
+ * customize dialog (plus Settings → Sidebar for the sidebar row) is the user's
+ * way to bring one back. A future mode that must be promoted on first run adds
+ * its id here and bumps the rail-layout revision.
  */
-export const SHIPPED_VISIBLE_MODES: readonly RailModeId[] = ['appstore']
+export const SHIPPED_VISIBLE_MODES: readonly RailModeId[] = []
 
 /**
- * The shipped layout's visible set: the fixed modes plus the hideable modes
- * shipped visible (App Store), in rail order. Every other hideable mode —
- * Search included — starts hidden and is turned on from the customize dialog.
+ * The shipped layout's visible set: the fixed modes only, in rail order. Every
+ * hideable mode — App Store and Search included — starts hidden and is turned
+ * on from the customize dialog.
  */
 export const DEFAULT_VISIBLE_MODES: readonly RailModeId[]
   = CUSTOMIZABLE_MODES.filter(id => isFixedMode(id) || SHIPPED_VISIBLE_MODES.includes(id))

@@ -30,6 +30,8 @@ The Settings switch remains the user's override in both directions: showing a sh
 
 A stock OEM build opens its sidebar without the App Store, template library, or demand hall rows; all three remain one switch away in Settings → Sidebar, with their pages mounted. A deployment that sets a field to `true` starts every user with that row visible. An existing user's stored blob (the legacy single `hidden` list) is normalized on load into the two-list shape: their explicit hides survive, and the new shipped defaults apply to the rows they never touched. The trade-off is one more piece of persisted state and one more default source to keep in step with the plugin ids, which `verify-oem-identity` checks.
 
+The App Store's mode-rail icon follows the same product default: the shipped rail layout hides it, the customize dialog brings it back, and rail-layout revision 3 adopts that default once for layouts written while the icon shipped visible. The OEM field does not control the rail layout; it only sets the sidebar row's shipped visibility.
+
 `verify-oem-identity` asserts the three profile defaults, the three readers, the three id/reader pairs in the sidebar preference, the explicit-show list, and the AGENTS/`brands/README.md`/`FORK_SYNC.md` contract text. A merge that removes a plugin, drops a mapping, or hides the rows outside the preference fails the sync gate.
 
 ## Testing

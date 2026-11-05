@@ -125,18 +125,18 @@ describe('RailCustomizeDialog', () => {
     const chatCheck = rows[1]!.querySelector('input[type="checkbox"]') as HTMLInputElement
     expect(chatCheck.checked).toBe(false)
     fireEvent.click(chatCheck)
-    expect(layout.get().hidden).toEqual(['contacts', 'course', 'drive', 'search'])
+    expect(layout.get().hidden).toEqual(['contacts', 'appstore', 'course', 'drive', 'search'])
     expect((rows[1]!.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true)
     // Show another hidden one (Course, row 7).
     const courseCheck = rows[7]!.querySelector('input[type="checkbox"]') as HTMLInputElement
     fireEvent.click(courseCheck)
-    expect(layout.get().hidden).toEqual(['contacts', 'drive', 'search'])
-    // App Store ships checked but stays user-owned: unchecking it hides the row.
+    expect(layout.get().hidden).toEqual(['contacts', 'appstore', 'drive', 'search'])
+    // App Store ships hidden too; enabling it shows the row.
     const appstoreCheck = rows[5]!.querySelector('input[type="checkbox"]') as HTMLInputElement
-    expect(appstoreCheck.checked).toBe(true)
+    expect(appstoreCheck.checked).toBe(false)
     fireEvent.click(appstoreCheck)
-    expect(layout.get().hidden).toEqual(['contacts', 'drive', 'search', 'appstore'])
-    // Reset puts everything back.
+    expect(layout.get().hidden).toEqual(['contacts', 'drive', 'search'])
+    // Reset puts everything back to the shipped hidden set.
     fireEvent.click(screen.getByRole('button', { name: 'rail.customize.reset' }))
     expect(layout.get().order).toEqual(CUSTOMIZABLE_MODES)
     expect(layout.get().hidden).toEqual(DEFAULT_HIDDEN)

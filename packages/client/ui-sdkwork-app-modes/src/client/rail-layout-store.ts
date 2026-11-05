@@ -9,7 +9,7 @@
 
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import {
-  CUSTOMIZABLE_MODES, DEFAULT_HIDDEN, FIXED_MODES, SHIPPED_VISIBLE_MODES, isRailModeId, type RailModeId,
+  CUSTOMIZABLE_MODES, DEFAULT_HIDDEN, FIXED_MODES, isRailModeId, type RailModeId,
 } from './rail-modes.ts'
 
 /** localStorage key the snapshot store persists the layout under. */
@@ -25,9 +25,26 @@ const REVISION_KEY = 'dsh.railLayoutRevision'
  * Shipped-default revision. Bump it whenever a mode's shipped visibility
  * changes, so a layout written under the previous defaults adopts the new one
  * once instead of preserving a choice the user never made. Revision 2 put App
- * Store on the rail.
+ * Store on the rail; revision 3 took it back off.
  */
-export const LAYOUT_REVISION = 2
+export const LAYOUT_REVISION = 3
+
+/**
+ * Shipped-visibility changes per revision, applied once to a stored layout
+ * newer than its recorded revision. A step hides or shows only the modes whose
+ * product default moved; every other stored choice survives unchanged.
+ */
+const SHIPPED_VISIBILITY_STEPS: readonly {
+  /** Revision that introduced this change. */
+  readonly revision: number
+  /** Modes this revision began shipping visible. */
+  readonly show: readonly RailModeId[]
+  /** Modes this revision began shipping hidden. */
+  readonly hide: readonly RailModeId[]
+}[] = [
+  { revision: 2, show: ['appstore'], hide: [] },
+  { revision: 3, show: [], hide: ['appstore'] },
+]
 
 /** The durable rail layout: full display order of customizable modes plus the hidden subset. */
 export interface RailLayoutState {
@@ -37,7 +54,7 @@ export interface RailLayoutState {
   readonly hidden: readonly RailModeId[]
 }
 
-/** The shipped layout: the fixed modes and App Store visible, in rail order. */
+/** The shipped layout: the fixed modes visible, every hideable mode hidden, in rail order. */
 const DEFAULT_LAYOUT: RailLayoutState = {
   order: CUSTOMIZABLE_MODES,
   hidden: DEFAULT_HIDDEN,
@@ -129,10 +146,20 @@ export function createRailLayoutStore(): RailLayoutStore {
   // A layout written under earlier shipped defaults adopts the modes whose
   // shipped visibility changed since then — once. A choice the user makes
   // afterwards is stored against the current revision and survives.
-  if (readLayoutRevision() < LAYOUT_REVISION) {
+  const storedRevision = readLayoutRevision()
+  if (storedRevision < LAYOUT_REVISION) {
     const current = store.getSnapshot()
-    const hidden = current.hidden.filter(id => !SHIPPED_VISIBLE_MODES.includes(id))
-    if (hidden.length !== current.hidden.length) store.set({ order: current.order, hidden })
+    let hidden = [...current.hidden]
+    for (const step of SHIPPED_VISIBILITY_STEPS) {
+      if (step.revision <= storedRevision) continue
+      hidden = hidden.filter(id => !step.show.includes(id))
+      for (const id of step.hide) if (!hidden.includes(id)) hidden.push(id)
+    }
+    const migrated = normalizeLayout({ order: current.order, hidden })
+    if (migrated.hidden.length !== current.hidden.length
+      || migrated.hidden.some((id, index) => id !== current.hidden[index])) {
+      store.set(migrated)
+    }
     writeLayoutRevision()
   }
   return {
