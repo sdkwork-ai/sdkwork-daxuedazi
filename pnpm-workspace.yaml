@@ -240,6 +240,11 @@ packages:
   # builds must resolve those matching names to this workspace's pinned sources.
 linkWorkspacePackages: true
 
+# `pnpm run`/`pnpm exec` 默认会先做一次依赖校验安装。本仓库单次安装要 4-6 分钟，
+# 且该安装的根 postinstall 会重新获取 hook 安装锁（scripts/install-lefthook.mjs）；
+# 依赖未变时的自动安装收益很低，改为依赖变更后显式执行 pnpm install。
+verifyDepsBeforeRun: false
+
 overrides:
   # Converge rolldown on 1.2.7 (the version this repository built with before
   # the upstream sync): 1.1.x panics with "SymbolRef ... is not in any chunk"
