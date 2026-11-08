@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import { shippedBrand } from './brand-manifest.mjs'
 import { readPrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import { DesktopHostProcess } from '../src/host-process.ts'
 import { createPluginProfile } from '../src/project-manager.ts'
@@ -31,6 +32,10 @@ export async function smokeDesktopRuntime(
     DSH_HOME: home, HOME: home, USERPROFILE: home,
     XDG_CONFIG_HOME: home, XDG_CACHE_HOME: home, XDG_STATE_HOME: home,
     APPDATA: home, LOCALAPPDATA: home,
+    // The Host resolves its loopback Web port strictly from this variable —
+    // there is no fallback by design, so the packaging smoke has to pass the
+    // shipped brand's port the same way the installed Desktop shell does.
+    DSH_DESKTOP_HOST_WEB_PORT: String(shippedBrand().desktop.webPort),
     npm_config_userconfig: join(home, 'npmrc'), npm_config_globalconfig: join(home, 'npmrc'),
     npm_config_store_dir: join(home, 'store'), npm_config_enable_global_virtual_store: 'false',
   }
