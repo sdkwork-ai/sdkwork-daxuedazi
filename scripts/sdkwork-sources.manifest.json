@@ -67,11 +67,6 @@
       "commit": "e4437df48fb850f4eda9f166c49f77fa70caa7ec"
     },
     {
-      "name": "sdkwork-plugins",
-      "url": "https://github.com/sdkwork-ai/sdkwork-plugins.git",
-      "commit": "cdd08e1967143933b7b120c318a0b9e63fbcb556"
-    },
-    {
       "name": "sdkwork-knowledgebase",
       "url": "https://github.com/sdkwork-ai/sdkwork-knowledgebase.git",
       "commit": "65756063f41d91d48002a5ff0b4a5089c4233bba"
@@ -95,6 +90,11 @@
       "name": "sdkwork-mcp",
       "url": "https://github.com/sdkwork-ai/sdkwork-mcp.git",
       "commit": "fee95bb6c187fab47f2ea5929b617100f7e97035"
+    },
+    {
+      "name": "sdkwork-plugins",
+      "url": "https://github.com/sdkwork-ai/sdkwork-plugins.git",
+      "commit": "cdd08e1967143933b7b120c318a0b9e63fbcb556"
     },
     {
       "name": "sdkwork-skills",

@@ -24,12 +24,17 @@ import { capture, pnpmCommand } from './process.ts'
 const PLUGIN = join('plugins', 'sdkwork-deepseekbot')
 /** Runtime packages packed as-is. */
 const RUNTIME_PACKAGES = ['core', 'client'] as const
+/** Fork-carried plugin packages whose pinned versions no registry serves. */
+const FORK_PLUGINS = ['plugins/dsh-ui-usage-billing'] as const
 /** Files the `sdkwork-deepseekbot` tarball carries (its manifest `files`). */
 const DEEPSEEKBOT_FILES = ['dist', 'cordis.patch.yml', 'desktop-theme', 'desktop-theme-0.2.2-rc.1'] as const
 
 function packDirectory(directory: string, destination: string): void {
   const [pnpm, ...args] = pnpmCommand()
-  capture(pnpm, [...args, '--dir', directory, 'pack', '--pack-destination', destination])
+  // The plugin workspace pins its own pnpm (12.4.2); a corepack-managed pnpm
+  // (the container image) cannot switch versions under corepack, so the
+  // version check is downgraded to a warning for this pack-only operation.
+  capture(pnpm, [...args, '--pm-on-fail=ignore', '--dir', directory, 'pack', '--pack-destination', destination])
 }
 
 /**
@@ -66,6 +71,9 @@ export function packAssistantPlugin(root: string, destination: string): void {
     packDirectory(stage, destination)
   } finally {
     rmSync(stage, { recursive: true, force: true })
+  }
+  for (const pluginDirectory of FORK_PLUGINS) {
+    packDirectory(join(root, pluginDirectory), destination)
   }
 }
 

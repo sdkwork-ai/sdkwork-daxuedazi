@@ -2,9 +2,18 @@
 
 本文件只记录**当前版本**——`##` 标题就是本次发布打的 tag，不累积历史版本条目；往期条目随各自版本的提交保留在 git 历史里（`git log -p CHANGELOG.md`）。「上游变更」逐字摘自上游该 release 的官方 Release notes（中文部分，英文版见各 Release 页面）；上游尚未发布 Release notes 时，按该 tag 内的实际提交归纳并注明来源。「BirdCoder 本地修改」记录 fork 在该版本上的自有变更（SDKWork 组件、品牌、打包与部署等），不受上游发布节奏影响。
 
-## 0.2.2-rc.3（fork 发布 2026-11-09）
+## 0.2.2-rc.3（fork 发布 2026-11-09，2026-11-09 二次 upstream 同步）
 
-本轮为 rc.2 之后的修复与依赖推进版本：合并前未提交的设置菜单精简重构落地、修复其遗留的测试初始化错误、全部 `sdkwork-*` 兄弟仓库依赖与三个插件子模块推进到各自 main 最新，并以新 tag 触发六目标桌面打包与容器 Release。
+本轮为 rc.2 之后的修复与依赖推进版本：合并前未提交的设置菜单精简重构落地、修复其遗留的测试初始化错误、全部 `sdkwork-*` 兄弟仓库依赖与三个插件子模块推进到各自 main 最新，并以新 tag 触发六目标桌面打包与容器 Release；随后二次同步 upstream `main`（`08ed6ed..8e04a648`），带上游发布打包线的四项修复与插件 pin 推进。
+
+### 上游同步（08ed6ed..8e04a648，BirdCoder 上游变更）
+
+* **助理与用量计费插件进打包集**：`pack-assistant-plugin` 与容器镜像打包把助理插件（`sdkwork-deepseekbot`）与用量计费插件（`dsh-ui-usage-billing`）纳入 pack set，`Dockerfile` / `Dockerfile.debug` 同步补齐；发布版容器不再缺这两块。
+* **backend-sdk 闭包内联进容器**：发布脚本在容器 pack set 内联 backend-sdk 闭包并保持运行时补丁集一致（`94512b47`）；`pack-assistant-plugin` 把 pnpm 版本检查降级为非致命告警（`305e4ae`）。
+* **`sdkwork-deepseekbot` 子模块 repin 到重写后的历史**（`fa23f42`）并启用 shallow clone（`.gitmodules` 新增 `shallow = true`，`070f136`）；fork 侧保留自有 pin `0a371ab2`（重写历史 repin 提交的直接子提交，已包含 upstream repin + workspace-specifier 依赖修复），`dsh-better-sidebar` 保留 fork pin `2963286f`（upstream 文档提交 `bd636302` 为其祖先）。
+* **`dsh-better-sidebar` 上游前进一个文档提交**（AGENTS.md 重构，源码与 `lib/` 产物不变；fork pin 已领先，无需动作）。
+* **SDKWork 生态兄弟仓库 pin 推进**：`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 双记录同步（`sdkwork-utils`、`sdkwork-iam`、`sdkwork-appbase`、`sdkwork-cloudrouter` 等），`pnpm-lock.yaml` 相应刷新；`pnpm-workspace.yaml` 与 `tsconfig.base.json` 补充对应映射；`build-deepseekbot.mjs` 与 `apps/desktop/scripts/runtime-patch-policy.ts` 跟进。
+* 上游同期把 `0.2.2-rc.1` 重新打包（累计带上域名/证书设置插件、小程序账号设置、Markets 云目录优先、IAM 登录链路修复、助理 surface 功能组），该叙事属上游 rc.1 发布线，完整条目保留在上游 CHANGELOG 历史中。
 
 ### 设置菜单与测试修复（BirdCoder 本地修改）
 

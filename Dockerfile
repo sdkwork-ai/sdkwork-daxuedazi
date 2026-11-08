@@ -47,6 +47,7 @@ COPY --from=sdkwork-ecosystem sdkwork-drive /sdkwork-drive
 COPY --from=sdkwork-ecosystem sdkwork-course /sdkwork-course
 COPY --from=sdkwork-ecosystem sdkwork-comments /sdkwork-comments
 COPY --from=sdkwork-ecosystem sdkwork-mcp /sdkwork-mcp
+COPY --from=sdkwork-ecosystem sdkwork-plugins /sdkwork-plugins
 COPY --from=sdkwork-ecosystem sdkwork-skills /sdkwork-skills
 COPY --from=sdkwork-ecosystem sdkwork-plugins /sdkwork-plugins
 COPY --from=sdkwork-ecosystem sdkwork-generations /sdkwork-generations
@@ -81,6 +82,7 @@ ENV DSH_CLIENT_COMMIT_HASH=${DSH_CLIENT_COMMIT_HASH}
 # workspace peer dependencies as a complete standalone runtime.
 RUN mkdir -p /packs/dsh /packs/vendor /packs/landlock \
   && pnpm run release:pack --family dsh --out /packs/dsh \
+  && pnpm run release:pack:assistant --out /packs/dsh \
   && pnpm run release:pack --family vendor --out /packs/vendor \
   && pnpm --dir native/system run build:ts \
   && node native/system/scripts/pack-release.mjs /packs/landlock --current-platform-only
