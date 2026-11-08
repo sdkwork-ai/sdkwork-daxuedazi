@@ -46,6 +46,11 @@ function stageDeepseekbot(source: string): string {
   const stage = mkdtempSync(join(tmpdir(), 'dsh-assistant-deepseekbot-'))
   const manifest = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')) as Record<string, unknown>
   manifest['dependencies'] = { '@botharness/core': '0.0.0', '@botharness/ui': '0.0.0' }
+  // The staged manifest packs standalone, outside the consuming workspace, so
+  // workspace-protocol devDependencies (the harness CLI the plugin's own build
+  // uses) cannot resolve there. Consumers never install a tarball's
+  // devDependencies — drop them instead of failing the pack.
+  delete manifest['devDependencies']
   writeFileSync(join(stage, 'package.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
   for (const entry of DEEPSEEKBOT_FILES) {
     const from = join(source, entry)
