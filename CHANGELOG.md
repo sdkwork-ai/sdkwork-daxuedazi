@@ -15,7 +15,8 @@
 ### 依赖推进（sdkwork-specs 规范：本地相对路径、release 经 manifest 固定 git 提交）
 
 * **`sdkwork-*` 兄弟仓库全部推进到各自 main 最新**：`scripts/sdkwork-sources.manifest.json` 38 个仓库中 33 个前进（`sdkwork-utils`、`sdkwork-iam`、`sdkwork-appbase`、`sdkwork-cloudrouter`、`sdkwork-models`、`sdkwork-agents`、`sdkwork-web-framework` 等）；`sdkwork-sdk-commons`、`sdkwork-ui`、`sdkwork-core`、`sdkwork-comments`、`sdkwork-catalog`、`sdkwork-database`、`sdkwork-feeds` 已在 main 最新。新增 `scripts/update-sources-manifest-main.mjs` 一键同步脚本（查询各仓库 main 头提交并校验 SHA 格式后写回 manifest）。
-* **插件子模块推进**：`dsh-better-sidebar` 前进到 dev 分支最新（`2963286f`），`dsh-im` 前进到 main 最新（`fc2ceab2`，v5.10.0 之后 41 提交），`dsh-skill-market` 前进到 v2.1.0（`6901769`，构建产物 `lib/` 随仓库携带）；`dsh-mcp-connector`（v0.2.94 pin）、`dsh-ui-usage-billing`（fork v1.8.4-sdkwork.3）与 `sdkwork-deepseekbot`（main `d5b20fba`）保持不变。
+* **插件子模块推进**：`dsh-better-sidebar` 前进到 dev 分支最新（`2963286f`），`dsh-im` 前进到 main 最新（`fc2ceab2`，v5.10.0 之后 41 提交），`dsh-skill-market` 前进到 v2.1.0（`6901769`，构建产物 `lib/` 随仓库携带）；`dsh-mcp-connector`（v0.2.94 pin）与 `dsh-ui-usage-billing`（fork v1.8.4-sdkwork.3）保持不变；`sdkwork-deepseekbot` repin 到 main `0a371ab2`（见下条）。
+* **修复助理（persona-bot）入口不显示**：`sdkwork-deepseekbot` 的三个 package.json 把全部 `@deepseek-ai/dsh-*` 依赖钉死在上游字面版本 `0.2.2-rc.1`，而 fork 的 harness 包已在本仓库版本线上（rc.2 → rc.3），pnpm 不再匹配 workspace、改为安装 npm 上已发布的上游 rc.1 包；发布版 `dsh-tool-bash` 在插件的严格 peer 上下文里解析不到 `dsh-sandbox` peer，导致运行时 `botharness-core` 激活失败、`botharness` 主面板永不注册，跟随面板存在的助理 rail 入口（`ui-sdkwork-assistant`）因此始终隐藏。修复：49 个 specifier 全部改为 `workspace:*`（随本仓库版本线解析，子模块提交 `0a371ab2` 并 repin），`pnpm install` 重链后重建三份 deepseekbot 构建产物（客户端 bundle 内联的 client-ui 代码同步换成本仓库实现）。**已用真实运行时端到端验证**：`dsh web` 启动无激活失败、`/api/botharness/companion` 在线应答、浏览器引导图下发 `botharness/ui/client.js` 与 `sdkwork-assistant` 模块——重启应用后助理入口（Home 下方 rail 格 + 侧栏快捷入口）即可见。
 
 ### 打包与发布
 
