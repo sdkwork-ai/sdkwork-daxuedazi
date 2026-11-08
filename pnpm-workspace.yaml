@@ -9,6 +9,15 @@ packages:
   # each plugin ships its own build, and its `lib/` artifacts are committed
   # upstream rather than produced by this repository's build.
   - "plugins/*"
+  # The assistant surface (助理 / Assistant): SDKWork's BotHarness mirror is a
+  # git submodule. Its runtime packages are members so the Web bundle, the
+  # Desktop runtime and the development project all resolve the plugin built
+  # from this checkout instead of a published npm version; its root is a member
+  # through `plugins/*` and supplies the build toolchain (`tsdown`, the StyleX
+  # Babel plugin) that `pnpm run build:deepseekbot` uses.
+  - "plugins/sdkwork-deepseekbot/packages/core"
+  - "plugins/sdkwork-deepseekbot/packages/client"
+  - "plugins/sdkwork-deepseekbot/packages/deepseekbot"
   - "native/system"
   - "native/system/packages/*"
   - "apps/*"
@@ -161,6 +170,10 @@ packages:
   - "../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-service"
   - "../sdkwork-search/sdks/sdkwork-search-app-sdk/sdkwork-search-app-sdk-typescript"
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
+  # `sdkwork-agents-pc-core` (the family below) declares this backend SDK as a
+  # `workspace:*` dependency; without the member line the whole workspace
+  # resolution fails before any install starts.
+  - "../sdkwork-agents/sdks/sdkwork-agents-backend-sdk/sdkwork-agents-backend-sdk-typescript"
   - "../sdkwork-generations/sdks/sdkwork-generations-app-sdk/sdkwork-generations-app-sdk-typescript"
   - "../sdkwork-assets/sdks/sdkwork-assets-app-sdk/sdkwork-assets-app-sdk-typescript"
   - "../sdkwork-community/sdks/sdkwork-community-app-sdk/sdkwork-community-app-sdk-typescript"
@@ -312,6 +325,10 @@ peerDependencyRules:
 allowBuilds:
   esbuild: true
   lefthook: true
+  # Pulled in by the assistant plugin's docs toolchain (mermaid-cli), which this
+  # repository never runs: the plugin is built with `tsdown` only. Denying the
+  # postinstall keeps its Chromium download out of every install and CI job.
+  puppeteer: false
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
   node-pty: true
   # Pulled in by @earendil-works/pi-ai (optional LLM API backend). pnpm lists

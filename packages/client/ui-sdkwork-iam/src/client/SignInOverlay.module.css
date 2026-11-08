@@ -6,13 +6,30 @@
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  /* Above every DOM layer a caller can open underneath: page modals (1000),
+     SDKWork commerce dialogs (50 inside their portal) and the shell's menus and
+     toasts (1100). The sign-in surface is the thing the user must be able to
+     operate, so it owns the top slot. */
+  z-index: 1200;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   background: var(--dsw-alias-bg-mask-1);
   backdrop-filter: var(--dsw-mask-blur);
+  /* Radix dialogs put `pointer-events: none` on the body; this surface is
+     portaled beside them and must keep taking input. */
+  pointer-events: auto;
+}
+
+/* The account-method step is the sdkwork auth modal, which brings its own
+   full-viewport mask; the stage lifts that whole subtree to the sign-in
+   level so it covers a page modal that asked for sign-in. */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  pointer-events: auto;
 }
 
 /* The entry step is the shared LoginPanel at its welcome-window size: the card
@@ -81,6 +98,30 @@
   margin: 0;
   font-size: 14px;
   line-height: 22px;
+}
+
+/* The failing step, named under the recovery line: the hand-off card cannot
+   show the raw provider code, but it must not leave the user guessing which
+   part of the browser login broke. */
+.browserReason {
+  max-width: 360px;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* The host's own reason for the failed step, kept under the localized line:
+   a support report needs the exchange/gateway message, and it stays verbatim
+   (wire data, never localized). */
+.browserDiagnostics {
+  max-width: 360px;
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  word-break: break-word;
 }
 
 .browserActions {

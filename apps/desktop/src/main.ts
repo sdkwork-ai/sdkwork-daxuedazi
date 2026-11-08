@@ -2,7 +2,7 @@
 
 import { installFileActions } from './file-actions.ts'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { oemConfigPath, readOemConfig, resolveOemEnvironment, type OemConfig } from '@deepseek-ai/dsh-sdkwork-oem/config'
+import { BRAND_PROTOCOL_ENV, oemConfigPath, readOemConfig, resolveOemEnvironment, type OemConfig } from '@deepseek-ai/dsh-sdkwork-oem/config'
 import { usesProductCaption } from './caption-platform.ts'
 import { configurationFailure, channelSaveFailure, configurationMessage } from './update-configuration.ts'
 import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
@@ -77,6 +77,19 @@ app.on('open-url', (event, url) => {
   launchDeepLinks.push(url)
   if (launchDeepLinks.length > 8) launchDeepLinks.shift()
 })
+// A later launch (the OS protocol handler starting a second process) forwards
+// its arguments here before the IAM bridge exists: the shell resolves its brand,
+// settings, and backend readiness first. Capturing the URLs costs nothing and
+// keeps a callback that arrives in that window from being dropped, because the
+// bridge reads this same list when it starts.
+app.on('second-instance', (_event, argv) => {
+  if (!Array.isArray(argv)) return
+  for (const value of argv) {
+    if (typeof value !== 'string' || !value.includes('://')) continue
+    launchDeepLinks.push(value)
+    if (launchDeepLinks.length > 8) launchDeepLinks.shift()
+  }
+})
 import { desktopUpdateErrorSummary, presentDesktopUpdate } from './update-presentation.ts'
 import { desktopErrorState } from './startup-error.ts'
 import { readDesktopLoginShellEnvironment, resolveDesktopLoginShellConfig } from './login-shell-environment.ts'
@@ -113,6 +126,14 @@ const brand = resolveRuntimeBrand({
   resourcesPath: process.resourcesPath,
   env: process.env,
 })
+
+// Report the brand scheme before anything can resolve an OEM profile: the Host
+// derives this brand's OAuth client and deep-link callback from it, and a
+// profile naming another brand's must fail the launch rather than open a login
+// whose callback this shell can never receive. `applyBrandBootstrap` also writes
+// it for the packaged/dev-home path; doing it here keeps a fatal report that
+// reads the profile before `main()` on the same brand.
+process.env[BRAND_PROTOCOL_ENV] = brand.desktop.protocol
 
 /**
  * FORK DIVERGENCE: a deployment whose gateway serves a self-signed certificate
@@ -182,12 +203,17 @@ function packagedApplicationManifest(): unknown {
 
 /**
  * Load and cache the OEM profile.
+ *
+ * The launch reports the brand it runs as (`DSH_BRAND_PROTOCOL`, exported by
+ * `applyBrandBootstrap`), so the profile resolves this brand's OAuth client and
+ * deep-link callback instead of the shipped brand's.
  * @returns the resolved OEM profile.
  */
 function oem(): OemConfig {
   oemProfile ??= readOemConfig(
     oemConfigPath(process.env, resolveDshHome()),
     resolveOemEnvironment(process.env),
+    process.env[BRAND_PROTOCOL_ENV],
   )
   return oemProfile
 }
@@ -650,6 +676,8 @@ async function main(): Promise<void> {
   let hostCookie: string | undefined
   const browserGuests = new DesktopBrowserGuests(() => hostUrl)
   let injections: readonly unknown[] = []
+  /** Ask the running Host for the current rows; undefined when the backend owns none. */
+  let refreshBootInjections: (() => Promise<readonly unknown[]>) | undefined
   let pendingIamSignIn = false
   let welcomeBackend: DesktopWelcomeBackend | undefined
   let reportedLaunch = false
@@ -719,6 +747,7 @@ async function main(): Promise<void> {
           .catch((error: unknown) => { console.error('desktop: legacy Host cookie cleanup failed', error) })
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
         injections = ready.injections
+        refreshBootInjections = async () => host.bootInjections()
         welcomeBackend = connectDesktopWelcome(ready.url, cookie, (input, init) => net.fetch(input, init), desktopAllowInsecureHttp())
         analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
         if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
@@ -967,7 +996,7 @@ async function main(): Promise<void> {
       url.pathname === '/design-platform.css' ? 'lib/welcome' : 'renderer'))
     if (url.hostname === 'app') {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname.startsWith('/assets/')
-        || ['/favicon.svg', '/manifest.webmanifest'].includes(url.pathname)) {
+        || ['/favicon.png', '/favicon.svg', '/manifest.webmanifest'].includes(url.pathname)) {
         return serveWebDocument(request, join(resources.dsh, 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist'))
       }
       if (backend.host === undefined || hostUrl === undefined || hostCookie === undefined) {
@@ -988,6 +1017,14 @@ async function main(): Promise<void> {
     assertDesktopSender(event, ['app'])
     await startup
     if (backend.host === undefined || hostUrl === undefined) throw new Error('Desktop Host is unavailable')
+    // The module graph and its bundle revisions move while the Host runs, so a
+    // reload must not reuse the rows captured at host startup: a stale bundle
+    // URL answers 404 and leaves the page on its loading face. Fall back to the
+    // cached rows when the Host cannot answer, preserving offline boot.
+    if (refreshBootInjections !== undefined) {
+      const current = await refreshBootInjections().catch(() => undefined)
+      if (current !== undefined) injections = current
+    }
     const iamSignIn = pendingIamSignIn
     pendingIamSignIn = false
     const bootInjections = iamSignIn
@@ -1044,6 +1081,10 @@ async function main(): Promise<void> {
     onIamCallback: () => { requestIamWorkspaceEntry() },
   })
   app.on('will-quit', () => { iamDeepLinks.dispose() })
+  // Startup decides workspace-over-welcome once, before any window exists to
+  // take the launch URL: the bridge retires that flag on the take so a later
+  // sign-out can show the welcome screen again.
+  const launchedFromIamCallback = iamDeepLinks.hasLaunchCallback()
 
   // The committed IAM session is mirrored under the Harness home
   // (`<DSH_HOME>/iam/session.json`), so the Host, the CLI, or any headless
@@ -1757,7 +1798,7 @@ async function main(): Promise<void> {
     // flow is durable now (the renderer persists it), so the workspace can
     // redeem the code on boot; sending the user through the welcome screen
     // would make them start the browser login again.
-    if (iamDeepLinks.hasLaunchCallback()) {
+    if (launchedFromIamCallback) {
       raiseAfterUpdate = false
       await enterWorkspace()
       return

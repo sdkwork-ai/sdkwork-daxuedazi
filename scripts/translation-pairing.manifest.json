@@ -21,6 +21,7 @@
     "plugins/dsh-im/",
     "plugins/dsh-mcp-connector/",
     "plugins/dsh-skill-market/",
-    "sdks/sdkwork-birdcoder2-app-sdk/"
+    "sdks/sdkwork-birdcoder2-app-sdk/",
+    "plugins/sdkwork-deepseekbot/"
   ]
 }

@@ -11,7 +11,11 @@
  * that row at this package instead of upstream's shell: the upstream plugin
  * never loads, every namespace this package re-declares stays addressable, and
  * the shell re-declares every settings seat so feature-owned sections, rows,
- * and onboarding steps mount unchanged.
+ * and onboarding steps mount unchanged. The extra root-scoped feature-modal
+ * seats — `settings.dns`, `settings.certificates`, `settings.myDeployments`,
+ * and `settings.miniPrograms` — sit beside the account and credential seats so
+ * the domain, certificate, deployed-application, and mini-program surfaces
+ * keep their own dialogs while sharing this menu's chrome.
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -243,6 +247,11 @@ export function apply(ctx: ClientContext): void {
       'settings.close': { kind: 'single', scope: 'root' },
       'settings.section': { kind: 'list', scope: 'root' },
       'settings.onboarding': { kind: 'list', scope: 'root' },
+      // The account-card seat: one contribution rendered directly under the
+      // menu's account identity row (the usage/cost card in this fork). The
+      // shell owns the placement and hands the card `close`, so a card that
+      // opens a wider surface takes the menu with it.
+      'settings.menu.account': { kind: 'single', scope: 'root' },
       // The API-key management modal seat (ui-sdkwork-apikey registers the
       // single contribution; the shell owns visibility). Missing this row
       // throws SlotOwnershipError at registration and crashes the whole
@@ -252,6 +261,20 @@ export function apply(ctx: ClientContext): void {
       // registers the single contribution; the shell owns visibility). Same
       // grant contract as the API-key seat above.
       'settings.officialAccounts': { kind: 'single', scope: 'root' },
+      // The mini-program account modal seat (ui-sdkwork-mini-program-accounts
+      // registers the single contribution; the shell owns visibility).
+      'settings.miniPrograms': { kind: 'single', scope: 'root' },
+      // The domain (DNS) management modal seat (ui-sdkwork-dns registers the
+      // single contribution; the shell owns visibility). Same grant contract
+      // as the seats above.
+      'settings.dns': { kind: 'single', scope: 'root' },
+      // The certificate management modal seat (ui-sdkwork-certificate
+      // registers the single contribution; the shell owns visibility).
+      'settings.certificates': { kind: 'single', scope: 'root' },
+      // The deployed-applications drawer seat (ui-sdkwork-deploy registers the
+      // single contribution; the shell owns visibility). Same grant contract
+      // as the seats above.
+      'settings.myDeployments': { kind: 'single', scope: 'root' },
     },
     inject: shellInjected,
     locale: NS,

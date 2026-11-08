@@ -5,10 +5,14 @@
  * hover/focus/click: a header row with the account identity, the account
  * group (sign-in row while a provider advertises one, membership/points rows
  * when the account provider publishes them), the feature group (settings →
- * panel, appearance → theme submenu, help → placeholder toast), and the
- * desktop shell group (desktop plugins → plugin manager window, check-for-
- * updates → desktop updater, quit) migrated from the native application menu
- * the shell hides on Windows/Linux, plus the pinned sign-out footer row.
+ * panel, appearance → theme submenu, help → placeholder toast), the public
+ * surface group (official account → 公众号账号 modal, mini program → 小程序账号
+ * modal, domain → 域名管理 modal, certificate → 证书管理 modal, deployed apps
+ * → 我的应用部署 modal, relay API keys → key modal), and the desktop shell
+ * group (desktop plugins → plugin
+ * manager window, check-for-updates → desktop updater, quit) migrated from the
+ * native application menu the shell hides on Windows/Linux, plus the pinned
+ * sign-out footer row.
  * Modal open state, active section id, and menu open state are component-local
  * viewing state; the onboarding coordinator mounts exactly one ordered
  * registrant while the sessions-derived empty-Hero fact is active. Visible
@@ -18,10 +22,11 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconAgentPresetOutlineRegular, IconCloseOutlineRegular,
+  IconAgentPresetOutlineRegular, IconAppsAddOutlineRegular, IconCloseOutlineRegular,
   IconDarkOutlineRegular, IconDataOutlineRegular, IconEditOutlineRegular,
-  IconFollowsystemOutlineRegular, IconGlobeOutlineRegular, IconLightOutlineRegular,
-  IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular, IconQuestionOutlineRegular, IconRefreshOutlineRegular,
+  IconFollowsystemOutlineRegular, IconGlobeOutlineRegular, IconLayersOutlineRegular, IconLightOutlineRegular,
+  IconLinkOutlineRegular, IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular, IconQuestionOutlineRegular,
+  IconRefreshOutlineRegular, IconShieldOutlineRegular,
   IconSettingsOutlineRegular, IconSkillOutlineRegular, IconUserOutlineRegular, IconUsersOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconCoinOutline16, IconCrownOutline16, IconKeyOutline16, IconLogoutOutline14, IconPowerOutline14 } from './sdkwork-icons.tsx'
@@ -128,6 +133,10 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [apiKeysOpen, setApiKeysOpen] = useState(false)
   const [officialAccountsOpen, setOfficialAccountsOpen] = useState(false)
+  const [miniProgramsOpen, setMiniProgramsOpen] = useState(false)
+  const [dnsOpen, setDnsOpen] = useState(false)
+  const [certificatesOpen, setCertificatesOpen] = useState(false)
+  const [myDeploymentsOpen, setMyDeploymentsOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
   const [helpToastSeq, setHelpToastSeq] = useState(0)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
@@ -137,6 +146,10 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   }, [])
   const closeApiKeys = useCallback(() => { setApiKeysOpen(false) }, [])
   const closeOfficialAccounts = useCallback(() => { setOfficialAccountsOpen(false) }, [])
+  const closeMiniPrograms = useCallback(() => { setMiniProgramsOpen(false) }, [])
+  const closeDns = useCallback(() => { setDnsOpen(false) }, [])
+  const closeCertificates = useCallback(() => { setCertificatesOpen(false) }, [])
+  const closeMyDeployments = useCallback(() => { setMyDeploymentsOpen(false) }, [])
   const openSection = useCallback((id: string) => {
     setActiveId(id)
     setDialogOpen(true)
@@ -148,6 +161,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const feedback = useFeedback(s => s)
   const persona = usePersona(s => s)
   const onboardingSteps = useOnboardingSteps(s => s)
+  const closeMenu = useCallback(() => { setMenuOpen(false) }, [])
   const onboardingActive = useSessions(state =>
     state.phase === 'ready'
     && (state.current === undefined || state.byId[state.current]?.blank === true))
@@ -175,6 +189,17 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     if (account.signedIn && account.username !== undefined) {
       entries.push({ type: 'label', id: 'account-identity', text: account.username })
     }
+    // The account card sits directly under the identity row, above every
+    // command: in this fork the sidebar cost trigger is hidden by default, so
+    // opening the gear is where "what did I spend today" gets answered. The
+    // block is a slot outlet, not a row — it joins the list's flex column
+    // without becoming selectable, and its content opens the dashboard through
+    // `close` (the card dismisses the menu it was drawn in).
+    entries.push({
+      type: 'block',
+      id: 'account-usage',
+      node: renderSlot('settings.menu.account', { close: closeMenu }),
+    })
     if (!account.signedIn && account.signInAvailable === true) {
       entries.push({ id: 'sign-in', label: t('menu.signIn'), icon: <IconUserOutlineRegular size={14} /> })
     }
@@ -202,6 +227,17 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     // root-scoped modal (their surfaces need more width than the settings
     // panel), and the account/credential pair reads in that order.
     entries.push({ id: 'official-accounts', label: t('menu.officialAccounts'), icon: <IconGlobeOutlineRegular size={16} /> })
+    // 小程序账号 sits directly below the official-account row: both are the
+    // account surfaces of the WeChat provider family.
+    entries.push({ id: 'mini-programs', label: t('menu.miniPrograms'), icon: <IconAppsAddOutlineRegular size={16} /> })
+    // Domain and certificate management sit below the account rows: the
+    // deployment's public surface, configured where the account that publishes
+    // it is configured. The deployed-applications inventory follows them for
+    // the same reason — it is the same deployment surface as a ledger. All
+    // five are root-scoped modals for the same width reason.
+    entries.push({ id: 'dns', label: t('menu.dns'), icon: <IconLinkOutlineRegular size={16} /> })
+    entries.push({ id: 'certificates', label: t('menu.certificates'), icon: <IconShieldOutlineRegular size={16} /> })
+    entries.push({ id: 'my-deployments', label: t('menu.myDeployments'), icon: <IconLayersOutlineRegular size={16} /> })
     entries.push({ id: 'api-keys', label: t('menu.apiKeys'), icon: <IconKeyOutline16 size={16} /> })
     entries.push({
       id: 'appearance',
@@ -258,8 +294,8 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     }
     return entries
   }, [
-    account.membership, account.points, account.signInAvailable, account.signedIn, feedback.available,
-    persona.available, persona.roleLabel, t,
+    account.membership, account.points, account.signInAvailable, account.signedIn, account.username,
+    feedback.available, persona.available, persona.roleLabel, t, renderSlot, closeMenu,
     updatesAvailable, desktopPluginsAvailable, desktopPluginsUsable, quitAvailable,
   ])
 
@@ -283,6 +319,14 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
       setApiKeysOpen(true)
     } else if (id === 'official-accounts') {
       setOfficialAccountsOpen(true)
+    } else if (id === 'mini-programs') {
+      setMiniProgramsOpen(true)
+    } else if (id === 'dns') {
+      setDnsOpen(true)
+    } else if (id === 'certificates') {
+      setCertificatesOpen(true)
+    } else if (id === 'my-deployments') {
+      setMyDeploymentsOpen(true)
     } else if (id === 'light' || id === 'dark' || id === 'system') {
       setTheme(id)
     } else if (id === 'help') {
@@ -340,6 +384,16 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
           seat (account table + menu editor), opened from the row above the
           relay API-key row. */}
       {renderSlot('settings.officialAccounts', { open: officialAccountsOpen, onClose: closeOfficialAccounts })}
+      {/* The mini-program account dialog is the same kind of root-scoped
+          feature seat, opened from the row directly below 公众号账号. */}
+      {renderSlot('settings.miniPrograms', { open: miniProgramsOpen, onClose: closeMiniPrograms })}
+      {/* The domain and certificate dialogs are the same kind of root-scoped
+          feature seat, opened from the two rows below 小程序账号. */}
+      {renderSlot('settings.dns', { open: dnsOpen, onClose: closeDns })}
+      {renderSlot('settings.certificates', { open: certificatesOpen, onClose: closeCertificates })}
+      {/* The deployed-applications drawer is the same kind of root-scoped
+          feature seat, opened from the row directly below 证书管理. */}
+      {renderSlot('settings.myDeployments', { open: myDeploymentsOpen, onClose: closeMyDeployments })}
       {dialogOpen && (
         <SettingsPanel
           rows={rows}
