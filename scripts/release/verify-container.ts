@@ -117,7 +117,7 @@ function main(): void {
   // rather than a bare glob: asking npm for a member restricted to another
   // platform aborts the install instead of skipping that member.
   assert(dockerfile.includes('scripts/release/platform-packs.ts /packs/dsh /packs/vendor /packs/landlock'), 'Dockerfile must install every packed release family')
-  assert(dockerfile.includes('npm install --no-audit --no-fund --package-lock=false $packs'), 'Dockerfile must install the selected platform-compatible members')
+  assert(dockerfile.includes('npm install --no-audit --no-fund --package-lock=false --legacy-peer-deps $packs'), 'Dockerfile must install the selected platform-compatible members with legacy peer resolution (the packed fork plugin tarballs carry the cordis peer drift the workspace resolves with pnpm tolerance)')
   assert(!dockerfile.includes('/packs/dsh/*.tgz'), 'Dockerfile must not request foreign-platform members directly, which npm refuses with EBADPLATFORM')
   assert(dockerfile.includes('native/system/scripts/pack-release.mjs /packs/landlock'), 'Dockerfile must use the complete Landlock release packer')
   assert(!dockerfile.includes('native/system/packages/entry pack'), 'Dockerfile must not pack only the Landlock entry package')
