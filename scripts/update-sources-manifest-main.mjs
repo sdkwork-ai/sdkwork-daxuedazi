@@ -9,9 +9,11 @@ const failures = []
 
 for (const row of rows) {
   const api = `https://api.github.com/repos/sdkwork-ai/${row.name}/branches/main`
+  const headers = { 'User-Agent': 'sdkwork-manifest-sync' }
+  if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await fetch(api, { headers: { 'User-Agent': 'sdkwork-manifest-sync' } })
+      const res = await fetch(api, { headers })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       const sha = data?.commit?.sha
@@ -30,10 +32,13 @@ for (const row of rows) {
   }
 }
 
+// Repositories the GitHub API cannot see (org-private) keep their pinned
+// commit; sync them from a local clone out of band. A partial result is still
+// written so one unreachable repo never blocks the other 35.
 if (failures.length > 0) {
-  console.error('FAILED:\n' + failures.join('\n'))
-  process.exit(1)
+  console.log('KEPT PINNED (API unreachable, sync out of band):\n' + failures.join('\n'))
 }
 
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
 console.log('manifest updated')
+if (failures.length > 0) process.exit(2)
