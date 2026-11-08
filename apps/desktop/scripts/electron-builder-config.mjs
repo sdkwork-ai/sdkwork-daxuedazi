@@ -598,6 +598,13 @@ export function createElectronBuilderConfig(
       // ASCII `productName`; the brand's localized name wins here instead.
       shortcutName: installedDisplayName,
       uninstallDisplayName: installedDisplayName,
+      // FORK DIVERGENCE (AGENTS.md, "Windows installer localized caption"):
+      // `installer.nsh`'s customHeader spells `Name "$(INSTALLER_APP_NAME)"`
+      // beside common.nsh's own ASCII `Name "${PRODUCT_NAME}"`. NSIS keeps the
+      // last directive — the localized one — and reports the duplicate only as
+      // warning 6029, so the gate must not treat that intentional override as
+      // an error. Real makensis failures still abort the process itself.
+      warningsAsErrors: false,
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: nsisInclude ?? fileURLToPath(new URL('./installer.nsh', import.meta.url)),
