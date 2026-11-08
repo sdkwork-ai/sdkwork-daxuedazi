@@ -13,6 +13,7 @@
 * **`sdkwork-deepseekbot` 子模块 repin 到重写后的历史**（`fa23f42`）并启用 shallow clone（`.gitmodules` 新增 `shallow = true`，`070f136`）；fork 侧保留自有 pin `0a371ab2`（重写历史 repin 提交的直接子提交，已包含 upstream repin + workspace-specifier 依赖修复），`dsh-better-sidebar` 保留 fork pin `2963286f`（upstream 文档提交 `bd636302` 为其祖先）。
 * **`dsh-better-sidebar` 上游前进一个文档提交**（AGENTS.md 重构，源码与 `lib/` 产物不变；fork pin 已领先，无需动作）。
 * **SDKWork 生态兄弟仓库 pin 推进**：`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 双记录同步（`sdkwork-utils`、`sdkwork-iam`、`sdkwork-appbase`、`sdkwork-cloudrouter` 等），`pnpm-lock.yaml` 相应刷新；`pnpm-workspace.yaml` 与 `tsconfig.base.json` 补充对应映射；`build-deepseekbot.mjs` 与 `apps/desktop/scripts/runtime-patch-policy.ts` 跟进。
+* **容器镜像安装改用 legacy peer 解析**（`eae80832`）：打包后的 fork 插件 tarball 会把既有的 cordis peer 漂移（peer 钉 ~4.0.4、vendor pack 携带 4.1.0）变成镜像安装时的硬 `ERESOLVE`；workspace 本身用 pnpm 容忍同一依赖图，镜像安装采用同等容错。
 * 上游同期把 `0.2.2-rc.1` 重新打包（累计带上域名/证书设置插件、小程序账号设置、Markets 云目录优先、IAM 登录链路修复、助理 surface 功能组），该叙事属上游 rc.1 发布线，完整条目保留在上游 CHANGELOG 历史中。
 
 ### 设置菜单与测试修复（BirdCoder 本地修改）
