@@ -231,7 +231,12 @@ describe('ui-model-selection dual entry', () => {
     const input = projection('owned')
     const options = await b.popup().options(input, new AbortController().signal)
     b.rejectSelection()
-    await expect(b.popup().onSelect(options[0]!, input)).rejects.toThrow(zh['error.sessionInUse'])
+    // FORK DIVERGENCE (AGENTS.md, "OEM profile"): the dictionary spells the
+    // `BirdCoder` token, and the LocaleRuntime substitutes the shipped brand's
+    // display name (学伴AI) at render time, so the thrown copy is the
+    // substituted string rather than the raw dictionary entry.
+    await expect(b.popup().onSelect(options[0]!, input))
+      .rejects.toThrow(zh['error.sessionInUse'].replaceAll('BirdCoder', '学伴AI'))
     expect(b.ctx.modelDirectories.directoryFor(sid('owned')).store.getSnapshot()).toMatchObject({
       status: 'error', pending: null, error: 'session/writer-held: writer held',
     })

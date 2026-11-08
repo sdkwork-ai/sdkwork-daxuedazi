@@ -19,7 +19,7 @@
     {
       "name": "sdkwork-appbase",
       "url": "https://github.com/sdkwork-ai/sdkwork-appbase.git",
-      "commit": "1fc30502a5018e26817073b191e720e8183b49b9"
+      "commit": "4abcea304f8ab36e21d526ab2a46b20ab0e9560f"
     },
     {
       "name": "sdkwork-ui",
@@ -109,7 +109,7 @@
     {
       "name": "sdkwork-company",
       "url": "https://github.com/sdkwork-ai/sdkwork-company.git",
-      "commit": "b5bdb6beba35a66746ccfdf7efc3acef36744a5c"
+      "commit": "860aaccbfc90b7c4e21f386b58a01df4c4b42352"
     },
     {
       "name": "sdkwork-memory",

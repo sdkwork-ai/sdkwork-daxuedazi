@@ -115,7 +115,7 @@ describe('IamService bootstrap persistence', () => {
   })
 
   it('consumes a launch callback that has no pending flow without reporting failure', async () => {
-    withDesktopBridge('birdcoder://auth/callback?code=launch&state=s')
+    withDesktopBridge('daxuedazi://auth/callback?code=launch&state=s')
     try {
       const service = new IamService(scopeOf(), envOf(), layoutOf())
       await service.bootstrap()
@@ -135,10 +135,10 @@ describe('IamService bootstrap persistence', () => {
       codeVerifier: 'verifier',
       createdAt: Date.now(),
       expiresAt: Date.now() + 60_000,
-      redirectUri: 'birdcoder://auth/callback',
+      redirectUri: 'daxuedazi://auth/callback',
       state: 's',
     }))
-    withDesktopBridge('birdcoder://auth/callback?error=access_denied&state=s')
+    withDesktopBridge('daxuedazi://auth/callback?error=access_denied&state=s')
     try {
       const service = new IamService(scopeOf(), envOf(), layoutOf())
       await service.bootstrap()

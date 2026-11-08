@@ -23,6 +23,12 @@ import { createClientModuleSystem } from '@deepseek-ai/dsh-client-modules/client
 import type { ClientModuleLoader, ClientModuleLoaderTarget, WebBootGraph } from '@deepseek-ai/dsh-client-modules/client'
 import * as clientStore from '@deepseek-ai/dsh-client-store'
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
+// The persona-bot client bundle (plugins/sdkwork-deepseekbot) externalizes the
+// shared react-query instance the bundle set dedupes across plugins (the
+// course plugin ships it) and the gateway client every remote call routes
+// through; the test runtime provides the same hoisted modules.
+import * as reactQuery from '@tanstack/react-query'
+import * as apiGatewayClient from '@deepseek-ai/dsh-api-gateway/client'
 import * as react from 'react'
 import * as jsxRuntime from 'react/jsx-runtime'
 import * as reactDom from 'react-dom'
@@ -53,6 +59,8 @@ const PLATFORM_REQUIREMENTS: Readonly<Record<string, object | undefined>> = {
   '@deepseek-ai/cordis': cordis,
   '@deepseek-ai/dsh-client-ui-primitives': primitives,
   '@deepseek-ai/dsh-client-store': clientStore,
+  '@deepseek-ai/dsh-api-gateway/client': apiGatewayClient,
+  '@tanstack/react-query': reactQuery,
 }
 
 /** One `window.__ModuleLoader__.load` registration captured from a bundle import. */

@@ -23,7 +23,9 @@ import {
   resetSdkworkGlobalTokenManager,
 } from '../src/sdkwork-global-token-manager.ts'
 
-const REDIRECT = 'birdcoder://auth/callback'
+// FORK DIVERGENCE (AGENTS.md, "OEM profile"): the running brand's deep-link
+// scheme is daxuedazi, so the registered callback names daxuedazi.
+const REDIRECT = 'daxuedazi://auth/callback'
 const BASE_URL = 'https://api.example.test'
 const SESSION = {
   accessToken: 'access.jwt.token',

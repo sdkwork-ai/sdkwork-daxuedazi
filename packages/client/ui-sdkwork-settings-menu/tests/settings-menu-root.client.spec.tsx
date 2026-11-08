@@ -6,7 +6,6 @@ import { SettingsMenuRoot } from '../src/client/SettingsMenuRoot.tsx'
 import type { SettingsMenuRootComponentProps, SettingsOnboardingStep, SettingsSectionRow } from '../src/client/shell-contract.ts'
 import { zh } from '../src/client/locales.ts'
 import type { AccountProfile } from '../src/client/account.ts'
-import type { FeedbackProfile } from '../src/client/feedback.ts'
 import type { PersonaMenuProfile } from '../src/client/persona.ts'
 import type { ThemeMenuSnapshot } from '../src/client/theme-source.ts'
 
@@ -17,7 +16,6 @@ const t = (key: string): string => (zh as Record<string, string>)[key] ?? key
 
 const EMPTY_SESSIONS = { phase: 'ready', current: 's1', byId: {} } as { phase: string; current: string | undefined; byId: Record<string, unknown> }
 const EMPTY_ACCOUNT: AccountProfile = { signedIn: false }
-const UNAVAILABLE_FEEDBACK: FeedbackProfile = { available: false }
 const UNAVAILABLE_PERSONA: PersonaMenuProfile = { available: false }
 
 interface RootOverrides {
@@ -25,7 +23,6 @@ interface RootOverrides {
   steps?: readonly SettingsOnboardingStep[]
   theme?: ThemeMenuSnapshot
   account?: AccountProfile
-  feedback?: FeedbackProfile
   persona?: PersonaMenuProfile
   sessions?: typeof EMPTY_SESSIONS
   updatesAvailable?: boolean
@@ -40,7 +37,6 @@ function root(over: RootOverrides = {}) {
   const signIn = vi.fn()
   const logout = vi.fn()
   const checkForUpdates = vi.fn()
-  const openFeedback = vi.fn()
   const openPersona = vi.fn()
   const openDesktopPlugins = vi.fn()
   const quitApp = vi.fn()
@@ -50,7 +46,6 @@ function root(over: RootOverrides = {}) {
   )
   const useTheme = vi.fn((sel: (theme: ThemeMenuSnapshot) => ThemeMenuSnapshot) => sel(over.theme ?? { preference: 'system', revision: 0 }))
   const useAccount = vi.fn((sel: (account: AccountProfile) => AccountProfile) => sel(over.account ?? EMPTY_ACCOUNT))
-  const useFeedback = vi.fn((sel: (feedback: FeedbackProfile) => FeedbackProfile) => sel(over.feedback ?? UNAVAILABLE_FEEDBACK))
   const usePersona = vi.fn((sel: (persona: PersonaMenuProfile) => PersonaMenuProfile) => sel(over.persona ?? UNAVAILABLE_PERSONA))
   const useSessions = vi.fn((sel: (sessions: typeof EMPTY_SESSIONS) => boolean) => sel(over.sessions ?? EMPTY_SESSIONS))
   const renderSlot = vi.fn((name: string, _owner: unknown, opts?: { only?: string }): ReactNode => (
@@ -61,7 +56,6 @@ function root(over: RootOverrides = {}) {
     useOnboardingSteps: useOnboardingSteps as never,
     useTheme: useTheme as never,
     useAccount: useAccount as never,
-    useFeedback: useFeedback as never,
     usePersona: usePersona as never,
     useSessions: useSessions as never,
     renderSlot: renderSlot as never,
@@ -69,7 +63,6 @@ function root(over: RootOverrides = {}) {
     signIn,
     logout,
     checkForUpdates,
-    openFeedback,
     openPersona,
     updatesAvailable: over.updatesAvailable ?? false,
     openDesktopPlugins,
@@ -80,7 +73,7 @@ function root(over: RootOverrides = {}) {
     t,
   }
   render(<SettingsMenuRoot {...props as unknown as SettingsMenuRootComponentProps} />)
-  return { setTheme, signIn, logout, checkForUpdates, openFeedback, openPersona, openDesktopPlugins, quitApp, renderSlot }
+  return { setTheme, signIn, logout, checkForUpdates, openPersona, openDesktopPlugins, quitApp, renderSlot }
 }
 
 function trigger(): HTMLButtonElement {
@@ -103,31 +96,21 @@ describe('SettingsMenuRoot', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('opens the hover menu with no account identity header, the feature group, and a disabled sign-out footer', () => {
+  it('opens the hover menu with no account identity header, the product command group, and a disabled sign-out footer', () => {
     const { logout } = root()
     openMenu()
     expect(screen.getByRole('menu')).not.toBeNull()
     // No account identity header while signed out: the signed-out surface is
     // the sign-in row, which the anonymous default does not advertise.
     expect(screen.queryByText('未登录')).toBeNull()
-    // Feature group.
-    expect(screen.getByRole('menuitem', { name: '设置' })).not.toBeNull()
-    // The key row names the relay station, so it cannot be mistaken for the
-    // vendor's own API keys.
-    expect(screen.getByRole('menuitem', { name: '中转站 API Key 管理' })).not.toBeNull()
-    // The deployed-applications inventory is a root-scoped surface of the same
-    // public group.
-    expect(screen.getByRole('menuitem', { name: '我的应用部署' })).not.toBeNull()
-    // The official-account row reads directly above it: account, then
-    // credential.
-    const featureLabels = screen.getAllByRole('menuitem').map(item => item.textContent ?? '')
-    expect(featureLabels.indexOf('公众号账号')).toBeGreaterThanOrEqual(0)
-    expect(featureLabels.indexOf('公众号账号')).toBeLessThan(featureLabels.indexOf('中转站 API Key 管理'))
-    expect(screen.getByRole('menuitem', { name: '外观' })).not.toBeNull()
-    expect(screen.getByRole('menuitem', { name: '帮助' })).not.toBeNull()
-    // No feedback row without a feedback provider; no update row without the
-    // desktop preload surface; no account group.
-    expect(screen.queryByRole('menuitem', { name: '反馈' })).toBeNull()
+    // The command group is the whole product menu, in row order: settings,
+    // appearance, then the pinned sign-out footer.
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+      '设置',
+      '外观',
+      '退出登录',
+    ])
+    // No update row without the desktop preload surface; no account group.
     expect(screen.queryByRole('menuitem', { name: '检查更新' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: '会员等级' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: '登录 / 注册' })).toBeNull()
@@ -138,65 +121,27 @@ describe('SettingsMenuRoot', () => {
     expect(logout).not.toHaveBeenCalled()
   })
 
-  it('opens the official-account modal seat from its row', () => {
-    const { renderSlot } = root()
-    openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '公众号账号' }).click() })
-    // The shell owns visibility for both feature modals; the row flips this
-    // seat open and every dismissal path comes back through onClose.
-    expect(renderSlot).toHaveBeenCalledWith(
-      'settings.officialAccounts',
-      { open: true, onClose: expect.any(Function) as () => void },
-    )
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
-  it('places the mini-program, domain, certificate and deployed-app rows below the official-account row and opens their seats', () => {
-    const { renderSlot } = root()
+  it('keeps the cloud-console, help, and feedback rows out of the product menu', () => {
+    root({ persona: { available: true } })
     openMenu()
     const labels = screen.getAllByRole('menuitem').map(item => item.textContent ?? '')
-    // Public surface order: account, mini program, domain, certificate, deployed apps, relay credential.
-    expect(labels.indexOf('小程序账号')).toBeGreaterThan(labels.indexOf('公众号账号'))
-    expect(labels.indexOf('域名管理')).toBeGreaterThan(labels.indexOf('小程序账号'))
-    expect(labels.indexOf('证书管理')).toBeGreaterThan(labels.indexOf('域名管理'))
-    expect(labels.indexOf('我的应用部署')).toBeGreaterThan(labels.indexOf('证书管理'))
-    expect(labels.indexOf('中转站 API Key 管理')).toBeGreaterThan(labels.indexOf('我的应用部署'))
-    // All four seats are mounted closed by the shell before any row opens them.
-    expect(renderSlot).toHaveBeenCalledWith('settings.miniPrograms', { open: false, onClose: expect.any(Function) as () => void })
-    expect(renderSlot).toHaveBeenCalledWith('settings.dns', { open: false, onClose: expect.any(Function) as () => void })
-    expect(renderSlot).toHaveBeenCalledWith('settings.certificates', { open: false, onClose: expect.any(Function) as () => void })
-    expect(renderSlot).toHaveBeenCalledWith('settings.myDeployments', { open: false, onClose: expect.any(Function) as () => void })
-
-    act(() => { screen.getByRole('menuitem', { name: '小程序账号' }).click() })
-    const miniProgramCall = renderSlot.mock.calls.findLast(([name]) => name === 'settings.miniPrograms')!
-    expect(miniProgramCall[1]).toMatchObject({ open: true })
-    act(() => { (miniProgramCall[1] as { onClose: () => void }).onClose() })
-    expect(renderSlot).toHaveBeenCalledWith('settings.miniPrograms', { open: false, onClose: expect.any(Function) as () => void })
-    expect(screen.queryByRole('menu')).toBeNull()
-
-    openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '域名管理' }).click() })
-    const dnsCall = renderSlot.mock.calls.findLast(([name]) => name === 'settings.dns')!
-    expect(dnsCall[1]).toMatchObject({ open: true })
-    act(() => { (dnsCall[1] as { onClose: () => void }).onClose() })
-    expect(renderSlot).toHaveBeenCalledWith('settings.dns', { open: false, onClose: expect.any(Function) as () => void })
-    expect(screen.queryByRole('menu')).toBeNull()
-
-    openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '证书管理' }).click() })
-    const certificateCall = renderSlot.mock.calls.findLast(([name]) => name === 'settings.certificates')!
-    expect(certificateCall[1]).toMatchObject({ open: true })
-    act(() => { (certificateCall[1] as { onClose: () => void }).onClose() })
-    expect(renderSlot).toHaveBeenCalledWith('settings.certificates', { open: false, onClose: expect.any(Function) as () => void })
-    expect(screen.queryByRole('menu')).toBeNull()
-
-    openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '我的应用部署' }).click() })
-    const deploymentsCall = renderSlot.mock.calls.findLast(([name]) => name === 'settings.myDeployments')!
-    expect(deploymentsCall[1]).toMatchObject({ open: true })
-    act(() => { (deploymentsCall[1] as { onClose: () => void }).onClose() })
-    expect(renderSlot).toHaveBeenCalledWith('settings.myDeployments', { open: false, onClose: expect.any(Function) as () => void })
-    expect(screen.queryByRole('menu')).toBeNull()
+    // The console surfaces (WeChat accounts, domain, certificate, deployments,
+    // relay credential) are administration rather than product commands, and
+    // the help/feedback rows are gone with them. Their seats stay declared so
+    // the owning plugins can still register — the entry list is the product
+    // decision, the seat table is the runtime grant.
+    const hidden = [
+      '公众号账号', '小程序账号', '域名管理', '证书管理', '我的应用部署', '中转站 API Key 管理', '帮助', '反馈',
+    ]
+    expect(hidden.filter(label => labels.includes(label))).toEqual([])
+    for (const seat of [
+      'settings.officialAccounts', 'settings.miniPrograms', 'settings.dns',
+      'settings.certificates', 'settings.myDeployments', 'settings.apiKeys',
+    ]) {
+      // No host is mounted for a hidden row, so no dialog can linger behind the
+      // menu that used to open it.
+      expect(screen.queryByText(seat)).toBeNull()
+    }
   })
 
   it('renders the account card seat directly under the identity row, above the feature group', () => {
@@ -327,28 +272,12 @@ describe('SettingsMenuRoot', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
-  it('shows the help placeholder toast and asks the desktop updater when available', () => {
+  it('asks the desktop updater from the update row and closes the menu', () => {
     const { checkForUpdates } = root({ updatesAvailable: true })
     openMenu()
     expect(screen.getByRole('menuitem', { name: '检查更新' })).not.toBeNull()
     act(() => { screen.getByRole('menuitem', { name: '检查更新' }).click() })
     expect(checkForUpdates).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('menu')).toBeNull()
-    openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '帮助' }).click() })
-    const toast = screen.getByRole('alert')
-    expect(toast.textContent).toContain('帮助功能即将上线')
-    expect(screen.queryByRole('menu')).toBeNull()
-  })
-
-  it('renders the feedback row for an available provider and opens the surface on click', () => {
-    const { openFeedback } = root({ feedback: { available: true } })
-    openMenu()
-    const feedbackRow = screen.getByRole('menuitem', { name: '反馈' })
-    expect(feedbackRow).not.toBeNull()
-    act(() => { feedbackRow.click() })
-    expect(openFeedback).toHaveBeenCalledTimes(1)
-    // The selection closes the menu.
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
@@ -446,9 +375,9 @@ describe('SettingsMenuRoot', () => {
   })
 
   it('reopens the menu after a selection closes it', () => {
-    root()
+    root({ updatesAvailable: true })
     openMenu()
-    act(() => { screen.getByRole('menuitem', { name: '帮助' }).click() })
+    act(() => { screen.getByRole('menuitem', { name: '检查更新' }).click() })
     expect(screen.queryByRole('menu')).toBeNull()
     openMenu()
     expect(screen.getByRole('menu')).not.toBeNull()

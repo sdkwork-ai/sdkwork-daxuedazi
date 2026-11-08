@@ -1,24 +1,26 @@
 // Web e2e: the settings rail menu — hover opens the popover with the
 // anonymous account header, the account group's sign-in row (advertised by
-// the installed ui-sdkwork-iam plugin while signed out), the feature group (Settings
-// / Appearance / Help / Feedback), and the disabled sign-out footer; the
+// the installed ui-sdkwork-iam plugin while signed out), the product command
+// group (Settings / Appearance), and the disabled sign-out footer; the
 // Appearance submenu flips the real theme through the full cascade (ThemeRuntime
-// preference -> Host settings -> theme/change -> presenter -> body attribute);
-// Help shows the placeholder toast; the Feedback row opens the feedback
-// dialog (the installed ui-sdkwork-feedback plugin advertises the row over the
-// default api.birdcoder.com base URL); the desktop-only update row is hidden on
-// the web composition. Zero model calls: everything is pure client +
-// persistence state on a blank frame.
+// preference -> Host settings -> theme/change -> presenter -> body attribute).
+// The popover ships no cloud-console administration rows (公众号账号 / 小程序账号 /
+// 域名管理 / 证书管理 / 我的应用部署 / 中转站 API Key 管理) and no help/feedback rows,
+// and the desktop-only update row is hidden on the web composition. Zero model
+// calls: everything is pure client + persistence state on a blank frame.
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, onTestFailed } from 'vitest'
-import {
-  acknowledgeReloadConnectionLoss, launchWebScaffold, watchConsole, type WebScaffold,
-} from './scaffold.ts'
+import { launchWebScaffold, watchConsole, type WebScaffold } from './scaffold.ts'
 import { ZH_BROWSER_LOCALE, saveFailureShot } from './support.ts'
+
+/** Rows this product's popover deliberately does not ship. */
+const HIDDEN_ROW_LABELS = [
+  '公众号账号', '小程序账号', '域名管理', '证书管理', '我的应用部署', '中转站 API Key 管理', '帮助', '反馈',
+] as const
 
 describe('web e2e: the settings rail menu', () => {
   let scaffold: WebScaffold
@@ -41,7 +43,7 @@ describe('web e2e: the settings rail menu', () => {
     await scaffold?.close()
   })
 
-  it('opens on hover with the anonymous header, feature group, and disabled sign-out; closes by Escape and outside click', async () => {
+  it('opens on hover with the anonymous header, the product command group, and disabled sign-out; closes by Escape and outside click', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-menu-basics'))
     const trigger = page.getByRole('button', { name: '设置', exact: true })
     await trigger.hover()
@@ -68,10 +70,12 @@ describe('web e2e: the settings rail menu', () => {
     expect(await page.getByRole('menuitem', { name: '登录 / 注册', exact: true }).count()).toBe(1)
     expect(await page.getByRole('menuitem', { name: '设置', exact: true }).count()).toBe(1)
     expect(await page.getByRole('menuitem', { name: '外观', exact: true }).count()).toBe(1)
-    expect(await page.getByRole('menuitem', { name: '帮助', exact: true }).count()).toBe(1)
-    // The installed ui-sdkwork-feedback plugin's seam advertises the feedback row
-    // over the default api.birdcoder.com base URL.
-    expect(await page.getByRole('menuitem', { name: '反馈', exact: true }).count()).toBe(1)
+    // The popover is the product menu: none of the cloud-console rows and
+    // neither of the old help/feedback rows ship, even though their plugins
+    // still register into the shell's seat table.
+    for (const label of HIDDEN_ROW_LABELS) {
+      expect(await page.getByRole('menuitem', { name: label, exact: true }).count()).toBe(0)
+    }
     // The desktop-only update row never appears on the web composition.
     expect(await page.getByRole('menuitem', { name: '检查更新', exact: true }).count()).toBe(0)
     const signOut = page.getByRole('menuitem', { name: '退出登录', exact: true })
@@ -93,59 +97,6 @@ describe('web e2e: the settings rail menu', () => {
     await menu.waitFor({ timeout: 10_000 })
     await page.mouse.click(30, 600)
     await expect.poll(() => menu.count(), { timeout: 5_000 }).toBe(0)
-    expect(tripwire.pageErrors).toEqual([])
-  }, 60_000)
-
-  it('opens the domain and certificate dialogs from the rows below 公众号账号', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-menu-surfaces'))
-    const trigger = page.getByRole('button', { name: '设置', exact: true })
-    await trigger.hover()
-    const menu = page.getByRole('menu')
-    await menu.waitFor({ timeout: 10_000 })
-    const labels = await page.getByRole('menuitem').allTextContents()
-    // Public surface order below the account row: domain, then certificate,
-    // then the relay credential.
-    expect(labels.indexOf('域名管理')).toBeGreaterThan(labels.indexOf('公众号账号'))
-    expect(labels.indexOf('证书管理')).toBeGreaterThan(labels.indexOf('域名管理'))
-
-    await page.getByRole('menuitem', { name: '域名管理', exact: true }).click()
-    const domainDialog = page.getByRole('dialog', { name: '域名管理' })
-    await domainDialog.waitFor({ timeout: 10_000 })
-    // The signed-out scaffold renders the dialog's sign-in gate, not the
-    // workspace; the seat, frame, and locale copy are what this asserts.
-    await expect.poll(() => page.getByText('登录后可管理当前账号的域名与解析记录。').count(), { timeout: 10_000 }).toBe(1)
-    await page.keyboard.press('Escape')
-    await domainDialog.waitFor({ state: 'detached', timeout: 10_000 })
-
-    await trigger.hover()
-    await menu.waitFor({ timeout: 10_000 })
-    await page.getByRole('menuitem', { name: '证书管理', exact: true }).click()
-    const certificateDialog = page.getByRole('dialog', { name: '证书管理' })
-    await certificateDialog.waitFor({ timeout: 10_000 })
-    await expect.poll(() => page.getByText('登录后可管理当前账号的 TLS 证书。').count(), { timeout: 10_000 }).toBe(1)
-    await page.keyboard.press('Escape')
-    await certificateDialog.waitFor({ state: 'detached', timeout: 10_000 })
-    expect(tripwire.pageErrors).toEqual([])
-  }, 60_000)
-
-  it('opens the mini-program account dialog from the row directly below 公众号账号', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-menu-mini-programs'))
-    const trigger = page.getByRole('button', { name: '设置', exact: true })
-    await trigger.hover()
-    const menu = page.getByRole('menu')
-    await menu.waitFor({ timeout: 10_000 })
-    const labels = await page.getByRole('menuitem').allTextContents()
-    expect(labels.indexOf('小程序账号')).toBeGreaterThan(labels.indexOf('公众号账号'))
-    expect(labels.indexOf('域名管理')).toBeGreaterThan(labels.indexOf('小程序账号'))
-
-    await page.getByRole('menuitem', { name: '小程序账号', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: '小程序账号' })
-    await dialog.waitFor({ timeout: 10_000 })
-    // The signed-out scaffold renders the dialog's sign-in gate; the seat,
-    // frame, and locale copy are what this asserts.
-    await expect.poll(() => page.getByText('登录后可管理小程序账号。').count(), { timeout: 10_000 }).toBe(1)
-    await page.keyboard.press('Escape')
-    await dialog.waitFor({ state: 'detached', timeout: 10_000 })
     expect(tripwire.pageErrors).toEqual([])
   }, 60_000)
 
@@ -196,48 +147,10 @@ describe('web e2e: the settings rail menu', () => {
     expect(tripwire.pageErrors).toEqual([])
   }, 90_000)
 
-  it('shows the help placeholder toast from the Help row', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-menu-help'))
-    const trigger = page.getByRole('button', { name: '设置', exact: true })
-    await trigger.hover()
-    await page.getByRole('menu').waitFor({ timeout: 10_000 })
-    await page.getByRole('menuitem', { name: '帮助', exact: true }).click()
-    const toast = page.getByRole('alert')
-    await toast.waitFor({ timeout: 10_000 })
-    expect(await toast.textContent()).toContain('帮助功能即将上线')
-    // The toast fades on its own; the shared page sweeps itself.
-    await expect.poll(() => toast.count(), { timeout: 10_000 }).toBe(0)
-    const warningStart = tripwire.warnings.length
-    await page.reload({ waitUntil: 'load' })
-    await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
-    acknowledgeReloadConnectionLoss(tripwire, warningStart)
-    expect(tripwire.pageErrors).toEqual([])
-  }, 90_000)
-
-  it('opens the feedback dialog from the Feedback row and closes it by Escape', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-settings-menu-feedback'))
-    const trigger = page.getByRole('button', { name: '设置', exact: true })
-    await trigger.hover()
-    await page.getByRole('menu').waitFor({ timeout: 10_000 })
-    await page.getByRole('menuitem', { name: '反馈', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: '意见反馈' })
-    await dialog.waitFor({ timeout: 10_000 })
-    // The form surface: type group, content and contact fields, submit/cancel.
-    expect(await dialog.getByRole('radiogroup', { name: '反馈类型' }).count()).toBe(1)
-    expect(await dialog.getByRole('textbox', { name: '反馈内容' }).count()).toBe(1)
-    expect(await dialog.getByRole('textbox', { name: '联系方式（选填）' }).count()).toBe(1)
-    expect(await dialog.getByRole('button', { name: '提交反馈' }).count()).toBe(1)
-    // The menu closes with the dialog open; Escape closes the dialog.
-    await expect.poll(() => page.getByRole('menu').count(), { timeout: 5_000 }).toBe(0)
-    await page.keyboard.press('Escape')
-    await expect.poll(() => dialog.count(), { timeout: 5_000 }).toBe(0)
-    expect(tripwire.pageErrors).toEqual([])
-  }, 90_000)
-
-  it('honors the ui-sdkwork-env environment profile from the Host settings document', async () => {
-    // A dedicated home carrying the testing profile: the feedback row stays
-    // advertised (the profile base URL is configured) and the feedback
-    // service reads the environment's app key / access token.
+  it('honors the ui-sdkwork-env environment profile without resurrecting a feedback row', async () => {
+    // A dedicated home carrying the testing profile: the feedback service still
+    // reads the environment's app key / access token, and the product menu owns
+    // no 反馈 entry, so the advertised channel changes nothing about the rows.
     const home = join(await mkdtemp(join(tmpdir(), 'dsh-web-e2e-ui-sdkwork-env-')), 'home')
     await mkdir(home, { recursive: true })
     await writeFile(join(home, 'settings.yaml'), [
@@ -259,13 +172,12 @@ describe('web e2e: the settings rail menu', () => {
       const envTrigger = envPage.getByRole('button', { name: '设置', exact: true })
       await envTrigger.hover()
       await envPage.getByRole('menu').waitFor({ timeout: 10_000 })
-      // The testing profile carries a configured base URL, so the feedback
-      // row appears exactly like the production default.
-      expect(await envPage.getByRole('menuitem', { name: '反馈', exact: true }).count()).toBe(1)
-      await envPage.getByRole('menuitem', { name: '反馈', exact: true }).click()
-      await envPage.getByRole('dialog', { name: '意见反馈' }).waitFor({ timeout: 10_000 })
-      await envPage.keyboard.press('Escape')
-      await expect.poll(() => envPage.getByRole('dialog', { name: '意见反馈' }).count(), { timeout: 5_000 }).toBe(0)
+      // Same row set as the default profile: the configured channel is a
+      // service fact, not a menu entry.
+      for (const label of HIDDEN_ROW_LABELS) {
+        expect(await envPage.getByRole('menuitem', { name: label, exact: true }).count()).toBe(0)
+      }
+      expect(await envPage.getByRole('menuitem', { name: '设置', exact: true }).count()).toBe(1)
       expect(envTripwire.pageErrors).toEqual([])
     } finally {
       await envPage.close()

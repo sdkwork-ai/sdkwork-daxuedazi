@@ -1,6 +1,6 @@
 [
   {
-    "label": "About BirdCoder",
+    "label": "About 学伴AI",
     "role": "about"
   },
   {
@@ -10,7 +10,7 @@
     "label": "Check for Updates…"
   },
   {
-    "label": "Manage birdcoder Command…"
+    "label": "Manage daxuedazi Command…"
   },
   {
     "type": "separator"
@@ -24,7 +24,7 @@
   },
   {
     "role": "hide",
-    "label": "Hide BirdCoder"
+    "label": "Hide 学伴AI"
   },
   {
     "role": "hideOthers",
@@ -39,6 +39,6 @@
   },
   {
     "role": "quit",
-    "label": "Quit BirdCoder"
+    "label": "Quit 学伴AI"
   }
 ]

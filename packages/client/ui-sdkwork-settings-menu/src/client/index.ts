@@ -1,7 +1,7 @@
 /**
  * Settings menu + settings shell plugin, browser half: occupies the
  * `mode.rail.settings` seat with the hover settings menu (account header,
- * membership/points group, settings/appearance/help/check-updates group,
+ * membership/points group, settings/persona/appearance/check-updates group,
  * sign-out footer) and the centered settings panel with section navigation
  * and the onboarding coordinator, declares the settings slots, provides the
  * `ctx.account` anonymous-profile service, and registers the chrome content,
@@ -11,11 +11,15 @@
  * that row at this package instead of upstream's shell: the upstream plugin
  * never loads, every namespace this package re-declares stays addressable, and
  * the shell re-declares every settings seat so feature-owned sections, rows,
- * and onboarding steps mount unchanged. The extra root-scoped feature-modal
- * seats — `settings.dns`, `settings.certificates`, `settings.myDeployments`,
- * and `settings.miniPrograms` — sit beside the account and credential seats so
- * the domain, certificate, deployed-application, and mini-program surfaces
- * keep their own dialogs while sharing this menu's chrome.
+ * and onboarding steps mount unchanged. The root-scoped feature-modal seats —
+ * `settings.apiKeys`, `settings.officialAccounts`, `settings.miniPrograms`,
+ * `settings.dns`, `settings.certificates`, and `settings.myDeployments` — stay
+ * declared as the runtime grant their plugins register through, while this
+ * product's menu renders no entry that opens them: the cloud-console surfaces
+ * are out of the popover (see SettingsMenuRoot's header note). A declared seat
+ * without a visible entry is therefore intentional — dropping the declaration
+ * throws `SlotOwnershipError` at registration and takes the whole rail entry
+ * down.
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -214,13 +218,11 @@ export function apply(ctx: ClientContext): void {
       },
       theme: themeSource,
       account,
-      feedback,
       persona,
     },
     setTheme: (id) => { ctx.theme.setTheme(id) },
     signIn: () => { void account.signIn() },
     logout: () => { void account.logout() },
-    openFeedback: () => { feedback.open() },
     openPersona: () => { persona.open() },
     checkForUpdates: () => {
       const updates = updatesOf()
@@ -256,10 +258,12 @@ export function apply(ctx: ClientContext): void {
       // single contribution; the shell owns visibility). Missing this row
       // throws SlotOwnershipError at registration and crashes the whole
       // mode.rail.settings entry — the children table IS the runtime grant.
+      // The menu renders no entry for it: the relay-key surface is console
+      // administration, not a product command.
       'settings.apiKeys': { kind: 'single', scope: 'root' },
       // The official-account management modal seat (ui-sdkwork-official-accounts
       // registers the single contribution; the shell owns visibility). Same
-      // grant contract as the API-key seat above.
+      // grant contract as the API-key seat above, and likewise no menu entry.
       'settings.officialAccounts': { kind: 'single', scope: 'root' },
       // The mini-program account modal seat (ui-sdkwork-mini-program-accounts
       // registers the single contribution; the shell owns visibility).
@@ -271,7 +275,7 @@ export function apply(ctx: ClientContext): void {
       // The certificate management modal seat (ui-sdkwork-certificate
       // registers the single contribution; the shell owns visibility).
       'settings.certificates': { kind: 'single', scope: 'root' },
-      // The deployed-applications drawer seat (ui-sdkwork-deploy registers the
+      // The deployed-applications dialog seat (ui-sdkwork-deploy registers the
       // single contribution; the shell owns visibility). Same grant contract
       // as the seats above.
       'settings.myDeployments': { kind: 'single', scope: 'root' },

@@ -19,7 +19,11 @@ import {
   resetSdkworkGlobalTokenManager,
 } from '../src/sdkwork-global-token-manager.ts'
 
-const REDIRECT = 'birdcoder://auth/callback'
+// FORK DIVERGENCE (AGENTS.md, "OEM profile"): the OAuth identity belongs to
+// the running brand, and this fork's shipped brand is daxuedazi, so the
+// callback scheme, the registered redirect and the public client id all name
+// `daxuedazi` while the hosted platform origins stay upstream's.
+const REDIRECT = 'daxuedazi://auth/callback'
 const SESSION = {
   authToken: 'auth.jwt.token',
   accessToken: 'access.jwt.token',
@@ -227,7 +231,7 @@ describe('deeplink login end to end', () => {
     const authorizeUrl = new URL(openedUrls[0]!)
     expect(authorizeUrl.origin).toBe('https://platform.birdcoder.com')
     expect(authorizeUrl.pathname).toBe('/iam/oauth/authorize')
-    expect(authorizeUrl.searchParams.get('client_id')).toBe('birdcoder')
+    expect(authorizeUrl.searchParams.get('client_id')).toBe('daxuedazi')
     expect(authorizeUrl.searchParams.get('redirect_uri')).toBe(REDIRECT)
     expect(authorizeUrl.searchParams.get('code_challenge_method')).toBe('S256')
     expect(authorizeUrl.searchParams.get('scope')).toContain('openid')
@@ -245,7 +249,7 @@ describe('deeplink login end to end', () => {
     expect(exchangeCalls).toHaveLength(1)
     expect(service.browserSignInFailed()).toBe(false)
     expect(exchangeCalls[0]).toMatchObject({
-      clientId: 'birdcoder',
+      clientId: 'daxuedazi',
       authorizationCode: 'code-1',
       redirectUri: REDIRECT,
     })

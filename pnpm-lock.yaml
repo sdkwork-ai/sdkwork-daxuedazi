@@ -25061,6 +25061,9 @@ importers:
 
   packages/test-support/client-runtime:
     dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.96.2
+        version: 5.105.0(@types/react@19.2.18)(react@19.2.8)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.2

@@ -5,14 +5,22 @@
  * hover/focus/click: a header row with the account identity, the account
  * group (sign-in row while a provider advertises one, membership/points rows
  * when the account provider publishes them), the feature group (settings →
- * panel, appearance → theme submenu, help → placeholder toast), the public
- * surface group (official account → 公众号账号 modal, mini program → 小程序账号
- * modal, domain → 域名管理 modal, certificate → 证书管理 modal, deployed apps
- * → 我的应用部署 modal, relay API keys → key modal), and the desktop shell
- * group (desktop plugins → plugin
- * manager window, check-for-updates → desktop updater, quit) migrated from the
- * native application menu the shell hides on Windows/Linux, plus the pinned
- * sign-out footer row.
+ * panel, persona → role picker, appearance → theme submenu), the desktop shell
+ * group (desktop plugins → plugin manager window, check-for-updates → desktop
+ * updater, quit) migrated from the native application menu the shell hides on
+ * Windows/Linux, and the pinned sign-out footer row.
+ *
+ * The SDKWork cloud-console surfaces are deliberately absent from this
+ * popover: 公众号账号, 小程序账号, 域名管理, 证书管理, 我的应用部署, and
+ * 中转站 API Key 管理 are console administration, not commands of this
+ * product's menu, and the help/feedback rows are gone with them (帮助 had no
+ * center behind it — only a "coming soon" toast — and 反馈 is a console
+ * channel). Their root-scoped seats stay DECLARED in `index.ts`: a registrant
+ * whose grant is missing throws `SlotOwnershipError` and takes the whole
+ * `mode.rail.settings` entry down, so the seat table is the runtime permission
+ * for those plugins, not an entry list. Bringing an entry back is therefore a
+ * row plus its host slot here, not a contract change.
+ *
  * Modal open state, active section id, and menu open state are component-local
  * viewing state; the onboarding coordinator mounts exactly one ordered
  * registrant while the sessions-derived empty-Hero fact is active. Visible
@@ -22,16 +30,15 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
-  IconAgentPresetOutlineRegular, IconAppsAddOutlineRegular, IconCloseOutlineRegular,
-  IconDarkOutlineRegular, IconDataOutlineRegular, IconEditOutlineRegular,
-  IconFollowsystemOutlineRegular, IconGlobeOutlineRegular, IconLayersOutlineRegular, IconLightOutlineRegular,
-  IconLinkOutlineRegular, IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular, IconQuestionOutlineRegular,
-  IconRefreshOutlineRegular, IconShieldOutlineRegular,
-  IconSettingsOutlineRegular, IconSkillOutlineRegular, IconUserOutlineRegular, IconUsersOutlineRegular,
+  IconAgentPresetOutlineRegular, IconCloseOutlineRegular, IconDarkOutlineRegular,
+  IconDataOutlineRegular, IconFollowsystemOutlineRegular, IconLightOutlineRegular,
+  IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular,
+  IconRefreshOutlineRegular, IconSettingsOutlineRegular, IconSkillOutlineRegular,
+  IconUserOutlineRegular, IconUsersOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { IconCoinOutline16, IconCrownOutline16, IconKeyOutline16, IconLogoutOutline14, IconPowerOutline14 } from './sdkwork-icons.tsx'
+import { IconCoinOutline16, IconCrownOutline16, IconLogoutOutline14, IconPowerOutline14 } from './sdkwork-icons.tsx'
 import { IconCheckOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import { SubmenuMenu, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SubmenuMenu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsMenuRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
 import css from './SettingsMenuRoot.module.css'
@@ -125,31 +132,18 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  */
 export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const {
-    useSections, useOnboardingSteps, useTheme, useAccount, useSessions, useFeedback, usePersona,
-    renderSlot, setTheme, signIn, logout, checkForUpdates, openFeedback, openPersona, updatesAvailable,
+    useSections, useOnboardingSteps, useTheme, useAccount, useSessions, usePersona,
+    renderSlot, setTheme, signIn, logout, checkForUpdates, openPersona, updatesAvailable,
     openDesktopPlugins, desktopPluginsAvailable, desktopPluginsUsable, quitApp, quitAvailable, t,
   } = props
   const [menuOpen, setMenuOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [apiKeysOpen, setApiKeysOpen] = useState(false)
-  const [officialAccountsOpen, setOfficialAccountsOpen] = useState(false)
-  const [miniProgramsOpen, setMiniProgramsOpen] = useState(false)
-  const [dnsOpen, setDnsOpen] = useState(false)
-  const [certificatesOpen, setCertificatesOpen] = useState(false)
-  const [myDeploymentsOpen, setMyDeploymentsOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | undefined>(undefined)
-  const [helpToastSeq, setHelpToastSeq] = useState(0)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const close = useCallback(() => {
     setDialogOpen(false)
     setActiveId(undefined)
   }, [])
-  const closeApiKeys = useCallback(() => { setApiKeysOpen(false) }, [])
-  const closeOfficialAccounts = useCallback(() => { setOfficialAccountsOpen(false) }, [])
-  const closeMiniPrograms = useCallback(() => { setMiniProgramsOpen(false) }, [])
-  const closeDns = useCallback(() => { setDnsOpen(false) }, [])
-  const closeCertificates = useCallback(() => { setCertificatesOpen(false) }, [])
-  const closeMyDeployments = useCallback(() => { setMyDeploymentsOpen(false) }, [])
   const openSection = useCallback((id: string) => {
     setActiveId(id)
     setDialogOpen(true)
@@ -158,7 +152,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const rows = useSections(s => s)
   const theme = useTheme(s => s)
   const account = useAccount(s => s)
-  const feedback = useFeedback(s => s)
   const persona = usePersona(s => s)
   const onboardingSteps = useOnboardingSteps(s => s)
   const closeMenu = useCallback(() => { setMenuOpen(false) }, [])
@@ -183,7 +176,10 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
 
   // The account group carries the sign-in row while a provider advertises one
   // and the membership/points rows a signed-in provider publishes; the
-  // anonymous default renders the settings/feature group directly.
+  // anonymous default renders the settings/feature group directly. The
+  // command list is the product menu: settings, the persona picker, appearance,
+  // and the desktop shell group — no cloud-console administration rows (see the
+  // header note: their seats stay declared, their entries do not ship).
   const items = useMemo<readonly MenuEntry[]>(() => {
     const entries: MenuEntry[] = []
     if (account.signedIn && account.username !== undefined) {
@@ -223,22 +219,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
         icon: <IconUsersOutlineRegular size={16} />,
       })
     }
-    // The official-account row sits above the relay API-key row: both open a
-    // root-scoped modal (their surfaces need more width than the settings
-    // panel), and the account/credential pair reads in that order.
-    entries.push({ id: 'official-accounts', label: t('menu.officialAccounts'), icon: <IconGlobeOutlineRegular size={16} /> })
-    // 小程序账号 sits directly below the official-account row: both are the
-    // account surfaces of the WeChat provider family.
-    entries.push({ id: 'mini-programs', label: t('menu.miniPrograms'), icon: <IconAppsAddOutlineRegular size={16} /> })
-    // Domain and certificate management sit below the account rows: the
-    // deployment's public surface, configured where the account that publishes
-    // it is configured. The deployed-applications inventory follows them for
-    // the same reason — it is the same deployment surface as a ledger. All
-    // five are root-scoped modals for the same width reason.
-    entries.push({ id: 'dns', label: t('menu.dns'), icon: <IconLinkOutlineRegular size={16} /> })
-    entries.push({ id: 'certificates', label: t('menu.certificates'), icon: <IconShieldOutlineRegular size={16} /> })
-    entries.push({ id: 'my-deployments', label: t('menu.myDeployments'), icon: <IconLayersOutlineRegular size={16} /> })
-    entries.push({ id: 'api-keys', label: t('menu.apiKeys'), icon: <IconKeyOutline16 size={16} /> })
     entries.push({
       id: 'appearance',
       label: t('menu.appearance'),
@@ -267,10 +247,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
         },
       ],
     })
-    entries.push({ id: 'help', label: t('menu.help'), icon: <IconQuestionOutlineRegular size={14} /> })
-    if (feedback.available) {
-      entries.push({ id: 'feedback', label: t('menu.feedback'), icon: <IconEditOutlineRegular size={14} /> })
-    }
     // The desktop shell group: the entries the native application menu owned
     // before the shell dropped its menu bar (Windows/Linux). Each row is
     // gated on its bridge face, so web compositions render neither the rows
@@ -295,7 +271,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     return entries
   }, [
     account.membership, account.points, account.signInAvailable, account.signedIn, account.username,
-    feedback.available, persona.available, persona.roleLabel, t, renderSlot, closeMenu,
+    persona.available, persona.roleLabel, t, renderSlot, closeMenu,
     updatesAvailable, desktopPluginsAvailable, desktopPluginsUsable, quitAvailable,
   ])
 
@@ -315,24 +291,8 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
       setDialogOpen(true)
     } else if (id === 'persona') {
       openPersona()
-    } else if (id === 'api-keys') {
-      setApiKeysOpen(true)
-    } else if (id === 'official-accounts') {
-      setOfficialAccountsOpen(true)
-    } else if (id === 'mini-programs') {
-      setMiniProgramsOpen(true)
-    } else if (id === 'dns') {
-      setDnsOpen(true)
-    } else if (id === 'certificates') {
-      setCertificatesOpen(true)
-    } else if (id === 'my-deployments') {
-      setMyDeploymentsOpen(true)
     } else if (id === 'light' || id === 'dark' || id === 'system') {
       setTheme(id)
-    } else if (id === 'help') {
-      setHelpToastSeq(seq => seq + 1)
-    } else if (id === 'feedback') {
-      openFeedback()
     } else if (id === 'check-updates') {
       checkForUpdates()
     } else if (id === 'desktop-plugins') {
@@ -344,7 +304,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     } else if (id === 'logout') {
       logout()
     }
-  }, [setTheme, signIn, logout, checkForUpdates, openFeedback, openPersona, openDesktopPlugins, quitApp])
+  }, [setTheme, signIn, logout, checkForUpdates, openPersona, openDesktopPlugins, quitApp])
 
   return (
     <>
@@ -375,25 +335,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
         onSelect={onSelect}
         onClose={() => { setMenuOpen(false) }}
       />
-      {/* The API-key management modal is a root-scoped feature seat, not a
-          settings section: the key table needs more width than the panel.
-          Rendered ahead of the settings panel so the panel (when both open)
-          stays the last-mounted dialog. */}
-      {renderSlot('settings.apiKeys', { open: apiKeysOpen, onClose: closeApiKeys })}
-      {/* The official-account dialog is the same kind of root-scoped feature
-          seat (account table + menu editor), opened from the row above the
-          relay API-key row. */}
-      {renderSlot('settings.officialAccounts', { open: officialAccountsOpen, onClose: closeOfficialAccounts })}
-      {/* The mini-program account dialog is the same kind of root-scoped
-          feature seat, opened from the row directly below 公众号账号. */}
-      {renderSlot('settings.miniPrograms', { open: miniProgramsOpen, onClose: closeMiniPrograms })}
-      {/* The domain and certificate dialogs are the same kind of root-scoped
-          feature seat, opened from the two rows below 小程序账号. */}
-      {renderSlot('settings.dns', { open: dnsOpen, onClose: closeDns })}
-      {renderSlot('settings.certificates', { open: certificatesOpen, onClose: closeCertificates })}
-      {/* The deployed-applications drawer is the same kind of root-scoped
-          feature seat, opened from the row directly below 证书管理. */}
-      {renderSlot('settings.myDeployments', { open: myDeploymentsOpen, onClose: closeMyDeployments })}
       {dialogOpen && (
         <SettingsPanel
           rows={rows}
@@ -401,14 +342,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
           activeId={activeId}
           onSelect={setActiveId}
           onClose={close}
-        />
-      )}
-      {helpToastSeq > 0 && (
-        <Toast
-          key={helpToastSeq}
-          text={t('menu.help.soon')}
-          icon={<IconQuestionOutlineRegular size={14} />}
-          onDone={() => { setHelpToastSeq(0) }}
         />
       )}
       {/* Dialog chrome and `#root` inert ownership live inside each step's

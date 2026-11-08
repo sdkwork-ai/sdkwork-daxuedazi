@@ -55,6 +55,17 @@ export const remoteDefaultResponses: RemoteTable = {
     // ui-settings-account bonus notice read and acknowledgement at signing in.
     'account/getUnnotifiedBonuses': ok(null),
     'account/ackBonusNotified': ok(true),
+    // The persona-bot layer (plugins/sdkwork-deepseekbot, the 助理 surface):
+    // its client half polls its bridge as soon as the `botharness` main panel
+    // mounts, which every full-roster boot now does even when no spec drives
+    // the assistant. Empty states keep the boot quiet.
+    'botharness/list': ok({ bots: [] }),
+    'botharness/botSessionIds': ok({ sessionIds: [], groups: [] }),
+    'botharness/channels': ok({ channels: [] }),
+    'botharness/rosterGet': ok({ pins: [], hidden: [], muted: [], sectionOrder: [], sections: [], topOrder: undefined }),
+    'botharness/composerIdentity': ok({ hostId: 'test-host', profileId: 'test-profile', humanId: 'test-human' }),
+    'botharness/gitStatus': ok({ available: false, reason: 'missing', installable: false, install: { phase: 'idle' } }),
+    'botharness/developerModeSet': ok({ accepted: true }),
   },
   // Stream endpoints the roster opens later than boot; declared so a spec that forgets the script gets a stream miss.
   streams: [
@@ -70,5 +81,7 @@ export const remoteDefaultResponses: RemoteTable = {
     'workspace/follow': openStream([{ type: 'baseline', value: { items: [], archivedSessionIds: [], pinnedSessionIds: [] } }]),
     // api-remote-access client `mountAccess`: the owner's access snapshot, then open.
     'remoteAccess/follow': openStream([{ type: 'baseline', owner: true }]),
+    // The persona-bot layer's roster follow: one empty baseline placement frame.
+    'botharness/followRoster': openStream([{ type: 'baseline', placements: [] }]),
   },
 }

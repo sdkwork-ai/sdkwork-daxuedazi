@@ -13,6 +13,12 @@ import { INSECURE_TLS_ELECTRON_SWITCH } from '../src/tls-trust.ts'
 import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
 import { DesktopHostFatalError, DesktopHostUncleanExitError } from '../src/host-process.ts'
 import { en, zh } from '../src/locale.ts'
+import { resolveDesktopLocale } from '../src/locale.ts'
+import { shippedBrand } from '../scripts/brand-manifest.mjs'
+
+/** The English dictionary as the shell renders it: the brand manifest's name, not the `BirdCoder` token. */
+const EN = resolveDesktopLocale('en', shippedBrand().displayNames).messages
+const ZH = resolveDesktopLocale('zh', shippedBrand().displayNames).messages
 import { DesktopUpdatePreparationError } from '../src/update-error.ts'
 import { writeCrashReport } from '../src/crash-report.ts'
 import { runOperationReportJob } from '../src/operation-report-job.ts'
@@ -470,7 +476,7 @@ beforeEach(() => {
   harness.app.getPath.mockImplementation(name => name === 'userData' ? userData : join(userData, `desktop-test-${name}`))
   vi.mocked(writeCrashReport).mockResolvedValue(join(harness.app.getPath('logs'), 'crash-test.log'))
   harness.dialog.showMessageBox.mockImplementation((options: { title?: string }) => {
-    if (options.title !== en.startupFailed && options.title !== zh.startupFailed) return Promise.resolve({ response: 1 })
+    if (options.title !== EN.startupFailed && options.title !== ZH.startupFailed) return Promise.resolve({ response: 1 })
     harness.dialogShown.resolve()
     return new Promise(() => {})
   })
@@ -763,7 +769,7 @@ describe('desktop main startup', () => {
     expect(harness.hosts).toHaveLength(1)
     expect(testAuth.login).not.toHaveBeenCalled()
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining(path), expect.any(Error))
-    expect(harness.dialog.showMessageBox).not.toHaveBeenCalledWith(expect.objectContaining({ title: en.startupFailed }))
+    expect(harness.dialog.showMessageBox).not.toHaveBeenCalledWith(expect.objectContaining({ title: EN.startupFailed }))
     expect(readFileSync(path, 'utf8')).toBe(raw)
   })
 
@@ -826,7 +832,9 @@ describe('desktop main startup', () => {
     harness.app.isPackaged = packaged
     vi.spyOn(harness.app, 'getPreferredSystemLanguages').mockReturnValue([locale])
     await readyForUpdate()
-    const messages = locale === 'en' ? en : zh
+    // The shell resolves the brand manifest's per-language name, so the copy
+    // under test is the branded dictionary rather than the raw token.
+    const messages = resolveDesktopLocale(locale, shippedBrand().displayNames).messages
     const menu = applicationMenuItems()
     const visible = menu.filter(item => item.visible !== false)
     expect(visible.map(item => item.role === 'quit' ? 'quit' : item.label ?? item.type)).toEqual([
@@ -892,8 +900,9 @@ describe('desktop main startup', () => {
     ;(about!.click as () => void)()
     await vi.advanceTimersByTimeAsync(0)
     const zh = locale === 'zh-CN'
+    const copy = resolveDesktopLocale(locale, shippedBrand().displayNames).messages
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
-      type: 'info', title: zh ? '关于 BirdCoder' : 'About BirdCoder', message: 'BirdCoder',
+      type: 'info', title: copy.aboutMenu, message: copy.aboutProduct,
       detail: zh ? '版本 V1.0.0' : 'Version V1.0.0', buttons: [zh ? '确定' : 'OK'], cancelId: 0,
     }))
     // A dialog that cannot open is logged, not surfaced as an unhandled rejection.
@@ -977,7 +986,7 @@ describe('desktop main startup', () => {
       Response.json({ error: { code: 'UNAUTHENTICATED' } }, { status: 401 }))
     vi.stubGlobal('fetch', request)
     await readyForUpdate()
-    expect(harness.dialog.showMessageBox).not.toHaveBeenCalledWith(expect.objectContaining({ title: en.startupFailed }))
+    expect(harness.dialog.showMessageBox).not.toHaveBeenCalledWith(expect.objectContaining({ title: EN.startupFailed }))
     // The policy client has no desktop-linux wire identity, so a configured Linux
     // manifest runs without it instead of failing the launch.
     expect(request).not.toHaveBeenCalled()
@@ -1369,9 +1378,9 @@ describe('desktop main startup', () => {
     // The CLI-command entry is a Windows-only product surface; Linux shares the
     // rest of the caption's Application menu.
     expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.role ?? item.type)).toEqual([
-      '关于 BirdCoder', 'separator', '检查更新…',
+      '关于 学伴AI', 'separator', '检查更新…',
       ...platform === 'win32' ? ['管理 daxuedazi 命令…'] : [],
-      'separator', zh.toggleDevToolsMenu, 'separator', platform === 'win32' ? '退出' : '退出 BirdCoder',
+      'separator', zh.toggleDevToolsMenu, 'separator', platform === 'win32' ? '退出' : '退出 学伴AI',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')
@@ -1414,7 +1423,9 @@ describe('desktop main startup', () => {
       return
     }
     if (template === undefined) throw new Error('application menu missing')
-    expect(template.map(describeItem)).toEqual(['Desktop test', en.fileMenu, 'editMenu', 'windowMenu'])
+    // The first item is the localized display name from the brand manifest, not
+    // Electron's ASCII `app.name` (`Desktop test` in this fixture).
+    expect(template.map(describeItem)).toEqual(['学伴AI', en.fileMenu, 'editMenu', 'windowMenu'])
     const describeEdit = (items: MenuItemConstructorOptions[]): unknown[] => items.map(item => Array.isArray(item.submenu)
       ? [describeItem(item), describeEdit(item.submenu)]
       : [describeItem(item), item.accelerator, item.visible, item.acceleratorWorksWhenHidden].filter(value => value !== undefined))
@@ -1638,7 +1649,7 @@ describe('desktop main startup', () => {
   }
 
   it('opens the workspace when the process was launched by an IAM login callback', async () => {
-    const callback = 'birdcoder://auth/callback?code=relaunch&state=s'
+    const callback = 'daxuedazi://auth/callback?code=relaunch&state=s'
     vi.stubGlobal('process', { ...process, platform: 'win32', argv: ['desktop', callback] })
     const host = await readyForUpdate()
     // An expired/absent session would normally raise the welcome window; a
@@ -1859,7 +1870,7 @@ describe('desktop main startup', () => {
     harness.app.quit()
     await vi.advanceTimersByTimeAsync(0)
     expect(harness.dialog.showMessageBox).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
-      message: en.quitTitle, detail: en.quitActiveAndScheduledTasks, buttons: [en.quit, en.cancel], defaultId: 0, cancelId: 1,
+      message: EN.quitTitle, detail: EN.quitActiveAndScheduledTasks, buttons: [en.quit, en.cancel], defaultId: 0, cancelId: 1,
     }))
     expect(window.hide).not.toHaveBeenCalled()
     expect(host.stop).not.toHaveBeenCalled()

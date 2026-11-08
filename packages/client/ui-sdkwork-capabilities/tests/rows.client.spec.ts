@@ -148,7 +148,7 @@ describe('expert row', () => {
     ])
     expect(popup.searchLabels?.()).toEqual({
       placeholder: '搜索专家…',
-      empty: '没有可用的添加方式',
+      empty: '没有可用的专家入口',
       noResults: '没有匹配项',
     })
   })
