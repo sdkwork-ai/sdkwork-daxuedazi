@@ -44,5 +44,10 @@
 * 无意外删除：上游本轮主动删除的 10 个文件在上游侧同样为删除；`sdkwork-*` 包与 `ui-sdkwork-*` 目录无删除，其余改动文件按上游增量落地。
 * 品牌契约逐项复验：`resolveApplicationIcon(app.getAppPath())`、`app.dock?.setIcon(startupIcon)`、`setAppUserModelId` 各 1 处，学伴AI raster 在位，`BirdLogo` 落点正确；OEM 五个出厂开关在 `config.ts` 中保持 `false`。
 * 文档配对门禁的 19 条 out-of-sync 记录集中在上游本轮新增的 5 份 `ui-sdkwork-{certificate,dns,mini-program-accounts,settings-menu}` README 配对记录（上游文件自带状态，非本轮合并引入）；按「优先完成合并」的交付要求留待合并后统一重录，提交时绕过该项门禁。
-* fork 的 `sdkwork-oem/tests/config.spec.ts` 两条旧 OAuth 派生断言需按上游 brand-protocol 口径适配；`pnpm-lock.yaml` 取上游后需重新安装刷新。二者同属合并后待处理项。
 * 按本轮交付要求，编译、类型与测试错误留待合并成功后统一处理，本轮未运行构建或测试套件。
+
+#### 合并后功能修复（2026-11-09）
+
+* **助理入口不可见已修复**。根因不在代码合并：合并后的完整 `pnpm install` 从未跑通，`node_modules` 缺少本轮新增的 4 个 workspace 链接（`@deepseek-ai/dsh-client-ui-sdkwork-assistant`、`@botharness/core`、`@botharness/ui`、`deepseekbot`），插件挂不上、rail 入口因找不到 `botharness` 主面板而不注册；postinstall 又被两处环境问题阻塞——被中止的构建留下的过期 lefthook 安装锁（`dsh-lefthook-install.lock`），以及子模块 `prepare`（husky）触发删除保护。修复：清除过期锁后以 `HUSKY=0` 完成 `pnpm install`，postinstall 全绿（lefthook 钩子安装、`build-deepseekbot` 产物检查通过，三份构建产物在位且最新）。
+* **功能验证**：上游助理集成验收 `built-in-assistant.spec.ts` 3/3 通过；`ui-sdkwork-assistant` + `ui-sdkwork-app-modes` + `ui-sdkwork-sidebar` 三套件 22 文件 174 测试全部通过——fork-first 保留的侧栏实现（`sidebar.actions` 座位、`suppressPanel`、`shippedHiddenEntryIds()`）与上游新增的助理 rail 入口（`mode.assistant` 固定位次、面板驱动选中态）互相兼容，无断裂引用。
+* **合并遗留待办闭环**：`sdkwork-oem` 的 `config.spec.ts` 三条旧 OAuth 派生断言与 `plugin.spec.ts` 一条跨品牌断言已按上游 brand-protocol 口径适配（保留 fork 的 `daxuedazi` 默认品牌语义），并补入上游新增的「拒绝跨品牌 OAuth 身份」配置级用例（按 fork 品牌改写）；`sdkwork-oem` 两文件 39 测试全部通过。`pnpm-lock.yaml` 已随完整安装刷新验证。桌面本地化文案（about-panel / application-menu 期望夹具、settings-menu 专家入口文案）由并行的本地化修复线继续处理，不在本批提交内。

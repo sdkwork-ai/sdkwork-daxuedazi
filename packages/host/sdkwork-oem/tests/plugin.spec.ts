@@ -86,10 +86,12 @@ describe('sdkwork-oem plugin', () => {
   })
 
   it('rejects a profile that names another brand\'s OAuth identity', async () => {
+    // Another brand's client id on this brand's deep-link callback: the mix
+    // upstream fixed after it broke a BirdCoder install.
     const configFile = await profile(JSON.stringify({
-      sdkwork: { iamClientId: 'daxuedazi', iamRedirectUri: 'daxuedazi://auth/callback' },
+      sdkwork: { iamClientId: 'birdcoder', iamRedirectUri: 'daxuedazi://auth/callback' },
     }))
-    await expect(mount(configFile)).rejects.toThrow(/sdkwork\.iamRedirectUri/)
+    await expect(mount(configFile)).rejects.toThrow(/sdkwork\.iamClientId/)
   })
 
   it('derives the OAuth identity from the brand the desktop shell reports', async () => {
