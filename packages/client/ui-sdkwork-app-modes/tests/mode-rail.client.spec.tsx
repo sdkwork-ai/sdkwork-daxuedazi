@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 /**
  * Mode rail shell spec: the shell renders one keyed entry seat per visible
- * mode in the user's layout order (the shipped layout shows the five fixed
- * modes), then the plus button that opens the customize dialog and the pinned
- * mode;
+ * mode in the user's layout order (the shipped layout shows the fixed modes,
+ * Assistant included), then the plus button that opens the customize dialog
+ * and the pinned mode;
  * the panel-shortcut seat sits directly above the Settings seat, both outside
- * the entries group (neither is an app mode). Hiding the active mode returns
- * the frame to the default mode, so no rail state strands the user. Entry
- * chrome and glyph behavior are the entries' own (their specs live beside
- * each entry component).
+ * the entries group (neither is an app mode). Suspended modes are withheld
+ * from both the rail and the dialog while their vocabulary stays intact.
+ * Hiding the active mode returns the frame to the default mode, so no rail
+ * state strands the user. Entry chrome and glyph behavior are the entries'
+ * own (their specs live beside each entry component).
  */
 import { describe, expect, it, vi } from 'vitest'
 import { afterEach } from 'vitest'
@@ -25,6 +26,7 @@ import type { ModeRailProps } from '../src/client/ModeRail.tsx'
 import { MODE_ORDER } from '../src/client/ModeRail.tsx'
 import {
   CUSTOMIZABLE_MODES, DEFAULT_HIDDEN, DEFAULT_VISIBLE_COUNT, DEFAULT_VISIBLE_MODES, PINNED_MODE,
+  SUSPENDED_RAIL_MODES,
 } from '../src/client/rail-modes.ts'
 import type { RailLayoutState, RailLayoutStore } from '../src/client/rail-layout-store.ts'
 const useSessionStatus: GlobalStandardProps['useSessionStatus'] = selector => selector(new Map())
@@ -123,11 +125,12 @@ describe('ModeRail', () => {
         registered={registeredOf([...MODE_ORDER])}
       />,
     )
-    // The shipped layout shows the five fixed modes only; Token Plan stays
-    // pinned at the group's end and every hideable mode starts hidden.
+    // The shipped layout shows the fixed modes only (Assistant included);
+    // Token Plan stays pinned at the group's end and every hideable mode
+    // starts hidden.
     expect(record.map(r => r.key)).toEqual(
       [...DEFAULT_VISIBLE_MODES, PINNED_MODE, 'mode.rail.panel', 'mode.rail.settings'])
-    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'video', 'image', 'knowledge', 'assets'])
+    expect(DEFAULT_VISIBLE_MODES).toEqual(['code', 'assistant', 'video', 'image', 'knowledge', 'assets'])
     const group = container.querySelector('[role="group"]')!
     expect(group.getAttribute('aria-label')).toBe('rail.label')
     const tokenPlan = group.querySelector('[data-entry="token-plan"]')!
@@ -171,8 +174,9 @@ describe('ModeRail', () => {
       .map(node => node.getAttribute('data-entry'))
       .filter(key => key !== 'settings' && key !== 'panel-shortcut')
     // Reordered visible entries, hidden ones gone, the unregistered 'course'
-    // seat absent, and the pinned mode still last.
-    expect(entries).toEqual(['image', 'code', 'chat', 'video', 'appstore', 'token-plan'])
+    // seat absent, the suspended Chat/Contacts/App Store/Courses/Search rows
+    // gone, and the pinned mode still last.
+    expect(entries).toEqual(['image', 'code', 'video', 'token-plan'])
   })
 
   it('marks only the active mode seat and hands every seat the owner switch untouched', () => {
@@ -196,15 +200,16 @@ describe('ModeRail', () => {
   it('opens the customize dialog on the plus button and hides the active mode back to the default mode', () => {
     const record: { key: string; active: boolean }[] = []
     const setMode = vi.fn()
-    // The active Contacts seat is hideable: the shipped layout hides it, so
-    // the layout under test keeps it visible to exercise the stranding guard.
+    // The active Drive seat is hideable and not suspended: the shipped
+    // layout hides it, so the layout under test keeps it visible to exercise
+    // the stranding guard.
     const layout = layoutStoreOf({
       order: [...CUSTOMIZABLE_MODES],
-      hidden: DEFAULT_HIDDEN.filter(id => id !== 'contacts'),
+      hidden: DEFAULT_HIDDEN.filter(id => id !== 'drive'),
     })
     const { container } = render(
       <ModeRail
-        {...standard} mode="contacts" setMode={setMode} t={t}
+        {...standard} mode="drive" setMode={setMode} t={t}
         renderSlot={railRenderSlot(record)}
         layout={layout}
         registered={registeredOf([...MODE_ORDER])}
@@ -212,7 +217,9 @@ describe('ModeRail', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'rail.customize' }))
     const dialog = screen.getByRole('dialog', { name: 'rail.customize.title' })
-    expect(dialog.querySelectorAll('[data-rail-customize-row]')).toHaveLength(CUSTOMIZABLE_MODES.length)
+    // The suspended rows are withheld from the dialog.
+    expect(dialog.querySelectorAll('[data-rail-customize-row]'))
+      .toHaveLength(CUSTOMIZABLE_MODES.length - SUSPENDED_RAIL_MODES.length)
     // A fixed row renders disabled: the store keeps it visible whatever the
     // dialog does.
     const rows = [...dialog.querySelectorAll('[data-rail-customize-row]')]
@@ -221,16 +228,50 @@ describe('ModeRail', () => {
     // Unchecking the active mode's row hides it from the rail AND returns the
     // frame to the default mode (the placeholder pages point users back at the
     // rail, so hiding the active button must not strand them).
-    const contactsRow = rows.find(row => row.textContent === 'mode.contacts')!
-    const checkbox = contactsRow.querySelector('input[type="checkbox"]') as HTMLInputElement
+    const driveRow = rows.find(row => row.textContent === 'mode.drive')!
+    const checkbox = driveRow.querySelector('input[type="checkbox"]') as HTMLInputElement
     expect(checkbox.checked).toBe(true)
     fireEvent.click(checkbox)
-    expect(layout.get().hidden).toContain('contacts')
+    expect(layout.get().hidden).toContain('drive')
     expect(setMode).toHaveBeenCalledWith('code')
-    expect(container.querySelector('[data-entry="contacts"]')).toBeNull()
-    // Reset restores the shipped layout (Contacts stays hidden there).
+    expect(container.querySelector('[data-entry="drive"]')).toBeNull()
+    // Reset restores the shipped layout (Drive stays hidden there).
     fireEvent.click(screen.getByRole('button', { name: 'rail.customize.reset' }))
     expect(layout.get()).toEqual(shippedLayout())
-    expect(container.querySelector('[data-entry="contacts"]')).toBeNull()
+    expect(container.querySelector('[data-entry="drive"]')).toBeNull()
+  })
+
+  it('withholds the suspended modes from the rail and the dialog without dropping their code', () => {
+    const record: { key: string; active: boolean }[] = []
+    // Nothing is hidden and every mode is registered: only the suspension can
+    // keep a seat off the rail.
+    const layout = layoutStoreOf({ order: [...CUSTOMIZABLE_MODES], hidden: [] })
+    const { container } = render(
+      <ModeRail
+        {...standard} mode="code" setMode={() => {}} t={t}
+        renderSlot={railRenderSlot(record)}
+        layout={layout}
+        registered={registeredOf([...MODE_ORDER])}
+      />,
+    )
+    const seats = [...container.querySelectorAll('[data-entry]')]
+      .map(node => node.getAttribute('data-entry'))
+    fireEvent.click(screen.getByRole('button', { name: 'rail.customize' }))
+    const dialog = screen.getByRole('dialog', { name: 'rail.customize.title' })
+    const rows = [...dialog.querySelectorAll('[data-rail-customize-row]')]
+      .map(row => row.textContent)
+    expect(SUSPENDED_RAIL_MODES).toEqual(['chat', 'contacts', 'appstore', 'course', 'search'])
+    expect(rows).toHaveLength(CUSTOMIZABLE_MODES.length - SUSPENDED_RAIL_MODES.length)
+    for (const mode of SUSPENDED_RAIL_MODES) {
+      expect(seats).not.toContain(mode)
+      expect(rows).not.toContain(`mode.${mode}`)
+      // Hiding is a display-layer filter: the id is still in the vocabulary
+      // and still carried by the layout preference, so clearing the suspension
+      // restores the entry with no migration.
+      expect(CUSTOMIZABLE_MODES).toContain(mode)
+      expect(layout.get().order).toContain(mode)
+    }
+    // Drive is the one hideable mode still offered, so the dialog stays usable.
+    expect(rows).toContain('mode.drive')
   })
 })

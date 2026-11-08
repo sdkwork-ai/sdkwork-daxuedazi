@@ -410,23 +410,23 @@ describe('candidates', () => {
       expect(rows[8]).toEqual({ name: 'deploy', description: 'third-party command', section: 'command:section.commands' })
     })
 
-    it('lists the capability rows in the Add section between File and Goal', async () => {
+    it('lists the capability rows in the Add section with Experts ahead of Skill', async () => {
       const { command, source } = await bench({ commands: () => Promise.resolve({ commands: SHIPPED }) })
       command.register(fileContribution())
       // Only the section projection is under test, so the capability rows carry
       // plain actions instead of their registered pickers.
-      for (const name of ['skills', 'mcp', 'knowledge']) {
+      for (const name of ['experts', 'skills', 'mcp', 'knowledge']) {
         command.register({ name, label: () => name, icon: Glyph, available: () => true, ui: { kind: 'action', run: vi.fn() } })
       }
 
       const rows = await source.candidates(proj('s1'), req(''))
 
       expect(rows.map(row => row.name)).toEqual([
-        'file', 'skills', 'mcp', 'knowledge', 'goal', 'plan', 'feedback',
+        'file', 'experts', 'skills', 'mcp', 'knowledge', 'goal', 'plan', 'feedback',
         'compact', 'permission', 'export', 'deploy',
       ])
       expect(rows.map(row => row.section)).toEqual([
-        ...Array<string>(7).fill('command:section.add'),
+        ...Array<string>(8).fill('command:section.add'),
         ...Array<string>(4).fill('command:section.commands'),
       ])
     })

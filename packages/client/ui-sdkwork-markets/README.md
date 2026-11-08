@@ -17,6 +17,7 @@ The Plugins tab is the product's plugin surface. Its sub-tab row leads with the 
 
 - [Runtime requirements](#runtime-requirements)
 - [Browser bundle](#browser-bundle)
+- [Composer Experts entry](#composer-experts-entry)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -28,6 +29,10 @@ The plugin registers the sidebar entry and the keyed page through `ctx.slots`, t
 ## Browser bundle
 
 The client plugin emits one `client.js` closure with self-contained CSS modules and inline SVG glyphs. The market pages embed the SDKWork App Store PC surface, and the remote-expert create flow embeds the SDKWork Agents PC create surface, so the bundle inlines those sibling checkouts' sources (the joined `../sdkwork-*` workspace members; see the repository's `pnpm-workspace.yaml`), and local installs need those checkouts beside this repository.
+
+## Composer Experts entry
+
+This plugin publishes the optional `ctx.marketsExperts` service (`src/client/expertsEntry.ts`) that the composer's Experts row in `ui-sdkwork-capabilities` calls: creating an expert reuses this page's guided prompt dispatch, "Expert market" lands the page on the Experts tab's cloud catalog, and "My experts" lands on the full-page roster. A landing is a published, acknowledged value (not a one-shot event) handed to `MarketsPage`, so a request made before the market surface mounts still applies when it opens, and the page acknowledges it immediately afterwards. The service is optional: a composition without this plugin keeps the composer row visible and shows a localized unavailability notice when a pick is made.
 
 ## Model Experience
 

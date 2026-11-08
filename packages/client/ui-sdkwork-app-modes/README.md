@@ -44,6 +44,7 @@ None; this package neither assembles nor sends provider requests.
 
 ## Known Limitations and Deferred Work
 
+- **Chat, Contacts, App Store, Courses and Search are temporarily suspended** — the five ids in `SUSPENDED_RAIL_MODES` are filtered only from the rail seats and the customize-dialog rows; their vocabulary, entry registrations in the owning mode plugins, pages, copy and `dsh.railLayout` preferences all stay shipped. Removing an id from that array restores the entry in place, with no migration and no re-registration, and the user's saved order and visibility choice survive.
 - **Placeholder pages** — Work and Document render construction notices; their real surfaces remain independent future mode plugins behind the same keyed `mode.page` seat.
 - **Boot default applies once** — the persisted sidebar preference is applied at the first scope acceptance; a later settings-document change does not re-collapse an expanded sidebar until the row is toggled.
 - **Display preferences are per-user** — `sidebarVisible` and `heroSwitchVisible` are one set for the whole user, not per project or per session; the scene-switcher preference additionally applies to every staged scene, because it hides the pills rather than changing what they stage.

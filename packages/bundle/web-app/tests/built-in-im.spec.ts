@@ -1,10 +1,12 @@
 /**
  * The built-in IM channels integration: `@xmanrui/dsh-im` is linked into this
  * repository as the `plugins/dsh-im` git submodule and composed by this bundle,
- * so a shipped build — and the desktop layer patched over it — offers
- * 设置 → IM机器人 without an installer step. Row, manifest, and built halves are
- * one acceptance path: a missing submodule checkout, a renamed package, a lost
- * browser declaration, or a missing artifact each fail here instead of at boot.
+ * but DISABLED by default — 学伴AI ships no 设置 → IM机器人 surface and starts
+ * no IM channel. The row stays in the patch so a later profile/home patch can
+ * re-enable it with `disabled: false` without editing the bundle. Row,
+ * manifest, and built halves are one acceptance path: a missing submodule
+ * checkout, a renamed package, an accidentally enabled row, a lost browser
+ * declaration, or a missing artifact each fail here instead of at boot.
  *
  * The submodule contents are not edited by this repository, so the assertions
  * below deliberately read the artifacts as shipped rather than pinning text.
@@ -50,7 +52,7 @@ function violations(
   if (row === undefined) found.push(`the web patch declares no ${ROW_ID} row`)
   else {
     if (row.name !== PACKAGE_NAME) found.push(`${ROW_ID} names ${row.name}, not ${PACKAGE_NAME}`)
-    if (row.disabled !== undefined) found.push(`${ROW_ID} is not enabled by default`)
+    if (row.disabled !== true) found.push(`${ROW_ID} is enabled by default; expected disabled: true`)
   }
   if (manifest === undefined) {
     found.push(`${PACKAGE_NAME} does not resolve from this bundle (is the plugins/dsh-im submodule checked out?)`)
@@ -87,7 +89,7 @@ function inspect(): { manifest: Record<string, unknown> | undefined; present: { 
 }
 
 describe('built-in IM channels', () => {
-  it('composes @xmanrui/dsh-im by default from the linked submodule', () => {
+  it('keeps @xmanrui/dsh-im composed but disabled by default from the linked submodule', () => {
     const { manifest, present } = inspect()
     expect(violations(rows().find(row => row.id === ROW_ID), manifest, present)).toEqual([])
   })
@@ -100,8 +102,8 @@ describe('built-in IM channels', () => {
     expect(violations(undefined, manifest, present)).toEqual([`the web patch declares no ${ROW_ID} row`])
     expect(violations({ ...row, name: '@deepseek-ai/dsh-client-ui-theme' }, manifest, present))
       .toEqual([`${ROW_ID} names @deepseek-ai/dsh-client-ui-theme, not ${PACKAGE_NAME}`])
-    expect(violations({ ...row, disabled: true }, manifest, present))
-      .toEqual([`${ROW_ID} is not enabled by default`])
+    expect(violations({ ...row, disabled: false }, manifest, present))
+      .toEqual([`${ROW_ID} is enabled by default; expected disabled: true`])
     expect(violations(row, undefined, present))
       .toEqual([`${PACKAGE_NAME} does not resolve from this bundle (is the plugins/dsh-im submodule checked out?)`])
     expect(violations(row, { ...manifest, dsh: {} }, present))

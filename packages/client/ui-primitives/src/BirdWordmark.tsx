@@ -1,9 +1,9 @@
 import type { IconProps } from './icons/props.ts'
-import { readOemBrandName } from './oem-brand.ts'
+import { readOemBrandNameForLocale } from './oem-brand.ts'
 
 /** Props of the fork product wordmark. */
 export interface BirdWordmarkProps extends IconProps {
-  /** Product name to spell; defaults to the page's OEM brand, then `BirdCoder`. */
+  /** Product name to spell; defaults to the localized application name. */
   text?: string | undefined
 }
 
@@ -31,7 +31,11 @@ export interface BirdWordmarkProps extends IconProps {
 export function BirdWordmark({ size = 24, className, text }: BirdWordmarkProps) {
   const width = 156
   const height = 24
-  const label = text ?? readOemBrandName()
+  // The locale registry keeps `<html lang>` in step with the interface
+  // language, so the mark follows a language switch rather than the browser's
+  // first preference. Outside a document it falls back to the browser tag.
+  const documentLocale = typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined
+  const label = text ?? readOemBrandNameForLocale(documentLocale)
   const fontSize = label.length > 12 ? 15 : label.length > 9 ? 18 : 21
   return (
     <svg

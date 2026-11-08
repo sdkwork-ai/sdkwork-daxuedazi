@@ -1,6 +1,6 @@
 import { SHIPPED_LOCALE_IDS } from '../../../scripts/shipped-locales.ts'
 import { describe, expect, it } from 'vitest'
-import { DESKTOP_DEFAULT_BRAND, en, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale, ja, zh, es, fr, de, ru, pt } from '../src/locale.ts'
+import { BRAND_DISPLAY_LOCALES, DESKTOP_DEFAULT_BRAND, en, formatDesktopMessage, normalizeBrandLocale, resolveDesktopLocale, resolveDesktopStartupLocale, ja, zh, es, fr, de, ru, pt } from '../src/locale.ts'
 
 describe('desktop locale dictionaries', () => {
   it('uses the same concise Chinese configuration error in the toast and details', () => {
@@ -74,5 +74,30 @@ describe('desktop locale dictionaries', () => {
     const chinese = resolveDesktopLocale('zh', 'BirdCoder', 'birdcoder')
     expect(chinese.messages.cliCommandMenu).toContain('birdcoder')
     expect(chinese.messages.cliCommandMenu).not.toContain('daxuedazi')
+  })
+
+  it('resolves a per-locale application name against the selected dictionary', () => {
+    const names = { default: '学伴AI', en: 'Xueban AI', 'zh-CN': '学伴AI', ja: '学伴AI' }
+    const english = resolveDesktopLocale('en-US', names)
+    expect(english.brand).toBe('Xueban AI')
+    expect(english.messages.aboutMenu).toBe('About Xueban AI')
+    const chinese = resolveDesktopLocale('zh_CN', names)
+    expect(chinese.brand).toBe('学伴AI')
+    expect(chinese.messages.aboutMenu).toBe('关于 学伴AI')
+    expect(resolveDesktopStartupLocale(null, ['ja-JP'], names).brand).toBe('学伴AI')
+    // An untranslated locale falls back to `default`, never to the dictionary token.
+    const german = resolveDesktopLocale('de-DE', names)
+    expect(german.brand).toBe('学伴AI')
+    expect(german.messages.aboutProduct).toBe('学伴AI')
+    // A single OEM name still overrides every language.
+    expect(resolveDesktopLocale('ja', 'Acme Coder').messages.aboutProduct).toBe('Acme Coder')
+  })
+
+  it('normalizes locale tags exactly like the build-time brand manifest', async () => {
+    const manifest = await import('../scripts/brand-manifest.mjs')
+    expect([...manifest.BRAND_DISPLAY_LOCALES]).toEqual([...BRAND_DISPLAY_LOCALES])
+    for (const tag of ['zh-CN', 'zh', 'zh_CN', 'zh-Hans-CN', 'en-US', 'en_US', 'ja_JP', 'pt-BR', 'fr_FR', 'xx-XX', undefined]) {
+      expect(normalizeBrandLocale(tag)).toBe(manifest.normalizeBrandLocale(tag))
+    }
   })
 })

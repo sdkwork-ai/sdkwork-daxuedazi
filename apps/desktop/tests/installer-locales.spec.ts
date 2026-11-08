@@ -27,7 +27,8 @@ it('generates Japanese NSIS strings from the same files that select packaged lan
   expect(source).toContain('LangString INSTALLER_INSTALL ${LANG_JAPANESE} "今すぐインストール"')
   expect(source).toContain('LangString INSTALLER_NATIVE_PROGRESS ${LANG_JAPANESE} "インストールを準備しています… %d%%"')
   expect(source).toContain('!ifdef LANG_JAPANESE\n')
-  expect(source.match(/^LangString /gmu)).toHaveLength(248)
+  // One line per translated key, plus the localized application name NSIS chrome reads.
+  expect(source.match(/^LangString /gmu)).toHaveLength((Object.keys(locales[0]!.strings).length + 1) * locales.length)
   // Installer copy names the selected brand, never a literal product token.
   expect(source).not.toContain('{brand}')
   expect(source).not.toContain('BirdCoder')
@@ -66,6 +67,22 @@ it('escapes literal NSIS syntax without changing translated text', () => {
   const locale = readInstallerLocales()[0]!
   expect(renderInstallerStrings([{ ...locale, strings: { INSTALLER_INSTALL: '"$name"\nnext\rline' } }], BRAND_NAME))
     .toContain('"$\\"$$name$\\"$\\nnext$\\rline"')
+})
+
+it('resolves the installed application name once per installer language', () => {
+  const locales = readInstallerLocales()
+  const seen: string[] = []
+  const source = renderInstallerStrings(locales, (id) => {
+    seen.push(id)
+    return `Name-${id}`
+  })
+  expect(seen).toEqual(locales.map(locale => locale.id))
+  for (const locale of locales) {
+    expect(source).toContain(`LangString INSTALLER_APP_NAME \${LANG_${locale.nsisLanguage}} "Name-${locale.id}"`)
+  }
+  // The same per-language value also replaces the `{brand}` copy placeholder.
+  expect(source).toContain('Name-zh_CN 正在运行')
+  expect(source).not.toContain('{brand}')
 })
 
 it('requires a brand display name and substitutes it into every placeholder', () => {

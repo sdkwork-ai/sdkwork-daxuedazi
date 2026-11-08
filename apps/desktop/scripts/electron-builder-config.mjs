@@ -36,7 +36,15 @@ import {
   verifyPackagedApplicationIdentity,
   writePackagedUpdaterCacheDir,
 } from './desktop-application-identity.mjs'
-import { DEFAULT_BRAND_KEY, brandManifestPath, brandPortCollisions, readBrands, resolveBrand } from './brand-manifest.mjs'
+import {
+  BRAND_DISPLAY_LOCALES,
+  DEFAULT_BRAND_KEY,
+  brandManifestPath,
+  brandPortCollisions,
+  readBrands,
+  resolveBrand,
+  resolveBrandDisplayName,
+} from './brand-manifest.mjs'
 import { resolveBrandApplicationId } from './brand-application-id.mjs'
 import {
   resolveMacOSAppUpdateFeed,
@@ -136,6 +144,24 @@ export function createElectronBuilderConfig(
   // shipped brand.
   const brand = resolveBrand(env)
   const brandManifest = brandManifestPath(env)
+  // FORK DIVERGENCE (AGENTS.md, "BirdCoder brand assets"): electron-builder
+  // derives every visible application name from `productName`, but that value is
+  // also Electron's `app.name` and therefore owns userData, the single-instance
+  // lock and the logs directory. Renaming it to a localized display name would
+  // strand an existing installation's data, so the ASCII identity stays and each
+  // *visible* name is overridden from the brand manifest's `displayNames`.
+  const installedDisplayName = resolveBrandDisplayName(brand, undefined)
+  /** Resolver handed to the NSIS string renderer so each installer language spells its own name. */
+  const installedNameForLocale = locale => resolveBrandDisplayName(brand, locale)
+  // freedesktop .desktop files localize Name with `Name[<locale>]` entries while
+  // `Name` stays the untranslated default. electron-builder merges these through
+  // `linux.desktop.entry`, after its own productName-derived Name.
+  const linuxDesktopNames = Object.freeze({
+    Name: installedDisplayName,
+    ...Object.fromEntries(BRAND_DISPLAY_LOCALES.map(locale => [
+      `Name[${locale.replace('-', '_')}]`, resolveBrandDisplayName(brand, locale),
+    ])),
+  })
   // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): each brand owns a
   // disjoint block of loopback ports (packaged shell, two source lanes, six
   // inspector ports). Packaging refuses a manifest set whose blocks overlap,
@@ -313,6 +339,9 @@ export function createElectronBuilderConfig(
     // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): upstream
     // registers `dsh`, the same scheme its own desktop application claims, so the
     // two installed applications overwrite each other's protocol registration.
+    // The registered protocol's name is the macOS URL-type identifier
+    // (`CFBundleURLName`), not a user-facing label: keep the brand's ASCII
+    // identity so two installs never register the same URL type.
     protocols: [{ name: brand.desktop.productName, schemes: [brand.desktop.protocol] }],
     extraMetadata: {
       // Electron names the application after the packaged manifest, and
@@ -340,9 +369,15 @@ export function createElectronBuilderConfig(
     // their output directory (`unsigned-artifacts/` and `artifacts/`); only the
     // internal `--skip-notarization` mode carries upstream's `-unnotarized` marker,
     // with its own `unnotarized-artifacts/` directory.
+    // Intentionally NOT the localized display name: `extraMetadata.productName`
+    // and this field become Electron's `app.name`, which owns userData, the
+    // single-instance lock, logs and the updater cache. Every user-visible name
+    // is overridden below (nsis.shortcutName, CFBundleDisplayName, .desktop
+    // Name, dmg.title) so the installed application shows `installedDisplayName`
+    // without moving an existing installation's data.
     productName: brand.desktop.productName,
     // The default copyright uses author.name; this line names the product instead (upstream).
-    copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
+    copyright: `Copyright © ${new Date().getFullYear()} ${installedDisplayName}`,
     executableName: brand.desktop.executableName,
     artifactName: `${brand.desktop.artifactPrefix}-\${version}-\${os}-\${arch}${skipNotarization ? '-unnotarized' : ''}.\${ext}`,
     directories: {
@@ -359,7 +394,8 @@ export function createElectronBuilderConfig(
         '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales(), brand.displayName), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'),
+        renderInstallerStrings(readInstallerLocales(), installedNameForLocale), 'utf8')
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -408,10 +444,15 @@ export function createElectronBuilderConfig(
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
-        CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
+        CFBundleLocalizations: BRAND_DISPLAY_LOCALES.map(locale => locale.replace('-', '_')),
+        // electron-builder writes both keys from `productName`; extendInfo is
+        // merged afterwards, so Finder, the Dock and the application menu show
+        // the localized display name while the bundle and userData stay put.
+        CFBundleName: installedDisplayName,
+        CFBundleDisplayName: installedDisplayName,
         // The TCC prompt is the only microphone copy the user sees before the app
         // can ask, so it names the selected brand instead of a build-time literal.
-        NSMicrophoneUsageDescription: `${brand.displayName} uses your microphone to transcribe speech into message drafts.`,
+        NSMicrophoneUsageDescription: `${installedDisplayName} uses your microphone to transcribe speech into message drafts.`,
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -433,6 +474,9 @@ export function createElectronBuilderConfig(
     dmg: {
       format: 'ULMO',
       sign: !unsigned,
+      // The mounted volume's name is visible before the app launches; without
+      // this electron-builder spells `${productName} ${version}` (the ASCII identity).
+      title: installedDisplayName,
       // FORK DIVERGENCE (upstream suppresses it): `writeUpdateInfo: false` makes
       // dmg-builder skip `createBlockmap` entirely, so the release loses both the
       // `.dmg.blockmap` asset and the DMG's entry in `latest-mac.yml` — and
@@ -531,7 +575,11 @@ export function createElectronBuilderConfig(
     linux: {
       icon: icons.linux,
       category: 'Development',
-      synopsis: 'Desktop agent harness',
+      // The application-menu name and its per-locale variants. electron-builder
+      // defaults `Name` to `productName`; `desktop.entry` overwrites it after
+      // that, so the installed launcher reads 学伴AI without renaming the binary.
+      desktop: { entry: linuxDesktopNames },
+      synopsis: `${installedDisplayName} desktop application`,
       maintainer: 'SDKWork AI <support@sdkwork.com>',
       vendor: 'SDKWork AI',
       // FORK DIVERGENCE (upstream ships the AppImage alone): the release contract
@@ -545,7 +593,11 @@ export function createElectronBuilderConfig(
     deb: { packageName: linuxPackageName },
     rpm: { packageName: linuxPackageName },
     nsis: {
-      uninstallDisplayName: '${productName}',
+      // Both are user-visible: the Start-menu/desktop shortcut label and the
+      // Control Panel "Programs and Features" row. Left unset they inherit the
+      // ASCII `productName`; the brand's localized name wins here instead.
+      shortcutName: installedDisplayName,
+      uninstallDisplayName: installedDisplayName,
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: nsisInclude ?? fileURLToPath(new URL('./installer.nsh', import.meta.url)),

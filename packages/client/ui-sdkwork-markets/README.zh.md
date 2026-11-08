@@ -17,6 +17,7 @@ Markets 应用模式插件拥有 `markets` 侧边栏快捷入口与 keyed 的 `m
 
 - [运行要求](#runtime-requirements)
 - [浏览器 bundle](#browser-bundle)
+- [Composer Experts entry](#composer-experts-entry)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -28,6 +29,10 @@ Markets 应用模式插件拥有 `markets` 侧边栏快捷入口与 keyed 的 `m
 ## 浏览器 bundle
 
 客户端插件只发射一个 `client.js` 闭包，样式为自包含的 CSS modules，字形为内联 SVG。市场页面嵌入 SDKWork App Store 的 PC 界面，远程专家创建流程嵌入 SDKWork Agents 的创建界面，因此 bundle 会内联这些兄弟检出的源码（加入 workspace 的 `../sdkwork-*` 成员；见仓库的 `pnpm-workspace.yaml`），本地安装也需要这些检出位于本仓库旁边。
+
+## Composer Experts entry
+
+本插件发布可选的 `ctx.marketsExperts` 服务（`src/client/expertsEntry.ts`），供 `ui-sdkwork-capabilities` 输入框的「专家」条目调用：创建专家复用本页既有的引导提示词派发；「专家市场」把页面落到专家 tab 的云端目录；「我的专家」落到整页花名册视图。落点以已发布、可确认的请求值（而不是一次性事件）交给 `MarketsPage`，因此在市场页面尚未挂载时发出的请求，等页面打开后仍然生效；页面应用后立即确认，不残留状态。服务是可选的：没有挂载本插件的组合里，输入框条目仍然可见，选择时给出本地化的不可用提示。
 
 ## Model Experience
 

@@ -29,11 +29,13 @@ export class DesktopPolicyTestAuth {
    * @param locale Shell-owned login title.
    * @param parent Current application or mandatory-update window.
    * @param record Fixed, nonsecret login outcomes for diagnostic evidence.
+   * @param icon Shipped product raster, supplied by the shell so this class stays testable without Electron's `app`.
    */
   constructor(private readonly origin: string, private readonly allowedAuthOrigins: readonly string[],
     private readonly locale: DesktopLocale,
     private readonly parent: () => BrowserWindow | undefined,
-    private readonly record: (event: 'opened' | DesktopPolicyLoginResult) => void) {
+    private readonly record: (event: 'opened' | DesktopPolicyLoginResult) => void,
+    private readonly icon: string | undefined = undefined) {
     this.browserSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false) })
     this.browserSession.setPermissionCheckHandler(() => false)
     this.browserSession.setDevicePermissionHandler(() => false)
@@ -71,6 +73,9 @@ export class DesktopPolicyTestAuth {
     const result = Promise.withResolvers<DesktopPolicyLoginResult>()
     const parent = this.parent()
     const window = new BrowserWindow({ width: 720, height: 760, ...(parent === undefined ? {} : { parent }),
+      // Every shell window carries the 学伴AI raster; without this a source
+      // launch inherits Electron's default icon for the policy login window.
+      ...(this.icon === undefined ? {} : { icon: this.icon }),
       title: this.locale.messages.policyLoginTitle, autoHideMenuBar: true,
       webPreferences: { session: this.browserSession, nodeIntegration: false, contextIsolation: true,
         sandbox: true, webSecurity: true, webviewTag: false, devTools: true, spellcheck: false } })

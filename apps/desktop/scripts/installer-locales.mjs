@@ -64,20 +64,34 @@ export function readInstallerLocales(directory = defaultDirectory) {
  *
  * Installer copy names the product, so every language spells that name as the
  * `{brand}` placeholder instead of a literal. The name is display copy: it comes
- * from the selected brand manifest, never from the predecessor product.
+ * from the selected brand manifest, never from the predecessor product. Each
+ * language resolves its own name from that manifest, so a brand that ships a
+ * translated name no longer needs eight hand-edited string files.
  * @param {ReturnType<typeof readInstallerLocales>} locales - Resources for all languages or one isolated native-test build.
- * @param {string} brandName - Brand display name substituted for every `{brand}` placeholder.
+ * @param {string | ((localeId: string) => string)} brandName - One display name for every language, or a per-language resolver.
  * @returns {string} UTF-8 NSIS source, with literal dollar signs, quotes and line breaks escaped.
  */
 export function renderInstallerStrings(locales, brandName) {
-  if (typeof brandName !== 'string' || brandName.trim() === '') {
-    throw new Error('installer locales: a brand display name is required')
+  const resolveName = typeof brandName === 'function' ? brandName : () => {
+    if (typeof brandName !== 'string' || brandName.trim() === '') {
+      throw new Error('installer locales: a brand display name is required')
+    }
+    return brandName
   }
-  const substitute = (/** @type {string} */ text) => text.replaceAll('{brand}', brandName)
   const escape = (/** @type {string} */ text) => text.replace(/\$|"|\r|\n/gu, character => ({ '$': '$$', '"': '$\\"', '\r': '$\\r', '\n': '$\\n' })[character])
-  return '; Generated from installer/locales/*.json.\n' + locales.map(locale =>
-    `!ifdef LANG_${locale.nsisLanguage}\n` + Object.entries(locale.strings).map(([key, text]) =>
-      `LangString ${key} \${LANG_${locale.nsisLanguage}} "${escape(substitute(text))}"\n`).join('') + '!endif\n').join('')
+  return '; Generated from installer/locales/*.json.\n' + locales.map(locale => {
+    const name = resolveName(locale.id)
+    if (typeof name !== 'string' || name.trim() === '') {
+      throw new Error(`installer locales: ${locale.id} has no brand display name`)
+    }
+    // The localized application name is available to NSIS as a LangString too,
+    // so installer chrome (not just copy) can spell it without a second channel.
+    return `!ifdef LANG_${locale.nsisLanguage}\n`
+      + `LangString INSTALLER_APP_NAME \${LANG_${locale.nsisLanguage}} "${escape(name)}"\n`
+      + Object.entries(locale.strings).map(([key, text]) =>
+        `LangString ${key} \${LANG_${locale.nsisLanguage}} "${escape(text.replaceAll('{brand}', name))}"\n`).join('')
+      + '!endif\n'
+  }).join('')
 }
 
 if (import.meta.main) {

@@ -206,6 +206,49 @@ export type DesktopMessages = { readonly [Key in keyof typeof en]: string }
 export const DESKTOP_DEFAULT_BRAND = 'BirdCoder'
 
 /**
+ * Locale keys a brand's localized application name may declare. They match the
+ * brand manifest, the installer languages and the macOS bundle localizations.
+ */
+export const BRAND_DISPLAY_LOCALES = ['en', 'zh-CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'] as const
+
+/**
+ * Per-locale installed application display names, plus a `default` fallback.
+ * This is display copy only: `desktop.productName` stays the ASCII identity that
+ * Electron uses for userData, the single-instance lock and the logs directory.
+ */
+export type BrandDisplayNames = Readonly<Record<string, string>>
+
+/**
+ * Normalize an OS/Electron/installer locale tag to one shipped brand locale.
+ * Kept in step with `scripts/brand-manifest.mjs`, which resolves the same names
+ * at packaging time; `locale.spec.ts` guards both spellings.
+ */
+export function normalizeBrandLocale(locale: string | undefined): string | undefined {
+  const text = (locale ?? '').trim().toLowerCase().replaceAll('_', '-')
+  if (text === '') return undefined
+  const language = text.split('-')[0]
+  if (language === 'zh') return 'zh-CN'
+  return BRAND_DISPLAY_LOCALES.find(key => key.toLowerCase() === language)
+    ?? BRAND_DISPLAY_LOCALES.find(key => key.toLowerCase() === text)
+}
+
+/**
+ * Resolve the application name for one locale.
+ * @param names - Complete name map, or a single OEM override used for every language.
+ * @param locale - OS/Electron locale tag.
+ * @param fallback - Name used when the map is blank; dictionary token by default.
+ */
+export function resolveBrandDisplayName(
+  names: BrandDisplayNames | string,
+  locale: string | undefined,
+  fallback: string = DESKTOP_DEFAULT_BRAND,
+): string {
+  if (typeof names === 'string') return names.trim() === '' ? fallback : names
+  const key = normalizeBrandLocale(locale)
+  return (key === undefined ? undefined : names[key]) ?? names.default ?? fallback
+}
+
+/**
  * Desktop command the shipped dictionaries spell.
  *
  * The command is brand identity too: a second brand installs its own executable,
@@ -1578,19 +1621,24 @@ export interface DesktopLocale {
 /**
  * Resolve Electron's locale to one shipped Desktop dictionary.
  * @param locale - Electron or renderer locale tag.
- * @param brand - OEM display brand; the shipped name when omitted.
+ * @param brand - Per-locale display names, or one OEM name for every language; the shipped token when omitted.
  * @param command - Desktop command of the selected brand; the shipped command when omitted.
  * @returns the dictionary with its branded copy.
  */
 export function resolveDesktopLocale(
   locale: string,
-  brand: string = DESKTOP_DEFAULT_BRAND,
+  brand: string | BrandDisplayNames = DESKTOP_DEFAULT_BRAND,
   command: string = DESKTOP_DEFAULT_COMMAND,
 ): DesktopLocale {
-  const primary = locale.toLowerCase().split('-')[0]
-  // A blank or argv-truncated brand keeps the shipped copy instead of blanking
+  // Installer ids (`zh_CN`), Electron tags (`zh-CN`) and bare languages (`zh`)
+  // all name the same dictionary; normalize the separator once here so the
+  // brand name and the copy it brands can never disagree.
+  const primary = locale.toLowerCase().replaceAll('_', '-').split('-')[0]
+  // Resolve the display name against the same locale that selects the dictionary:
+  // an installer language, an Electron tag and a user preference then all agree.
+  // A blank single name keeps the shipped dictionary token instead of blanking
   // every product label.
-  const resolved = brand.trim() === '' ? DESKTOP_DEFAULT_BRAND : brand
+  const resolved = resolveBrandDisplayName(brand, locale)
   if (primary !== undefined && Object.hasOwn(dictionaries, primary)) {
     const id = primary as keyof typeof dictionaries
     return { id: id === 'zh' ? 'zh-CN' : id, brand: resolved, messages: brandMessages(dictionaries[id], resolved, command) }
@@ -1602,20 +1650,20 @@ export function resolveDesktopLocale(
  * Choose a built-in dictionary from the shared preference, then ordered OS languages.
  * @param preference - explicit locale.preference, or null when no language was selected.
  * @param languages - operating-system languages in preference order.
- * @param brand - OEM display brand; the shipped name when omitted.
+ * @param brand - Per-locale display names, or one OEM name for every language; the shipped token when omitted.
  * @param command - Desktop command of the selected brand; the shipped command when omitted.
  * @returns the supported dictionary, falling back to English.
  */
 export function resolveDesktopStartupLocale(
   preference: string | null,
   languages: readonly string[],
-  brand: string = DESKTOP_DEFAULT_BRAND,
+  brand: string | BrandDisplayNames = DESKTOP_DEFAULT_BRAND,
   command: string = DESKTOP_DEFAULT_COMMAND,
 ): DesktopLocale {
-  const selected = preference?.toLowerCase()
+  const selected = preference?.toLowerCase().replaceAll('_', '-')
   if (selected !== undefined && Object.hasOwn(dictionaries, selected)) return resolveDesktopLocale(selected, brand, command)
   for (const language of languages) {
-    const primary = language.toLowerCase().split('-')[0]
+    const primary = language.toLowerCase().replaceAll('_', '-').split('-')[0]
     if (primary !== undefined && Object.hasOwn(dictionaries, primary)) return resolveDesktopLocale(primary, brand, command)
   }
   return resolveDesktopLocale('en', brand, command)

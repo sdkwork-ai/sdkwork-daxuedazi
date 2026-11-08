@@ -705,10 +705,14 @@
       name: '@deepseek-ai/dsh-client-ui-sdkwork-demand-hall'
 
     # IM connector: the rail shortcut above Settings that opens the built-in IM
-    # management panel the `xmanrui-dsh-im` row registers. The IM plugin's own
-    # sidebar panel row is not repeated: a panel with a rail shortcut is listed
-    # by that shortcut alone, and the shortcut is named "IM链接器" for the
-    # connector role rather than the plugin's "IM机器人" panel copy.
+    # management panel the `xmanrui-dsh-im` row registers. That row is disabled
+    # in this product, so the connector's `dshImClient` guard leaves this row
+    # mounted but registers no shortcut and no page — no dead icon. It is kept
+    # so re-enabling dsh-im from a later patch restores the entry. The IM
+    # plugin's own sidebar panel row is not repeated: a panel with a rail
+    # shortcut is listed by that shortcut alone, and the shortcut is named
+    # "IM链接器" for the connector role rather than the plugin's "IM机器人"
+    # panel copy.
     - id: ui-sdkwork-im-connector
       name: '@deepseek-ai/dsh-client-ui-sdkwork-im-connector'
 
@@ -1143,17 +1147,24 @@
       name: '@deepseek-ai/dsh-client-ui-sdkwork-persona'
 
     # Built-in IM channels: the third-party dsh-im plugin is linked into this
-    # repository as the `plugins/dsh-im` git submodule and mounts here by
-    # default, so 设置 → IM机器人 exists in a shipped build without first
-    # running `dsh plugin add`. One row carries both halves — the host half owns
-    # every channel connection and the delivery core (`connection`,
-    # `credentials`, `typertGateway`), the browser half registers a single
-    # `settings.section` row into the fork's settings shell. Removing this row
-    # (or a profile `disabled: true` overlay) turns the whole surface off; the
-    # desktop profile inherits it, because dsh-sdkwork-desktop-app patches over
-    # this bundle.
+    # repository as the `plugins/dsh-im` git submodule, but this product does
+    # NOT enable it. With the row disabled, no shipped build offers 设置 →
+    # IM机器人 and no channel connection (Feishu, WeChat, WeCom, DingTalk, QQ,
+    # Slack, Telegram, Discord, WhatsApp, iMessage, Matrix) is started. One row
+    # carries both halves — the host half owns every channel connection and the
+    # delivery core (`connection`, `credentials`, `typertGateway`), the browser
+    # half registers a single `settings.section` row into the fork's settings
+    # shell — so a single switch removes the whole surface.
+    #
+    # The row is kept (disabled) instead of deleted: the acceptance spec still
+    # verifies the submodule, manifest and built artifacts stay shippable, and a
+    # later patch layer (a profile's or `$DSH_HOME`'s `cordis.patch.yml`) can
+    # re-enable it with `- id: xmanrui-dsh-im` / `disabled: false` without
+    # editing this bundle. The desktop profile inherits the disabled row,
+    # because dsh-sdkwork-desktop-app patches over this bundle.
     - id: xmanrui-dsh-im
       name: '@xmanrui/dsh-im'
+      disabled: true
 
     # Usage billing: the third-party @kenz1117/dsh-ui-usage-billing plugin is
     # linked into this repository as the `plugins/dsh-ui-usage-billing` git

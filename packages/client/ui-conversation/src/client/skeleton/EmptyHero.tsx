@@ -97,11 +97,8 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
               fallback: <HeroBrandMark />,
             })}
           </span>
-          <span className={css.titleGroup}>
-            {/* Own element: keeps the headline text addressable apart from the badge. */}
-            <span>{t('hero.headline')}</span>
-            <span className={css.previewBadge}>{t('hero.preview')}</span>
-          </span>
+          {/* Own element keeps the headline text addressable next to the mark. */}
+          <span className={css.headlineText}>{t('hero.headline')}</span>
         </div>
         {/* Scene switcher seat (occupied by the app-mode plugin's pill group);
             empty without a registrant, so the hero keeps the upstream shape. */}

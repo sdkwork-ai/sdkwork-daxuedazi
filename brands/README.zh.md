@@ -32,7 +32,8 @@
 | 字段 | 含义 | 示例 |
 |---|---|---|
 | `key` | 小写品牌键；决定文件名并出现在日志中 | `daxuedazi` |
-| `displayName` | 直接读取清单的界面所用的产品名 | `学伴AI` |
+| `displayName` | 与语言无关的产品名回退值 | `学伴AI` |
+| `displayNames` | 各发行语言（`en`、`zh-CN`、`ja`、`es`、`fr`、`de`、`ru`、`pt`）及 `default` 对应的已安装应用显示名；仅用于显示，不作为标识或路径。未声明的语言回退到 `default`，再回退到 `displayName` | `学伴AI` |
 | `companyName` | 打包元数据中的厂商名 | `SDKWork` |
 | `home.dirName` | 用户主目录下的 Harness home 目录名；带点且小写，避免在大小写不敏感的文件系统上互相冲突 | `.daxuedazi` |
 | `home.adoptLegacyDshHome` | 打包后的首次启动是否可以接管已存在的 `~/.dsh` | `false` |
@@ -48,6 +49,8 @@
 | `desktop.webPort` | 品牌九个回环端口中的第一个；打包外壳使用它，源码通道与其调试端口使用其余八个 | `19400` |
 
 `parseBrandManifest` 拒绝畸形取值与上游身份（`~/.dsh`、`DeepSeek Harness`、scheme 与命令 `dsh`、`com.deepseek.harness`）。拼写错误会让构建失败，而不是静默地把一个应用的数据拆到两个 home。`desktop.webPort` 接受 1024 到 65527，因为整个[端口块](#ports)都必须可用；取值不给端口块留空间的属于构建错误，而不是让某条通道落到被截断的端口上。
+
+`displayNames` 决定用户安装后看到的名字：打包把它写进 Windows 快捷方式与卸载项、DMG 标题、macOS bundle 名、Linux 桌面项里每个 `Name[<lang>]` 以及安装器自身文案；外壳则用它渲染"关于"面板、应用菜单、托盘提示和欢迎窗口。`desktop.productName` 绝不会跟随它——那个值是身份标识，Electron 从它派生 `userData`、单实例锁、日志目录与更新缓存，因此翻译后的名字不能出现在那里。
 
 `desktop.appId` 是"已安装身份"而不是标签：electron-builder 对它求哈希得到 NSIS GUID，而该 GUID 正是下一个安装器读取的 `Software\<GUID>\InstallLocation` 记录的键。因此共享同一个 app id 的两个产品无法并排安装——第二个安装器会把第一个产品的目录当成自己的上一版安装，原地升级并接管它的卸载登记。打包从本清单取该标识；若 `DSH_DESKTOP_APP_ID` 指向本仓库发布的其他品牌或上游应用，打包会同时报出两个身份并失败，而不会覆盖那个产品。该变量要么不设，要么重复所选品牌的值。
 
@@ -161,6 +164,6 @@ pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/test
 
 ## 尚未按品牌配置
 
-- 安装器文案与原生窗口字符串来自 `apps/desktop/scripts/locale*` 与 NSIS include；在 OEM 构建像替换位图那样替换它们之前，这些文案沿用出厂品牌。`apps/desktop/src/locale.ts` 中的桌面命令管理文案写的是出厂 `daxuedazi` 命令，构建其他品牌时必须重新拼写这些字符串。
+- `apps/desktop/src/locale.ts` 中的桌面命令管理文案仍写的是出厂 `daxuedazi` 命令，构建其他品牌时必须重新拼写这些字符串。
 - 图标与产物美术由学伴AI 的规范位图生成。
 - `desktop.executableName` 决定已安装的二进制名；OEM 构建必须提供同名二进制，electron-builder 由同一字段派生它。

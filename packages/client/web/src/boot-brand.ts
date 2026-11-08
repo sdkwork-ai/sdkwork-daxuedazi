@@ -12,14 +12,20 @@
 import css from './boot-brand.module.css'
 
 /**
- * Product name the startup surface spells; display copy only, never an identifier.
- *
- * It matches the static document title (`apps/web/index.html`). An OEM profile's
- * display name is applied by client plugins, which have not loaded yet when this
- * page paints, so a rebranded deployment keeps this shipped name on the startup
- * surface for the same interval as its document title.
+ * Fallback name for a page the brand projection did not reach (an assembled
+ * test page, a package consumer, an upstream-shaped build). The startup page
+ * paints before client plugins load, so it cannot wait for the OEM profile:
+ * `apps/web/vite.config.ts` publishes the selected brand manifest's names into
+ * the document instead, and this literal is only the last resort.
  */
-const PRODUCT_NAME = '学伴AI'
+const FALLBACK_PRODUCT_NAME = '学伴AI'
+
+/**
+ * Page global carrying the per-locale installed application names. Keep in step
+ * with `ui-primitives/oem-brand.ts`; this package cannot depend on that one
+ * (the boot kernel ships standalone), so both read the same window property.
+ */
+const APP_NAMES_BOOT_GLOBAL = '__DSH_APP_NAMES__'
 
 /**
  * Mark raster served from the web root: the fork's canonical raster
@@ -30,6 +36,39 @@ const LOGO_URL = '/favicon.png'
 
 /** Rendered mark edge in CSS pixels; the raster is square, so both axes share it. */
 const LOGO_SIZE = 72
+
+type AppDisplayNames = Readonly<Record<string, string>>
+
+/** @returns the names the document published, or undefined on a page without the projection. */
+function pageAppNames(): AppDisplayNames | undefined {
+  const value = (globalThis as Record<string, unknown>)[APP_NAMES_BOOT_GLOBAL]
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as AppDisplayNames
+    : undefined
+}
+
+/** @returns the browser's preferred language tag, normalized to BCP-47 separators. */
+function pageLocale(): string {
+  const tag = typeof navigator === 'undefined' ? '' : (navigator.languages?.[0] ?? navigator.language ?? '')
+  return tag.toLowerCase().replaceAll('_', '-')
+}
+
+/**
+ * Resolve the installed application's name for the browser's language.
+ *
+ * The map comes from `brands/<key>.json` through the built HTML, so a brand that
+ * ships a translated name renders it on the very first frame instead of waiting
+ * for a plugin. Unknown languages fall back to the manifest's `default`.
+ * @returns the localized display name.
+ */
+export function bootProductName(): string {
+  const names = pageAppNames()
+  if (names === undefined) return FALLBACK_PRODUCT_NAME
+  const language = pageLocale().split('-')[0]
+  const key = language === 'zh' ? 'zh-CN' : language
+  const value = (key === '' ? undefined : names[key]) ?? names.default
+  return typeof value === 'string' && value.trim() !== '' ? value : FALLBACK_PRODUCT_NAME
+}
 
 /**
  * Build the startup lockup: the product mark above the product name.
@@ -59,7 +98,7 @@ export function createBootBrand(): HTMLDivElement {
 
   const name = document.createElement('div')
   name.className = css.name
-  name.textContent = PRODUCT_NAME
+  name.textContent = bootProductName()
 
   brand.append(mark, name)
   return brand

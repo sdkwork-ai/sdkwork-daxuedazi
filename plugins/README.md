@@ -34,10 +34,12 @@ upstream gitignores its artifacts and which this repository builds on install
 
 [`dsh-im`](https://github.com/xmanrui/dsh-im) connects IM robots (Feishu, WeChat,
 WeCom, DingTalk, QQ, Slack, Telegram, Discord, WhatsApp, iMessage, Matrix) to
-the harness and adds one `设置 → IM机器人` settings page. It is mounted by
-`packages/bundle/web-app/cordis.patch.yml` as the `xmanrui-dsh-im` row, which
-the desktop layer (`dsh-sdkwork-desktop-app`) inherits, so a shipped build
-offers the surface with no installer step.
+the harness and adds one `设置 → IM机器人` settings page. It is composed by
+`packages/bundle/web-app/cordis.patch.yml` as the `xmanrui-dsh-im` row, but that
+row carries `disabled: true`: 学伴AI does NOT enable this plugin. The desktop
+layer (`dsh-sdkwork-desktop-app`) inherits the disabled row, so no shipped build
+— Web or desktop, cloud or standalone — offers the surface or starts a channel
+connection.
 
 **Pin.** The gitlink is `c826bfa4`, the `v5.10.0` release commit. A pin has to
 be a revision where upstream's committed `lib/index.js` and `lib/client.js`
@@ -55,8 +57,8 @@ pnpm exec vitest run packages/bundle/web-app/tests/built-in-im.spec.ts
 ```
 
 Then commit the new gitlink with the refreshed `pnpm-lock.yaml`, and boot
-`pnpm dsh web` once to confirm the row still activates and the settings page
-still renders. Re-check upstream for a new release before each release of this
+`pnpm dsh web` once to confirm the row stays disabled and no IM settings page
+appears. Re-check upstream for a new release before each release of this
 fork: nothing here notices one, so an unreviewed pin silently ships the previous
 plugin. Prefer a tag over `main` when the new release is available:
 `main` carries commits between releases whose built artifacts may lag their
@@ -80,10 +82,12 @@ to ship it:
 pnpm --dir plugins/dsh-im run build   # needs that package's Baileys build approved first
 ```
 
-**Turning it off.** Disable the row from a later patch layer
-(`- id: xmanrui-dsh-im` with `disabled: true`) or delete it from the web-app
-patch. The plugin owns no other composition surface, so either form removes the
-settings page and every channel with it.
+**Re-enabling it.** The row is disabled by default; do not delete it, so the
+acceptance spec keeps verifying the submodule, manifest and built artifacts.
+Override it from a later patch layer — a profile's `cordis.patch.yml` or the
+machine-wide `$DSH_HOME/cordis.patch.yml` — with `- id: xmanrui-dsh-im` /
+`disabled: false`. The plugin owns no other composition surface, so switching
+the row back off removes the settings page and every channel with it.
 
 **CI.** Every workflow checkout that installs or builds the workspace uses
 `submodules: recursive`; a job that checks out without it finds an empty
@@ -99,10 +103,10 @@ plugin's `bin/*` shebangs before packing it (`normalizePackedPluginShebangs` in
 normalizes it again.
 
 **Verification.** `packages/bundle/web-app/tests/built-in-im.spec.ts` asserts
-the composed row, the linked manifest's `dsh.client` web declaration, and both
-built entry artifacts, and proves the check rejects each incomplete form
-(missing row, disabled row, wrong name, unresolved submodule, lost declaration,
-missing artifact).
+the composed row is present and `disabled: true`, the linked manifest's
+`dsh.client` web declaration, and both built entry artifacts, and proves the
+check rejects each incomplete form (missing row, accidentally enabled row,
+wrong name, unresolved submodule, lost declaration, missing artifact).
 
 ## dsh-better-sidebar — the right-sidebar workbench and the left-column page model
 

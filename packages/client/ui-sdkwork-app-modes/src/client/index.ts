@@ -104,7 +104,7 @@ export { createRailLayoutStore } from './rail-layout-store.ts'
 export type { RailLayoutState, RailLayoutStore } from './rail-layout-store.ts'
 export {
   CUSTOMIZABLE_MODES, DEFAULT_HIDDEN, DEFAULT_VISIBLE_COUNT, DEFAULT_VISIBLE_MODES, FIXED_MODES,
-  MODE_ORDER, PINNED_MODE, isFixedMode, isRailModeId,
+  MODE_ORDER, PINNED_MODE, SUSPENDED_RAIL_MODES, isFixedMode, isRailModeId, isSuspendedRailMode,
 } from './rail-modes.ts'
 export type { RailModeId } from './rail-modes.ts'
 export type {

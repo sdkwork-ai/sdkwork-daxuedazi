@@ -201,6 +201,19 @@ describe('ui-sdkwork-markets apply', () => {
     expect(injected.bundleRequest.getSnapshot()).toBe('@deepseek-ai/dsh-experimental-voice-input-bundle')
     injected.onBundleRequestHandled()
     expect(injected.bundleRequest.getSnapshot()).toBeUndefined()
+    // The composer's Experts row resolves this service lazily: opening the
+    // expert catalog publishes a landing the page consumes and acknowledges.
+    const experts = b.ctx.get('marketsExperts') as {
+      createExpert(): void
+      openMarket(): void
+      openMine(): void
+    } | undefined
+    expect(typeof experts?.openMarket).toBe('function')
+    experts?.openMarket()
+    expect(b.layout.openPanel).toHaveBeenCalledWith('markets')
+    expect(injected.expertsRequest.getSnapshot()).toBe('market')
+    injected.onExpertsRequestHandled()
+    expect(injected.expertsRequest.getSnapshot()).toBeUndefined()
     // The Plugin Market's control is optional: the market is a profile plugin,
     // so a deployment without it never attaches and the page keeps its install
     // affordance. Publishing the service later reaches the live page.

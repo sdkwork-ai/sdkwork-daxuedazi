@@ -2,8 +2,8 @@
  * Draft text one settled capability pick inserts.
  *
  * A skill pick inserts the `/name ` gesture the Host already recognizes and
- * expands, so nothing else is needed. MCP and knowledge base picks insert a
- * short directive sentence naming what the message is linked to; a knowledge
+ * expands, so nothing else is needed. Connector and knowledge base picks insert
+ * a short directive sentence naming what the message is linked to; a knowledge
  * base pick may append the passages retrieved for the message being composed.
  * Every builder returns plain text: the composer appends it as a new paragraph,
  * which the user can edit or delete like any other typed text.
@@ -28,8 +28,8 @@ export function skillInsertion(name: string): string {
 }
 
 /**
- * Build the MCP directive a pick inserts.
- * @param name - MCP server name.
+ * Build the connector directive a pick inserts.
+ * @param name - MCP server name (the row's face calls it a connector).
  * @param t - namespace translator.
  * @returns the sentence inserted into the draft.
  */

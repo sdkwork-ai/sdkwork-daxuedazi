@@ -90,6 +90,7 @@ import type { SkillMarketPanel } from './skillMarketPanel.ts'
 import { McpConnectorSurface } from './McpConnectorSurface.tsx'
 import type { McpConnectorPanel } from './mcpConnectorPanel.ts'
 import type { McpConnectorBridge } from './connectorBridge.ts'
+import type { ExpertsEntryRequest } from './expertsEntry.ts'
 import { ImportSkillDialog } from './ImportSkillDialog.tsx'
 import { skillSearchPrompt } from './skillPrompts.ts'
 import { MarketsApp, type MarketsAppProps } from './marketsHost.ts'
@@ -321,6 +322,14 @@ export interface MarketsPageInjected {
   /** Clear the request once the roster has opened it. */
   onBundleRequestHandled: () => void
   /**
+   * The composer's Experts-row landing: `market` asks for the cloud expert
+   * catalog, `mine` for the My-experts page. Published by the optional
+   * `ctx.marketsExperts` service, so the composer never imports this page.
+   */
+  expertsRequest: HostObservable<ExpertsEntryRequest | undefined>
+  /** Clear the Experts landing once this page has applied it. */
+  onExpertsRequestHandled: () => void
+  /**
    * The `market` control the installed dshmarket plugin publishes, or
    * undefined while it is not installed or its client half has not loaded.
    * This page renders that plugin's own market panel on the market chip of the
@@ -389,8 +398,9 @@ export type MarketsPageProps =
  */
 export function MarketsPage({
   mode, t, dispatchPrompt, store, ledger, configForms, onConfigure,
-  bundleRequest, onBundleRequestHandled, marketControl, skillMarketPanel,
-  mcpConnectorPanel, connectorBridge, reload, renderSlot,
+  bundleRequest, onBundleRequestHandled, expertsRequest, onExpertsRequestHandled,
+  marketControl, skillMarketPanel, mcpConnectorPanel, connectorBridge,
+  reload, renderSlot,
 }: MarketsPageProps) {
   // The page builds the registrants' render face once and hands it down: each
   // panel draws a configuration entry's own `summary` or `page` view, a
@@ -435,6 +445,22 @@ export function MarketsPage({
     setTab('plugins')
     setPluginSubTab(current => current === 'market' || current === 'cloud' ? 'official' : current)
   }, [requestedBundle])
+
+  // The composer's Experts row asks for one of two landings. The service has
+  // already opened this surface, so applying the request is state-only: land
+  // on the Experts tab (and on My-experts when asked), reset the category
+  // chrome exactly as a tab click does, then acknowledge the request.
+  const expertsLanding = useSyncExternalStore(expertsRequest.subscribe, expertsRequest.getSnapshot)
+  useEffect(() => {
+    if (expertsLanding === undefined) return
+    setTab('experts')
+    setQuery('')
+    setPluginSubTab('cloud')
+    setSkillSubTab('cloud')
+    setConnectorSubTab('cloud')
+    setMineExpertsOpen(expertsLanding === 'mine')
+    onExpertsRequestHandled()
+  }, [expertsLanding, onExpertsRequestHandled])
 
   // The dshmarket plugin's own panel, when its client half is loaded. A
   // separate subscription from the store: the control is published by another

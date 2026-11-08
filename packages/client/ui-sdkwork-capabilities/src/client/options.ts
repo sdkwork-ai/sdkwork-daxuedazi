@@ -1,11 +1,12 @@
 /**
- * Option rows for the three composer capability pickers.
+ * Option rows for the composer capability pickers.
  *
- * Each builder maps one catalog snapshot to popupSelect rows: skills from the
- * session's `skills/list` catalog, MCP servers from the manager's `watch`
- * stream, and knowledge bases from the SDKWork Knowledge Base selection
- * projection. Builders are pure: the popup shell filters these rows locally,
- * and the row id is the value a settled pick carries back.
+ * Each builder maps one catalog snapshot to popupSelect rows: experts are a
+ * fixed roster of adding entries, skills come from the session's `skills/list`
+ * catalog, connectors (MCP servers) from the manager's `watch` stream, and
+ * knowledge bases from the SDKWork Knowledge Base selection projection.
+ * Builders are pure: the popup shell filters these rows locally, and the row id
+ * is the value a settled pick carries back.
  */
 
 import type { McpManagedServerView, SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
@@ -40,6 +41,21 @@ function escapePattern(name: string): string {
 function carriesGesture(draft: string, name: string): boolean {
   if (draft === '') return false
   return new RegExp(`(?:^|\\s)/${escapePattern(name)}(?=\\s|$)`, 'u').test(draft)
+}
+
+/**
+ * Build the expert-adding entries: three fixed destinations owned by the
+ * Experts center, in menu order. There is no expert catalog to load here yet,
+ * so the picker is a stable action list rather than a live directory.
+ * @param t - namespace translator.
+ * @returns one row per expert-adding entry.
+ */
+export function expertOptions(t: CapabilityTranslator): readonly SelectOption[] {
+  return [
+    { id: 'create', label: t('expert.option.create'), detail: t('expert.option.create.detail') },
+    { id: 'market', label: t('expert.option.market'), detail: t('expert.option.market.detail') },
+    { id: 'mine', label: t('expert.option.mine'), detail: t('expert.option.mine.detail') },
+  ]
 }
 
 /**

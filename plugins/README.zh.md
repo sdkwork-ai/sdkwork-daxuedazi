@@ -18,7 +18,7 @@
 
 ## dsh-im — IM 渠道
 
-[`dsh-im`](https://github.com/xmanrui/dsh-im) 把 IM 机器人（飞书、微信、企业微信、钉钉、QQ、Slack、Telegram、Discord、WhatsApp、iMessage、Matrix）接入 harness，并新增一个 `设置 → IM机器人` 设置页。它由 `packages/bundle/web-app/cordis.patch.yml` 以 `xmanrui-dsh-im` 行挂载，桌面层（`dsh-sdkwork-desktop-app`）继承该挂载，因此出厂构建无需安装步骤即可提供该表面。
+[`dsh-im`](https://github.com/xmanrui/dsh-im) 把 IM 机器人（飞书、微信、企业微信、钉钉、QQ、Slack、Telegram、Discord、WhatsApp、iMessage、Matrix）接入 harness，并新增一个 `设置 → IM机器人` 设置页。它由 `packages/bundle/web-app/cordis.patch.yml` 以 `xmanrui-dsh-im` 行组合进插件树，但该行带 `disabled: true`：**学伴AI 默认不启用这个插件**。桌面层（`dsh-sdkwork-desktop-app`）继承这个被禁用的行，因此无论 Web / 桌面运行时、cloud / standalone 部署，出厂构建都不提供该表面，也不会启动任何渠道连接。
 
 **Pin。** gitlink 为 `d2f2703d`，是上游 `main` 顶端、`v5.9.1` 之后十二个提交的提交。pin 必须选在上游已提交的 `lib/index.js`、`lib/client.js` 与其源码一致的修订上，这一点很重要，因为本仓库直接按交付形态运行这些产物而不重新构建。发布提交通常是这类时点；该顶端符合条件，因为 `v5.9.1` 之后的每个提交都随源码变更重建了已提交的 `lib/` 文件。
 
@@ -30,7 +30,7 @@ pnpm install                                   # relink and refresh the lockfile
 pnpm exec vitest run packages/bundle/web-app/tests/built-in-im.spec.ts
 ```
 
-然后连同刷新后的 `pnpm-lock.yaml` 一起提交新 gitlink，并启动一次 `pnpm dsh web` 确认该行仍会激活、设置页仍会渲染。本 fork 每次发布前都要到上游检查新发布：这里没有任何机制会自动感知，未审查的 pin 会静默交付旧插件。有新发布时优先用 tag 而不是 `main`：`main` 携带发布之间的提交，其构建产物可能滞后于源码（locale JSON 在运行时加载，因此在发布之间合法地变动；打包的 `lib/*.js` 则不能）。当前 pin 之所以是 `main` 顶端，是因为 `v5.1.0` 之后的提交确实重建了 `lib/client.js`；包含它们的后续发布 tag 仍是更优选的下一个 pin。
+然后连同刷新后的 `pnpm-lock.yaml` 一起提交新 gitlink，并启动一次 `pnpm dsh web` 确认该行仍保持禁用、没有出现 IM 设置页。本 fork 每次发布前都要到上游检查新发布：这里没有任何机制会自动感知，未审查的 pin 会静默交付旧插件。有新发布时优先用 tag 而不是 `main`：`main` 携带发布之间的提交，其构建产物可能滞后于源码（locale JSON 在运行时加载，因此在发布之间合法地变动；打包的 `lib/*.js` 则不能）。当前 pin 之所以是 `main` 顶端，是因为 `v5.1.0` 之后的提交确实重建了 `lib/client.js`；包含它们的后续发布 tag 仍是更优选的下一个 pin。
 
 **依赖。** `pnpm install` 把插件自身的依赖装进 `plugins/dsh-im/node_modules`。大多数渠道已内联进已提交的 `lib/index.js`；插件在运行时加载的少数依赖（`dingtalk-stream`、`imapflow`、`nodemailer`、`qrcode`、`undici`、Sharp、腾讯与企业微信连接器）从该目录解析。`@whiskeysockets/baileys` 在 `pnpm-workspace.yaml` 的 `allowBuilds` 中被拒绝，因为其构建输入已内联，而它的 `prepare` 脚本会重新编译本仓库从不运行的 TypeScript。
 
@@ -40,13 +40,13 @@ pnpm exec vitest run packages/bundle/web-app/tests/built-in-im.spec.ts
 pnpm --dir plugins/dsh-im run build   # needs that package's Baileys build approved first
 ```
 
-**关闭它。** 在更上层的 patch 中禁用该行（`- id: xmanrui-dsh-im` 加 `disabled: true`），或从 web-app patch 中删除该行。该插件不拥有其他组合表面，因此任一形式都会连同设置页与所有渠道一起移除。
+**重新启用它。** 该行默认已禁用，且刻意保留而不删除，验收测试才会持续校验子模块、manifest 与构建产物。在更上层的 patch（profile 的 `cordis.patch.yml`，或全局的 `$DSH_HOME/cordis.patch.yml`）写 `- id: xmanrui-dsh-im` / `disabled: false` 即可覆盖。该插件不拥有其他组合表面，因此把该行重新关掉会连同设置页与所有渠道一起移除。
 
 **CI。** 每个需要安装或构建 workspace 的工作流 checkout 都使用 `submodules: recursive`；不带该配置的 job 会得到空的 `plugins/dsh-im`，并在 workspace 解析处失败。
 
 **Windows checkout。** 该子模块没有自己的 `.gitattributes`，父仓库规则也管不到子模块内部，因此 Windows checkout 会继承机器的 `core.autocrlf`，`bin/dsh-im.mjs` 会带 CRLF shebang 落地，而 `pnpm pack` 会以 `ERR_PNPM_BIN_CRLF` 拒绝。桌面打包在打包前规范化插件的 `bin/*` shebang（`apps/desktop/scripts/package-target.ts` 的 `normalizePackedPluginShebangs`），因此构建无需手工步骤；`git submodule update` 会恢复 CRLF 形态，下一次打包又会再次规范化。
 
-**校验。** `packages/bundle/web-app/tests/built-in-im.spec.ts` 断言组合后的行、链接清单中的 `dsh.client` web 声明以及两个构建入口产物，并证明该检查会拒绝每种不完整形态（缺行、禁用行、名称错误、子模块未解析、丢失声明、缺产物）。
+**校验。** `packages/bundle/web-app/tests/built-in-im.spec.ts` 断言组合后的行仍存在且默认 `disabled: true`、链接清单中的 `dsh.client` web 声明以及两个构建入口产物，并证明该检查会拒绝每种不完整形态（缺行、意外启用、名称错误、子模块未解析、丢失声明、缺产物）。
 
 ## dsh-better-sidebar — 右侧栏工作台与左栏页面模型
 

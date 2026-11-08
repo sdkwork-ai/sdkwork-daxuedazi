@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-rc.2/im-channels-disabled/guide.md
+/:
+  en: a16c9a276972e693
+  zh: 23979a7c3147133a
+/built-in-im-channels-are-disabled:
+  en: f48ce5b8dab4a579
+  zh: a5f3849daae111ca
+/built-in-im-channels-are-disabled/change:
+  en: d28152232de5d584
+  zh: f2c16cbb23653b1f
+/built-in-im-channels-are-disabled/migration:
+  en: fcff53c4b4c85bd1
+  zh: 6fb56afbf3ce5b4a

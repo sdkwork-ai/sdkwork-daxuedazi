@@ -63,6 +63,19 @@ const RELEASE_REPOSITORY_PATTERN = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/u
 const REGISTRY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u
 const ARTIFACT_PREFIX_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$/u
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/u
+/**
+ * Locale keys a brand's localized application name may declare. They match the
+ * shipped Desktop dictionaries, the client locale files and the installer
+ * language set; `default` is the fallback key, not a locale.
+ *
+ * This is the *display* name of the installed application. It is deliberately
+ * separate from `desktop.productName`, which Electron uses to derive userData,
+ * the single-instance lock and the logs directory: changing that value to match
+ * a translated name would strand an existing installation's data.
+ */
+export const BRAND_DISPLAY_LOCALES = Object.freeze(['en', 'zh-CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'])
+/** Longest a localized application name may be, matching the OEM projection validator. */
+const BRAND_DISPLAY_NAME_MAXIMUM = 64
 /** Lowest loopback port a brand may own; the operating system reserves everything below it. */
 const WEB_PORT_MINIMUM = 1024
 /** Highest brand port, leaving every port of the brand's block usable. */
@@ -89,10 +102,18 @@ const WEB_PORT_MAXIMUM = 65_535 - (BRAND_PORT_BLOCK - 1)
  */
 
 /**
+ * Localized application display names, keyed by {@link BRAND_DISPLAY_LOCALES}
+ * plus a `default` fallback. `parseBrandManifest()` always fills every key, so
+ * consumers can index it without a second fallback chain.
+ * @typedef {Readonly<Record<string, string>>} BrandDisplayNames
+ */
+
+/**
  * @typedef {object} DesktopBrand
  * @property {1} schemaVersion
  * @property {string} key
- * @property {string} displayName
+ * @property {string} displayName - Locale-independent fallback display name; keep for callers that have no locale.
+ * @property {BrandDisplayNames} displayNames - Installed application name per shipped locale, plus `default`.
  * @property {string} companyName
  * @property {DesktopBrandHome} home
  * @property {DesktopBrandDesktop} desktop
@@ -188,6 +209,90 @@ function matches(value, pattern, where, expectation) {
 }
 
 /**
+ * Normalize an OS, Electron or installer locale tag to one shipped brand locale.
+ *
+ * The same brand name has to reach a Windows NSIS installer (`zh_CN`), a macOS
+ * bundle (`zh_CN`), an Electron locale (`zh-CN`, `zh`) and a Desktop dictionary
+ * (`zh`), so every caller funnels its tag through here instead of keeping a
+ * second spelling of the language list.
+ * @param {unknown} locale - BCP-47-ish tag or installer locale id.
+ * @returns {string | undefined} A {@link BRAND_DISPLAY_LOCALES} key, or undefined when unsupported.
+ */
+export function normalizeBrandLocale(locale) {
+  const text = typeof locale === 'string' ? locale.trim().toLowerCase().replaceAll('_', '-') : ''
+  if (text === '') return undefined
+  const language = text.split('-')[0]
+  if (language === 'zh') return 'zh-CN'
+  return BRAND_DISPLAY_LOCALES.find(key => key.toLowerCase() === language)
+    ?? BRAND_DISPLAY_LOCALES.find(key => key.toLowerCase() === text)
+}
+
+/**
+ * Validate and complete a brand's localized application names.
+ *
+ * A manifest may omit `displayNames` entirely (older/second brands do): every
+ * locale then resolves to `displayName`. When present, partial maps are filled
+ * from `default`, so packaged consumers never need their own fallback chain.
+ * @param {unknown} raw - `displayNames` section, or undefined.
+ * @param {string} fallback - Locale-independent `displayName`.
+ * @param {string} source - File or label named in validation errors.
+ * @returns {BrandDisplayNames} Frozen, complete map.
+ */
+export function parseBrandDisplayNames(raw, fallback, source = 'brand manifest') {
+  /** @param {unknown} value @param {string} where @returns {string} */
+  const readName = (value, where) => {
+    if (typeof value !== 'string') throw new Error(`brand: ${source}: ${where} must be a string`)
+    const text = value.trim()
+    if (text === '') throw new Error(`brand: ${source}: ${where} must not be empty`)
+    if (text.length > BRAND_DISPLAY_NAME_MAXIMUM) {
+      throw new Error(`brand: ${source}: ${where} must be at most ${BRAND_DISPLAY_NAME_MAXIMUM} characters`)
+    }
+    if (CONTROL_CHARACTERS.test(text)) throw new Error(`brand: ${source}: ${where} must not contain control characters`)
+    return text
+  }
+  const base = readName(fallback, 'displayName')
+  if (raw === undefined) {
+    return Object.freeze(Object.fromEntries([['default', base], ...BRAND_DISPLAY_LOCALES.map(locale => [locale, base])]))
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error(`brand: ${source}: displayNames must be a JSON object`)
+  }
+  const entries = /** @type {Record<string, unknown>} */ (raw)
+  const allowed = new Set(['default', ...BRAND_DISPLAY_LOCALES])
+  for (const key of Object.keys(entries)) {
+    if (!allowed.has(key)) throw new Error(`brand: ${source}: displayNames.${key} is not a shipped locale`)
+  }
+  const def = entries.default === undefined ? base : readName(entries.default, 'displayNames.default')
+  /** @type {Record<string, string>} */
+  const result = { default: def }
+  for (const locale of BRAND_DISPLAY_LOCALES) {
+    result[locale] = entries[locale] === undefined ? def : readName(entries[locale], `displayNames.${locale}`)
+  }
+  return Object.freeze(result)
+}
+
+/**
+ * Resolve the installed application's display name for one locale.
+ *
+ * Display-only: never feed this into `productName`, `executableName`, `appId` or
+ * any path, because those are the identities an existing installation keeps.
+ * @param {DesktopBrand | BrandDisplayNames} brand - Validated manifest, or its name map.
+ * @param {string | undefined} locale - OS/Electron/installer locale tag.
+ * @returns {string} Localized application name.
+ */
+export function resolveBrandDisplayName(brand, locale) {
+  if (typeof brand !== 'object' || brand === null) throw new Error('brand: a display-name map is required')
+  const names = /** @type {BrandDisplayNames} */ ('displayNames' in brand ? brand.displayNames : brand)
+  const key = normalizeBrandLocale(locale)
+  const value = (key === undefined ? undefined : names[key]) ?? names.default
+    ?? ('displayName' in brand ? brand.displayName : undefined)
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`brand: no application display name for ${JSON.stringify(locale ?? null)}`)
+  }
+  return value
+}
+
+/**
  * Validate one parsed brand manifest and detach it from the caller's object.
  *
  * Validation is strict on purpose: a typo in a home directory or scheme would
@@ -247,11 +352,14 @@ export function parseBrandManifest(raw, source = 'brand manifest') {
   matches(artifactPrefix, ARTIFACT_PREFIX_PATTERN, 'desktop.artifactPrefix', 'an artifact-name prefix')
 
   const webPort = requiredPort(desktop, 'webPort', 'desktop.webPort', WEB_PORT_MINIMUM, WEB_PORT_MAXIMUM)
+  const displayName = requiredString(root, 'displayName', 'displayName')
+  const displayNames = parseBrandDisplayNames(root.displayNames, displayName, source)
 
   return Object.freeze({
     schemaVersion: /** @type {1} */ (1),
     key,
-    displayName: requiredString(root, 'displayName', 'displayName'),
+    displayName,
+    displayNames,
     companyName: requiredString(root, 'companyName', 'companyName'),
     home: Object.freeze({
       dirName,

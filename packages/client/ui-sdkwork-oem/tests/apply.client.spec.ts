@@ -3,7 +3,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
-import { OEM_BOOT_GLOBAL } from '@deepseek-ai/dsh-client-ui-primitives'
+import { APP_NAMES_BOOT_GLOBAL, OEM_BOOT_GLOBAL } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply, inject } from '../src/client/index.ts'
 
 const BOOT = {
@@ -18,6 +18,7 @@ const BOOT = {
 
 function cleanup(): void {
   Reflect.deleteProperty(globalThis, OEM_BOOT_GLOBAL)
+  Reflect.deleteProperty(globalThis, APP_NAMES_BOOT_GLOBAL)
   delete document.documentElement.dataset.dshEnvironment
   document.title = ''
 }
@@ -62,6 +63,28 @@ describe('ui-sdkwork-oem client plugin', () => {
     const { ctx, locale } = await bench()
     locale.register('oem-test-params', 'en', { greeting: 'Hello {name}' })
     expect(locale.bind('oem-test-params')('greeting', { name: 'BirdCoder' })).toBe('Hello BirdCoder')
+    await ctx.fiber.dispose()
+  })
+
+  it('follows the interface language through the manifest name map', async () => {
+    Reflect.set(globalThis, APP_NAMES_BOOT_GLOBAL, { default: 'Xueban AI', en: 'Xueban AI', 'zh-CN': '学伴AI' })
+    const { ctx, locale } = await bench()
+    locale.register('oem-test-zh', 'zh', { brand: 'BirdCoder', welcome: '欢迎使用 BirdCoder' })
+    expect(locale.brandNameFor('en')).toBe('Xueban AI')
+    // `zh` resolves through the manifest's `zh-CN` entry.
+    expect(locale.brandNameFor('zh')).toBe('学伴AI')
+    locale.setLocale('zh')
+    expect(locale.bind('oem-test-zh')('welcome')).toBe('欢迎使用 学伴AI')
+    expect(document.title).toBe('学伴AI')
+    await ctx.fiber.dispose()
+  })
+
+  it('lets an OEM profile override the manifest map in every language', async () => {
+    Reflect.set(globalThis, OEM_BOOT_GLOBAL, BOOT)
+    Reflect.set(globalThis, APP_NAMES_BOOT_GLOBAL, { default: 'Xueban AI', en: 'Xueban AI', 'zh-CN': '学伴AI' })
+    const { ctx, locale } = await bench()
+    expect(locale.brandNameFor('zh')).toBe('Acme Coder')
+    expect(locale.brandNameFor('en')).toBe('Acme Coder')
     await ctx.fiber.dispose()
   })
 })

@@ -4,6 +4,16 @@ import { DESKTOP_IPC } from './ipc.ts'
 import { resolveDesktopLocale } from './locale.ts'
 
 /**
+ * FORK DIVERGENCE (product caption): the fork keeps the 40-DIP caption band but
+ * does not show the Application/Edit labels in it. The host and its popup
+ * machinery stay mounted so caption language/palette refresh, the
+ * mandatory-update overlay hit-test and the updater qualification fixture that
+ * opens the menu programmatically keep working; only the labels are invisible.
+ * Flip this to `true` to restore the upstream caption menubar.
+ */
+const CAPTION_MENU_VISIBLE: boolean = false
+
+/**
  * Mount the desktop caption menubar without moving focus out of the active editor.
  * The caption platforms (Windows and, since the fork's Linux caption, Linux)
  * share it; the `data-windows-menu` host name is the shared layout's historical
@@ -17,7 +27,7 @@ export function installWindowsMenu(): { update(): void; dispose(): void } {
   const style = document.createElement('style')
   style.textContent = `
     :host { position: fixed; top: 0; left: var(--dsh-windows-menu-start, 48px); z-index: 1100;
-      height: var(--dsh-windows-titlebar-height); display: flex; align-items: center;
+      height: var(--dsh-windows-titlebar-height); display: ${CAPTION_MENU_VISIBLE ? 'flex' : 'none'}; align-items: center;
       font-family: var(--dsw-font-family); -webkit-app-region: no-drag; }
     [role=menubar] { display: flex; gap: 2px; }
     button { height: 28px; padding: 0 10px; border: 0; border-radius: 6px;

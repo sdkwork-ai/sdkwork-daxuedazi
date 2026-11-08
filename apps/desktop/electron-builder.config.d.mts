@@ -4,8 +4,7 @@ import type { AfterPackContext, BeforePackContext } from 'app-builder-lib'
 export interface DesktopElectronBuilderConfig {
   readonly appId: string
   readonly copyright: string
-  readonly artifactName: string
-  readonly protocols: readonly [{ readonly name: 'BirdCoder'; readonly schemes: readonly ['birdcoder'] }]
+  readonly protocols: readonly [{ readonly name: string, readonly schemes: readonly [string] }]
   readonly productName: string
   /** Plain executable name; the scoped package name cannot become a safe one. */
   readonly executableName: string
@@ -40,6 +39,9 @@ export interface DesktopElectronBuilderConfig {
     readonly icon: string
     readonly extendInfo: {
       readonly CFBundleLocalizations: readonly string[]
+      /** Localized display name; overwrites electron-builder's productName-derived Info.plist keys. */
+      readonly CFBundleName: string
+      readonly CFBundleDisplayName: string
       readonly NSMicrophoneUsageDescription: string
     }
     readonly entitlements: string
@@ -63,6 +65,8 @@ export interface DesktopElectronBuilderConfig {
   }
   readonly linux: {
     readonly icon: string
+    /** Localized application-menu Name entries, merged after the productName default. */
+    readonly desktop: { readonly entry: Readonly<Record<string, string>> }
     readonly synopsis: string
     readonly maintainer: string
     readonly vendor: string
@@ -75,6 +79,8 @@ export interface DesktopElectronBuilderConfig {
     readonly packageName: string
   }
   readonly nsis: {
+    /** Visible shortcut label; overrides the ASCII productName default. */
+    readonly shortcutName: string
     /** Upstream added this field; the fork's config already sets it. */
     readonly uninstallDisplayName: string
     readonly include: string
@@ -103,6 +109,8 @@ export interface DesktopElectronBuilderConfig {
   readonly dmg: {
     readonly format: 'ULMO'
     readonly sign: boolean
+    /** Mounted volume name; the localized display name rather than the ASCII identity. */
+    readonly title: string
     readonly writeUpdateInfo: boolean
   }
   /**

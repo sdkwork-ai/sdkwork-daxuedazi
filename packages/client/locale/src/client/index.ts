@@ -146,6 +146,18 @@ function localeKey(value: string): string {
   return value.toLowerCase()
 }
 
+/** Canonical lookup key for a product-name tag (`zh_TW` → `zh-tw`). */
+function brandLocaleKey(value: string): string {
+  return value.trim().toLowerCase().replaceAll('_', '-')
+}
+
+/** A product name one surface can render: trimmed, short, no control characters. */
+function validBrandName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const name = value.trim()
+  return name === '' || name.length > 64 || /[\u0000-\u001f\u007f]/u.test(name) ? undefined : name
+}
+
 /** Validate and detach a language-pack contribution from its mutable input. */
 function normalizeLanguage(input: LanguageRegistration): Readonly<LanguageRegistration> {
   if (!LOCALE_ID_PATTERN.test(input.id)) {
@@ -195,6 +207,11 @@ export class LocaleRuntime {
   private preference: LocaleId | undefined
   /** Display brand substituted into every dictionary string that spells the shipped token. */
   private brandName = SHIPPED_BRAND_NAME
+  /**
+   * Localized application names keyed by lower-case BCP 47 tag, published by the
+   * brand manifest. Absent when the deployment ships one name for every language.
+   */
+  private brandNames: Readonly<Record<string, string>> | undefined
 
   /**
    * @param ctx - owning context (change events are emitted on it; the scope
@@ -259,13 +276,62 @@ export class LocaleRuntime {
    * @param name - display brand from the OEM profile.
    */
   setBrand(name: string): void {
-    const brand = name.trim()
-    if (brand === '' || brand.length > 64 || /[\u0000-\u001f\u007f]/u.test(brand)) return
-    if (brand === this.brandName) return
+    const brand = validBrandName(name)
+    if (brand === undefined) return
+    // A single name means "every language shows this": drop any published map
+    // so the two channels can never disagree.
+    if (brand === this.brandName && this.brandNames === undefined) return
+    this.brandNames = undefined
     this.brandName = brand
     // Re-render every mounted outlet without emitting `locale/change`:
     // a brand is page-init data, not a language switch.
     this.publish(this.snapshot.active, false)
+  }
+
+  /**
+   * Replace the product name with one name per interface language.
+   *
+   * The brand manifest publishes its localized names into the page; the client
+   * OEM plugin hands them here once at boot. Names follow the active interface
+   * language, so a deployment whose English name differs from its Chinese one
+   * switches both together. Malformed entries are dropped; an empty map leaves
+   * the shipped default in place.
+   * @param names - locale tag → display name; `default` (or `en`) covers
+   *   languages the deployment did not translate.
+   */
+  setBrandNames(names: Readonly<Record<string, string>>): void {
+    const normalized: Record<string, string> = {}
+    for (const [locale, value] of Object.entries(names)) {
+      const key = brandLocaleKey(locale)
+      if (key === '' || (key !== 'default' && !/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/u.test(key))) continue
+      const name = validBrandName(value)
+      if (name !== undefined) normalized[key] = name
+    }
+    if (Object.keys(normalized).length === 0) return
+    this.brandNames = Object.freeze(normalized)
+    // The single-name fallback is what an untranslated language shows.
+    const fallback = normalized.default ?? normalized.en
+    if (fallback !== undefined) this.brandName = fallback
+    this.publish(this.snapshot.active, false)
+  }
+
+  /**
+   * Resolve the display application name for one interface language.
+   *
+   * Lookup prefers the exact tag, then the language's base tag (`zh-tw` and
+   * `zh` both fall back to `zh-cn`), then the deployment's default.
+   * @param locale - interface locale id; the active one when omitted.
+   * @returns the localized name, or the single shipped/overridden name.
+   */
+  brandNameFor(locale?: string): string {
+    const names = this.brandNames
+    if (names === undefined) return this.brandName
+    const tag = brandLocaleKey(locale ?? this.snapshot.active)
+    const exact = names[tag]
+    if (exact !== undefined) return exact
+    const language = tag.split('-')[0] ?? ''
+    const primary = language === 'zh' ? 'zh-cn' : language
+    return names[primary] ?? names.default ?? names.en ?? this.brandName
   }
 
   /**
@@ -511,9 +577,10 @@ export class LocaleRuntime {
     const template = this.lookup(ns, key, chain)
       ?? (ns !== COMMON_NS ? this.lookup(COMMON_NS, key, chain) : undefined)
       ?? key
-    const branded = this.brandName === DEFAULT_BRAND_NAME
+    const brand = this.brandNameFor(this.snapshot.active)
+    const branded = brand === DEFAULT_BRAND_NAME
       ? template
-      : template.replaceAll(DEFAULT_BRAND_NAME, this.brandName)
+      : template.replaceAll(DEFAULT_BRAND_NAME, brand)
     if (!params) return branded
     return branded.replace(/\{(\w+)\}/g, (match, name: string) =>
       name in params ? String(params[name]) : match)

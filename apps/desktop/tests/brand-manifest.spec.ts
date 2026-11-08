@@ -7,15 +7,18 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { expect, it, onTestFinished } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   BRAND_DIRECTORY,
+  BRAND_DISPLAY_LOCALES,
   brandManifestPath,
   brandPortCollisions,
+  parseBrandDisplayNames,
   parseBrandManifest,
   readBrandManifest,
   readBrands,
   resolveBrand,
+  resolveBrandDisplayName,
   shippedBrand,
 } from '../scripts/brand-manifest.mjs'
 
@@ -167,4 +170,47 @@ it('packages a second brand with its own identity and ships its manifest', async
   expect(config.extraMetadata.dshDesktopAppId).toBe('com.acme.harness')
   // The shell reads this file at start to resolve its brand home.
   expect(config.extraResources).toContainEqual({ from: manifest, to: 'brand.json' })
+})
+
+describe('localized installed application name', () => {
+  it('ships a complete, per-locale name map without touching the identity that owns userData', () => {
+    const brand = shippedBrand()
+    expect(brand.displayName).toBe('学伴AI')
+    expect(brand.displayNames.default).toBe('学伴AI')
+    for (const locale of BRAND_DISPLAY_LOCALES) {
+      expect(brand.displayNames[locale]).toBe('学伴AI')
+    }
+    // The visible name and the ASCII Electron identity must stay separate:
+    // productName is app.name, which derives userData, logs and the single-instance lock.
+    expect(brand.desktop.productName).toBe('daxuedazi')
+    expect(new Set(Object.values(brand.displayNames)).has(brand.desktop.productName)).toBe(false)
+  })
+
+  it('resolves OS, Electron and installer locale tags to the same name', () => {
+    const brand = shippedBrand()
+    for (const tag of ['zh-CN', 'zh', 'zh_CN', 'zh-Hans', 'en-US', 'en_US', 'ja_JP', 'pt-BR', 'fr_FR', 'xx-XX', undefined]) {
+      expect(resolveBrandDisplayName(brand, tag)).toBe('学伴AI')
+    }
+    expect(resolveBrandDisplayName(brand.displayNames, 'ja')).toBe('学伴AI')
+  })
+
+  it('fills omitted locales from default and rejects malformed name maps', () => {
+    expect(parseBrandDisplayNames(undefined, '学伴AI')).toEqual(
+      Object.fromEntries([['default', '学伴AI'], ...BRAND_DISPLAY_LOCALES.map(locale => [locale, '学伴AI'])]),
+    )
+    expect(parseBrandDisplayNames({ en: 'Xueban AI' }, '学伴AI').en).toBe('Xueban AI')
+    expect(parseBrandDisplayNames({ en: 'Xueban AI' }, '学伴AI')['zh-CN']).toBe('学伴AI')
+    expect(() => parseBrandDisplayNames({ 'zh_CN': '学伴AI' }, '学伴AI')).toThrow(/not a shipped locale/u)
+    expect(() => parseBrandDisplayNames({ en: '' }, '学伴AI')).toThrow(/must not be empty/u)
+    expect(() => parseBrandDisplayNames([], '学伴AI')).toThrow(/must be a JSON object/u)
+    const manifest = acme()
+    manifest.displayNames = { en: 'Acme EN' }
+    expect(parseBrandManifest(manifest).displayNames['zh-CN']).toBe('Acme Harness')
+  })
+
+  it('keeps a brand without displayNames on its single display name', () => {
+    const other = resolveBrand({ DSH_BRAND: 'birdcoder' })
+    expect(resolveBrandDisplayName(other, 'zh-CN')).toBe('BirdCoder')
+    expect(Object.keys(other.displayNames)).toHaveLength(BRAND_DISPLAY_LOCALES.length + 1)
+  })
 })

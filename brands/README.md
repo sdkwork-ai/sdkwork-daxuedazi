@@ -41,7 +41,8 @@ it exists. At runtime the shell reads `resources/brand.json`; a source checkout
 | Field | Meaning | Example |
 |---|---|---|
 | `key` | Lower-case brand key; names the file and appears in logs | `daxuedazi` |
-| `displayName` | Product name for surfaces that read the manifest directly | `学伴AI` |
+| `displayName` | Locale-independent fallback product name | `学伴AI` |
+| `displayNames` | Installed application name per shipped locale (`en`, `zh-CN`, `ja`, `es`, `fr`, `de`, `ru`, `pt`) plus `default`; display copy only, never an identity or a path. A missing locale falls back to `default`, then `displayName` | `学伴AI` |
 | `companyName` | Vendor name for packaging metadata | `SDKWork` |
 | `home.dirName` | Harness home directory under the user's home; dot-prefixed and lower case so two brands cannot collide on a case-insensitive filesystem | `.daxuedazi` |
 | `home.adoptLegacyDshHome` | Whether a packaged first launch may take over an existing `~/.dsh` | `false` |
@@ -58,6 +59,14 @@ it exists. At runtime the shell reads `resources/brand.json`; a source checkout
 
 `parseBrandManifest` rejects malformed values and the upstream identity
 (`~/.dsh`, `DeepSeek Harness`, scheme and command `dsh`, `com.deepseek.harness`).
+
+`displayNames` is what a person sees after installing: packaging writes it into
+the Windows shortcut and uninstall entry, the DMG title, the macOS bundle name,
+every `Name[<lang>]` of the Linux desktop entry and the installer's own copy,
+while the shell reads it for the About panel, the application menu, the tray and
+the welcome window. `desktop.productName` never follows it — that value is the
+identity Electron derives `userData`, the single-instance lock, the logs
+directory and the updater cache from, so a translated name must never reach it.
 A typo fails the build instead of silently splitting one application's data
 across two homes. `desktop.webPort` accepts 1024 through 65527, because the whole
 [port block](#ports) has to stay usable; a value that leaves no room for it is a
@@ -221,11 +230,9 @@ pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/test
 
 ## Not brand-scoped yet
 
-- Installer copy and native window strings come from `apps/desktop/scripts/locale*`
-  and the NSIS include; they carry the shipped brand until an OEM build replaces
-  them the way it replaces the rasters. The Desktop command-management copy in
-  `apps/desktop/src/locale.ts` names the shipped `daxuedazi` command, so a build
-  of another brand must re-spell those strings.
+- The Desktop command-management copy in `apps/desktop/src/locale.ts` still names
+  the shipped `daxuedazi` command, so a build of another brand must re-spell those
+  strings.
 - Icon and artifact artwork is generated from the canonical 学伴AI raster.
 - `desktop.executableName` names the installed binary; an OEM build must ship a
   binary of that name, which electron-builder derives from the same field.

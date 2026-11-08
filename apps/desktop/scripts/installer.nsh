@@ -11,6 +11,16 @@ ManifestDPIAware true
 !macro customHeader
   !define /ifndef INSTALLER_STRINGS_FILE "${INSTALLER_BUILD_DIR}\strings.nsh"
   !include "${INSTALLER_STRINGS_FILE}"
+  ; FORK DIVERGENCE: electron-builder's `common.nsh` calls Name with the ASCII
+  ; `productName` (the identity that owns userData). The installer caption is
+  ; ordinary display copy, so spell the brand's per-language application name.
+  ; strings.nsh defines INSTALLER_APP_NAME once per installer language.
+  Name "$(INSTALLER_APP_NAME)"
+  !ifndef BUILD_UNINSTALLER
+    ; The bottom-right branding text is display copy as well; the uninstaller
+    ; below blanks it instead.
+    BrandingText "$(INSTALLER_APP_NAME) ${VERSION}"
+  !endif
   !ifdef BUILD_UNINSTALLER
     BrandingText " "
     SetFont "Segoe UI" 9

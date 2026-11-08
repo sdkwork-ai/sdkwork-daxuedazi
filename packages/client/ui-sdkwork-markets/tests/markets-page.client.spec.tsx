@@ -28,6 +28,7 @@ import type { MarketsConfigForms } from '../src/client/settingsForms.ts'
 import { emptyInstallSession, type PluginStore, type PluginReadState, type PluginStoreState } from '../src/client/pluginStore.ts'
 import { createPluginNavigation, type MarketsPluginNavigation } from '../src/client/plugin-navigation.ts'
 import { createMarketPanelSource, type MarketControl } from '../src/client/marketPanel.ts'
+import { createExpertsEntry, type ExpertsEntry } from '../src/client/expertsEntry.ts'
 const useSessionStatus: GlobalStandardProps['useSessionStatus'] = selector => selector(new Map())
 
 // The embedded SDKWork market page is mocked: its panel copy is rendered
@@ -87,6 +88,10 @@ const connectorBridge = {
 let navigation: MarketsPluginNavigation
 /** The page's acknowledgement double: records that a request was consumed. */
 const onBundleRequestHandled = vi.fn()
+/** The composer's Experts entry ledger, recreated per render. */
+let expertsEntry: ExpertsEntry
+/** The Experts landing's acknowledgement, stable like the plugin's callback. */
+const onExpertsRequestHandled = (): void => { expertsEntry.handled() }
 
 // The doubles are module-level; clear the per-test tally.
 beforeEach(() => {
@@ -453,6 +458,11 @@ function page(options: {
   )
   const items = options.items ?? itemFixtures
   navigation = createPluginNavigation()
+  expertsEntry = createExpertsEntry({
+    openPanel: () => {},
+    dispatchPrompt,
+    createPrompt: () => 'prompt.experts.create.local',
+  })
   const marketControl = createMarketPanelSource()
   if (options.market !== undefined) marketControl.attach(options.market)
   return render(
@@ -469,6 +479,10 @@ function page(options: {
       // bundle through the service publishes here, exactly as the plugin does.
       bundleRequest={navigation.hooks.bundleRequest}
       onBundleRequestHandled={onBundleRequestHandled}
+      // The composer's Experts landings: a case that publishes through the
+      // service lands on the catalog or the My-experts page, as the plugin does.
+      expertsRequest={expertsEntry.hooks.expertsRequest}
+      onExpertsRequestHandled={onExpertsRequestHandled}
       // The market control ledger: a case that publishes the dshmarket control
       // sees the live panel, and the default (nothing attached) exercises the
       // install/pending faces the real page shows before that plugin loads.
@@ -917,6 +931,25 @@ describe('MarketsPage', () => {
     expect(view.container.querySelector('[data-mine-experts]')).toBeNull()
     expect(view.getByRole('tablist', { name: 'tabs.label' })).not.toBeNull()
     expect(view.container.querySelector('[data-markets-tab="experts"]')).not.toBeNull()
+  })
+
+  it('lands on the Experts catalog or My-experts when the composer adds an expert', () => {
+    const view = page()
+    // The composer's "expert market" entry opens the Experts tab, not the
+    // default Plugins tab, and the page acknowledges the request.
+    act(() => { expertsEntry.service.openMarket() })
+    expect(view.container.querySelector('[data-markets-tab="experts"]')).not.toBeNull()
+    expect(view.container.querySelector('[data-mine-experts]')).toBeNull()
+    expect(expertsEntry.hooks.expertsRequest.getSnapshot()).toBeUndefined()
+
+    // The "my experts" entry swaps the whole column to the roster.
+    act(() => { expertsEntry.service.openMine() })
+    expect(view.container.querySelector('[data-mine-experts]')).not.toBeNull()
+    expect(expertsEntry.hooks.expertsRequest.getSnapshot()).toBeUndefined()
+
+    // Creating an expert reuses the guided prompt dispatch, with no landing.
+    act(() => { expertsEntry.service.createExpert() })
+    expect(dispatchPrompt).toHaveBeenCalledWith('prompt.experts.create.local')
   })
 
   it('renders the official plugin roster from this application inventory', async () => {

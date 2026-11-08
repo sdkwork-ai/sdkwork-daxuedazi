@@ -96,6 +96,7 @@ import { createMarketPanelSource } from './marketPanel.ts'
 import { createSkillMarketPanelSource, SKILL_MARKET_PANEL_ID } from './skillMarketPanel.ts'
 import { createMcpConnectorPanelSource, MCP_CONNECTOR_PANEL_ID } from './mcpConnectorPanel.ts'
 import { createMcpConnectorBridge } from './connectorBridge.ts'
+import { createExpertsEntry } from './expertsEntry.ts'
 import { en, zh, type MarketsKey } from './locales.ts'
 
 export type {
@@ -120,6 +121,10 @@ export type {
   McpConnectorBridge, McpConnectorBridgeServices, McpConnectorWorkspaceSnapshot,
 } from './connectorBridge.ts'
 export type { McpConnectorSurfaceProps } from './McpConnectorSurface.tsx'
+export type {
+  CreateExpertsEntryOptions, ExpertsEntry, ExpertsEntryRequest, ExpertsEntryService,
+} from './expertsEntry.ts'
+export { createExpertsEntry } from './expertsEntry.ts'
 export type {
   PluginMarketPanelInjected, PluginMarketPanelProps,
 } from './PluginMarketPanel.tsx'
@@ -412,6 +417,18 @@ export function apply(ctx: ClientContext): void {
     })
   }
 
+  // The composer's Experts row (ui-sdkwork-capabilities) reaches the expert
+  // flows through this optional service. The catalog and My-experts landings
+  // are published values the page consumes; creating an expert reuses the
+  // guided prompt dispatch above, so it needs no page state at all.
+  const expertsEntry = createExpertsEntry({
+    openPanel: () => { ctx.layout.openPanel('markets') },
+    dispatchPrompt,
+    createPrompt: () => t('prompt.experts.create.local'),
+  })
+  const onExpertsRequestHandled = (): void => { expertsEntry.handled() }
+  ctx.provide('marketsExperts', expertsEntry.service)
+
   ctx.slots.inject('sidebar.actions', () => ctx.slots.register({
     name: 'sidebar.actions',
     id: 'sdkwork-markets',
@@ -462,6 +479,8 @@ export function apply(ctx: ClientContext): void {
         skillMarketPanel,
         mcpConnectorPanel,
         connectorBridge,
+        expertsRequest: expertsEntry.hooks.expertsRequest,
+        onExpertsRequestHandled,
         // The Plugin Market's client half arrives with a page load; the gate's
         // reload action is the only navigation this page performs on its own,
         // and only after the person pressed it.

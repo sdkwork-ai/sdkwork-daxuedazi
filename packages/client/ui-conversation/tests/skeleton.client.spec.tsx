@@ -430,7 +430,7 @@ function mount(
 }
 
 describe('Hero chrome', () => {
-  it('renders the English preview badge through the hero locale seat', () => {
+  it('renders the English headline alone, with no release badge', () => {
     const renderSlot = vi.fn<(key: string, owner: object, opts?: { fallback?: ReactNode }) => ReactNode>(() => null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot as never} />)
     // The hero headline is fork branding, not upstream's wording: `locales.ts`
@@ -438,7 +438,9 @@ describe('Hero chrome', () => {
     // is pinned deliberately — a later merge that quietly restored upstream's
     // copy would otherwise still satisfy this assertion.
     expect(view.getByText('Help university students grow and realize their dreams')).toBeTruthy()
-    expect(view.getByText('Preview')).toBeTruthy()
+    // No `hero.preview` row and no badge: the fork does not advertise a
+    // release stage beside the headline in any locale.
+    expect(view.queryByText('Preview')).toBeNull()
     // The fork's hero owns one seat beyond upstream's brand mark: the
     // scene-switcher seat its app-mode plugin's pill group occupies (upstream
     // renders the brand mark alone). Both seats are announced even when empty —
@@ -615,7 +617,8 @@ describe('ConversationRoot resident composer', () => {
     expect(b.headerFactory).not.toHaveBeenCalled()
     expect(b.slotCalls).not.toContain('conversation.session.header.actions')
     expect(b.view.getByText('帮助大学生成长与实现梦想')).toBeTruthy()
-    expect(b.view.getByText('预览版')).toBeTruthy()
+    // No release-stage badge beside the headline: the hero shows the line alone.
+    expect(b.view.queryByText('预览版')).toBeNull()
     expect(b.view.queryByTestId('view-chat')).toBeNull()
     // The same machine-backed textarea is live in the hero, and the
     // persistence mirror stays bound (ConversationSession mounts chrome-hidden

@@ -31,6 +31,39 @@ export const UPSTREAM_APP_ID: string
  */
 export const BRAND_PORT_BLOCK: 9
 
+/** Locale keys a brand's localized application name may declare, plus the `default` fallback key. */
+export const BRAND_DISPLAY_LOCALES: readonly string[]
+
+/**
+ * Localized application display names. `parseBrandManifest()` fills every
+ * {@link BRAND_DISPLAY_LOCALES} key plus `default`, so callers index it directly.
+ */
+export type BrandDisplayNames = Readonly<Record<string, string>>
+
+/**
+ * Normalize an OS, Electron or installer locale tag to a shipped brand locale.
+ * @param locale - BCP-47-ish tag or installer locale id.
+ * @returns A `BRAND_DISPLAY_LOCALES` key, or undefined when unsupported.
+ */
+export function normalizeBrandLocale(locale: unknown): string | undefined
+
+/**
+ * Validate and complete a brand's localized application names.
+ * @param raw - `displayNames` section, or undefined.
+ * @param fallback - Locale-independent `displayName`.
+ * @param source - File or label named in validation errors.
+ * @returns Frozen, complete map.
+ */
+export function parseBrandDisplayNames(raw: unknown, fallback: string, source?: string): BrandDisplayNames
+
+/**
+ * Resolve the installed application's display name for one locale.
+ * @param brand - Validated manifest, or its name map.
+ * @param locale - OS/Electron/installer locale tag.
+ * @returns Localized application name; display copy only, never an identity or path.
+ */
+export function resolveBrandDisplayName(brand: DesktopBrand | BrandDisplayNames, locale: string | undefined): string
+
 /** Harness home and legacy-adoption behavior of one brand. */
 export interface DesktopBrandHome {
   /** Directory name under the operating-system home; dot-prefixed and lower case so two brands cannot collide. */
@@ -67,7 +100,10 @@ export interface DesktopBrandDesktop {
 export interface DesktopBrand {
   readonly schemaVersion: 1
   readonly key: string
+  /** Locale-independent fallback display name; keep for callers that have no locale. */
   readonly displayName: string
+  /** Installed application name per shipped locale, plus `default`. */
+  readonly displayNames: BrandDisplayNames
   readonly companyName: string
   readonly home: DesktopBrandHome
   readonly desktop: DesktopBrandDesktop

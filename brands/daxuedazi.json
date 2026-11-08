@@ -2,6 +2,17 @@
   "schemaVersion": 1,
   "key": "daxuedazi",
   "displayName": "学伴AI",
+  "displayNames": {
+    "default": "学伴AI",
+    "zh-CN": "学伴AI",
+    "en": "学伴AI",
+    "ja": "学伴AI",
+    "es": "学伴AI",
+    "fr": "学伴AI",
+    "de": "学伴AI",
+    "ru": "学伴AI",
+    "pt": "学伴AI"
+  },
   "companyName": "SDKWork",
   "home": {
     "dirName": ".daxuedazi",

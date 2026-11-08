@@ -1,5 +1,5 @@
 import { readInstallerLocales, renderInstallerStrings } from '../scripts/installer-locales.mjs'
-import { shippedBrand } from '../scripts/brand-manifest.mjs'
+import { resolveBrandDisplayName, shippedBrand } from '../scripts/brand-manifest.mjs'
 import { tmpdir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -69,9 +69,22 @@ describe('installer preparation preserves application dependencies', () => {
       })
       const appInfo = new AppInfo(metadataPackager, undefined)
       expect(appInfo.companyName).toBe('sdkwork-ai')
-      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} ${config.productName}`)
+      // The installed *visible* name comes from the brand's localized display
+      // names, while `productName` stays the ASCII identity that owns userData.
+      const displayName = resolveBrandDisplayName(shippedBrand(), undefined)
+      expect(appInfo.copyright).toBe(`Copyright © ${new Date().getFullYear()} ${displayName}`)
+      expect(config.productName).toBe(shippedBrand().desktop.productName)
+      expect(config.extraMetadata.productName).toBe(shippedBrand().desktop.productName)
+      // The URL-type identifier stays the ASCII identity; only visible names follow the map.
+      expect(config.protocols[0].name).toBe(shippedBrand().desktop.productName)
+      expect(config.nsis.shortcutName).toBe(displayName)
+      expect(config.dmg.title).toBe(displayName)
+      expect(config.mac.extendInfo.CFBundleDisplayName).toBe(displayName)
+      expect(config.mac.extendInfo.CFBundleName).toBe(displayName)
+      expect(config.linux.desktop.entry.Name).toBe(displayName)
+      expect(config.linux.desktop.entry['Name[zh_CN]']).toBe(displayName)
       if (platform === 'win32') {
-        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe(config.productName)
+        expect(expandMacro(config.nsis.uninstallDisplayName, null, appInfo, {}, false)).toBe(displayName)
         expect(config.nsis.installerLanguages).toEqual(readInstallerLocales().map(locale => locale.id))
       }
       const aboutIcon = config.extraResources.find(resource => resource.to === 'icon.png')

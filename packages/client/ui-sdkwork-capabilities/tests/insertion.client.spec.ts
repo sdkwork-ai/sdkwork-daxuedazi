@@ -14,9 +14,9 @@ describe('skill insertion', () => {
   })
 })
 
-describe('MCP insertion', () => {
-  it('names the server and the tool prefix it exposes', () => {
-    expect(mcpInsertion('github', t)).toBe('请使用 MCP 服务器「github」的工具（mcp__github__）来完成这条输入。\n')
+describe('connector insertion', () => {
+  it('names the connector and the tool prefix it exposes', () => {
+    expect(mcpInsertion('github', t)).toBe('请使用连接器「github」的工具（mcp__github__）来完成这条输入。\n')
   })
 })
 

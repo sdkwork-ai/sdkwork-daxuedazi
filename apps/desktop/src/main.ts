@@ -46,8 +46,8 @@ import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopSignInOutcome, ty
 import { createIamDeepLinkBridge, findIamDeepLink } from './iam-deep-links.ts'
 import { createIamSessionBridge, type IamSessionSecretStorage } from './iam-session.ts'
 import { readDeviceInfo } from './device-info.ts'
-import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
-import type { DesktopMessages } from './locale.ts'
+import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveBrandDisplayName, resolveDesktopLocale, resolveDesktopStartupLocale } from './locale.ts'
+import type { BrandDisplayNames, DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
@@ -218,15 +218,28 @@ function oem(): OemConfig {
   return oemProfile
 }
 
-/** @returns the OEM display brand, or the shipped name while a malformed profile is being reported. */
-function desktopBrandName(): string {
+/**
+ * @returns the brand's per-locale application names, or one OEM name for all languages.
+ *
+ * The shipped OEM profile repeats the manifest's `displayName`, so falling
+ * through to the manifest's `displayNames` keeps native copy on the i18n
+ * channel. A deployment that actually renames the product keeps its override in
+ * every language, preserving the pre-i18n OEM behavior.
+ */
+function desktopBrandNames(): BrandDisplayNames | string {
   try {
-    return oem().brand.name
+    const name = oem().brand.name
+    return name === brand.displayName ? brand.displayNames : name
   } catch {
     // The fatal report names the OEM failure; the dialog that shows it still
-    // needs a dictionary, so it renders the shipped brand.
-    return brand.displayName
+    // needs the packaged brand's names.
+    return brand.displayNames
   }
+}
+
+/** @returns the localized display name, or the shipped name while a malformed profile is being reported. */
+function desktopBrandName(locale: string = windowsLanguage ?? app.getLocale()): string {
+  return resolveBrandDisplayName(desktopBrandNames(), locale, brand.displayName)
 }
 
 // Platform-conventional logs directory (macOS ~/Library/Logs/<name>, otherwise under userData);
@@ -234,7 +247,7 @@ function desktopBrandName(): string {
 app.setAppLogsPath()
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
-  return resolveDesktopLocale(windowsLanguage ?? app.getLocale(), desktopBrandName(), brand.desktop.commandName)
+  return resolveDesktopLocale(windowsLanguage ?? app.getLocale(), desktopBrandNames(), brand.desktop.commandName)
 }
 /** Quit without the task confirmation; the caller has already decided the application must stop. */
 function quitWithoutConfirmation(): void {
@@ -623,8 +636,8 @@ async function main(): Promise<void> {
     ...(channelState?.error === undefined ? {} : { configurationError: channelState.error }) })
   const systemLanguages = app.getPreferredSystemLanguages()
   let locale = windowsLanguage === undefined
-    ? resolveDesktopStartupLocale(null, systemLanguages, oem().brand.name, brand.desktop.commandName)
-    : resolveDesktopLocale(windowsLanguage, oem().brand.name, brand.desktop.commandName)
+    ? resolveDesktopStartupLocale(null, systemLanguages, desktopBrandNames(), brand.desktop.commandName)
+    : resolveDesktopLocale(windowsLanguage, desktopBrandNames(), brand.desktop.commandName)
   windowsLanguage = locale.id
   let mandatoryPolicy: DesktopMandatoryUpdatePolicy | undefined
   let mandatoryUI: DesktopMandatoryUpdateWindow | undefined
@@ -1153,7 +1166,7 @@ async function main(): Promise<void> {
     const window = mainWindow
     if (window === undefined || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
       || typeof next !== 'string') return
-    const current = resolveDesktopStartupLocale(next, systemLanguages, desktopBrandName(), brand.desktop.commandName)
+    const current = resolveDesktopStartupLocale(next, systemLanguages, desktopBrandNames(), brand.desktop.commandName)
     writeDesktopLocaleCache(app.getPath('userData'), current.id)
     if (current.id === locale.id) return
     locale = current
@@ -1482,7 +1495,9 @@ async function main(): Promise<void> {
     // registrations stay behind. Every other platform keeps the native menu.
     Menu.setApplicationMenu(Menu.buildFromTemplate(usesProductCaption(process.platform)
       ? captionDevToolsShortcuts : [{
-        label: darwin ? app.name : currentDesktopLocale().messages.application,
+        // macOS shows the application menu's first item; Electron's `app.name`
+        // is the ASCII identity, so render the localized display name instead.
+        label: darwin ? currentDesktopLocale().brand : currentDesktopLocale().messages.application,
         submenu: [...applicationItems(), devToolsF12Shortcut],
       }, ...platformMenus()]))
     tray?.relabel()
@@ -1803,7 +1818,7 @@ async function main(): Promise<void> {
       await enterWorkspace()
       return
     }
-    locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages, desktopBrandName(), brand.desktop.commandName)
+    locale = resolveDesktopStartupLocale(state.localePreference, systemLanguages, desktopBrandNames(), brand.desktop.commandName)
     writeDesktopLocaleCache(app.getPath('userData'), locale.id)
     windowsLanguage = locale.id
     refreshApplicationMenu()
@@ -1912,7 +1927,8 @@ async function main(): Promise<void> {
     if (policyConfig.authentication === 'feishu-test') {
       policyAuth = new DesktopPolicyTestAuth(policyConfig.origin, policyConfig.allowedAuthOrigins, locale,
         () => mandatoryUI?.confirmationWindow ?? currentDialogWindow(),
-        (event) => { console.info(`desktop policy authentication: ${event}`); updateJournal?.action(`policy-login-${event}`) })
+        (event) => { console.info(`desktop policy authentication: ${event}`); updateJournal?.action(`policy-login-${event}`) },
+        resolveWindowIcon(app.getAppPath()))
     }
     let wasBlocking = false
     mandatoryPolicy = new DesktopMandatoryUpdatePolicy(policyConfig, {

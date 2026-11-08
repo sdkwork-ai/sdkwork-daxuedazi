@@ -82,9 +82,12 @@ export type { BirdWordmarkProps } from './BirdWordmark.tsx'
 export { LoginPanel } from './LoginPanel.tsx'
 export type { LoginAction, LoginPanelProps, LoginWelcomeCopy } from './LoginPanel.tsx'
 export {
+  APP_NAMES_BOOT_GLOBAL, browserLocale,
   DEFAULT_BRAND_NAME, DEFAULT_IAM_AUTHORIZE_BASE_URL, DEFAULT_IAM_BASE_URL, DEFAULT_IAM_CLIENT_ID,
   DEFAULT_IAM_REDIRECT_URI, OEM_BOOT_GLOBAL,
-  readOemAppStore, readOemBrandName, readOemDemandHall, readOemEnvironment, readOemIamAuthorizeBaseUrl,
+  readOemAppNames, readOemAppStore, readOemBrandName, readOemBrandNameForLocale, readOemDemandHall,
+  readOemEnvironment,
+  readOemIamAuthorizeBaseUrl,
   readOemIamBaseUrl, readOemIamClientId, readOemIamRedirectUri, readOemSceneSwitcher, readOemShowApiKeyEntry,
   readOemSkillTags, readOemTemplateLibrary,
 } from './oem-brand.ts'

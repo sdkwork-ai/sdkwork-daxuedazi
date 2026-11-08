@@ -1,11 +1,13 @@
 /**
- * The three composer capability contributions.
+ * The composer capability contributions.
  *
  * Each row is one `ctx.commandUi` contribution in the composer's Add section:
  * it loads its own catalog when the popup opens, maps it to popupSelect rows
- * (options.ts), and settles the pick into the draft (insertion.ts). The
- * contribution shell owns the picker search, keyboard, and focus behavior;
- * this module owns only what the row means.
+ * (options.ts), and settles the pick into the draft (insertion.ts). The expert
+ * row is the exception: it opens a fixed roster of adding entries and hands the
+ * pick to the Experts center instead of writing draft text. The contribution
+ * shell owns the picker search, keyboard, and focus behavior; this module owns
+ * only what the row means.
  */
 
 import type { McpManagedServerView, SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
@@ -16,11 +18,27 @@ import type { ClientSessionContext } from '@deepseek-ai/dsh-client-ui-input-trig
 import type { TranslateNS } from '@deepseek-ai/dsh-client-locale/client'
 import type { KnowledgeBaseCatalog, KnowledgeExcerpt } from '@deepseek-ai/dsh-client-ui-sdkwork-knowledge/client'
 import {
-  IconCordisPluginOutlineRegular, IconDatabaseOutlineRegular, IconSkillOutlineRegular,
+  IconAgentPresetOutlineRegular, IconCordisPluginOutlineRegular,
+  IconDatabaseOutlineRegular, IconSkillOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { knowledgeInsertion, mcpInsertion, skillInsertion } from './insertion.ts'
-import { knowledgeOptions, mcpOptions, skillOptions } from './options.ts'
+import { expertOptions, knowledgeOptions, mcpOptions, skillOptions } from './options.ts'
+
+/**
+ * The Experts center's entry points, published as the optional
+ * `ctx.marketsExperts` service by `ui-sdkwork-markets`. Resolved lazily so a
+ * composition without that plugin still renders the row and reports the
+ * unavailability at pick time instead of hiding the entry.
+ */
+export interface ExpertsEntry {
+  /** Start a guided create-expert conversation. */
+  createExpert(): void
+  /** Open the cloud expert catalog on the market's Experts tab. */
+  openMarket(): void
+  /** Open the My-experts roster, where experts are created and managed. */
+  openMine(): void
+}
 
 /** Retrieval budget for one knowledge base pick, in milliseconds. */
 export const RETRIEVAL_TIMEOUT_MS = 6000
@@ -41,6 +59,11 @@ export interface CapabilityRowDeps {
    * @returns false for subagent sessions and sessions without a retained binding.
    */
   available(session: ClientSessionContext): boolean
+  /**
+   * Resolve the Experts center service, which another plugin may publish after
+   * this one loaded. @returns the entry points, or undefined when absent.
+   */
+  experts(): ExpertsEntry | undefined
   /**
    * Read the session's skill catalog.
    * @param sessionId - session whose effective skill providers decide the catalog.
@@ -111,6 +134,40 @@ async function loadRows<Value>(
 }
 
 /**
+ * Build the expert row: a fixed roster of expert-adding entries, each handed
+ * to the Experts center. The row stays visible even when that service has not
+ * mounted yet; a pick made in that state reports a localized refusal instead
+ * of silently doing nothing.
+ * @param deps - row capabilities.
+ * @returns the `experts` contribution.
+ */
+function expertRow(deps: CapabilityRowDeps): CommandContribution {
+  const { t } = deps
+  return {
+    name: 'experts',
+    label: () => t('label.experts'),
+    description: () => t('description.experts'),
+    icon: IconAgentPresetOutlineRegular,
+    available: session => deps.available(session),
+    ui: {
+      kind: 'popupSelect',
+      searchLabels: () => searchLabels(t('label.experts'), t('search.empty.experts'), t),
+      options: async () => expertOptions(t),
+      onSelect: (option) => {
+        const experts = deps.experts()
+        if (experts === undefined) throw new Error(t('notice.expertsUnavailable'))
+        switch (option.id) {
+          case 'create': experts.createExpert(); break
+          case 'market': experts.openMarket(); break
+          case 'mine': experts.openMine(); break
+          default: throw new Error(t('notice.expertsUnavailable'))
+        }
+      },
+    },
+  }
+}
+
+/**
  * Build the skill row: pick a user-invocable skill and insert its `/name`
  * gesture, which the Host expands into the skill's instructions.
  * @param deps - row capabilities.
@@ -140,8 +197,9 @@ function skillRow(deps: CapabilityRowDeps): CommandContribution {
 }
 
 /**
- * Build the MCP row: pick a managed server and state which server's tools this
- * message is meant to use.
+ * Build the connector row: pick a managed MCP server and state which server's
+ * tools this message is meant to use. The face says 连接器 / Connector while
+ * the `mcp` command name and `mcp__server__` prefix stay protocol identifiers.
  * @param deps - row capabilities.
  * @returns the `mcp` contribution.
  */
@@ -234,10 +292,11 @@ async function retrieve(
 }
 
 /**
- * Build the three capability rows in composer menu order.
+ * Build the capability rows in composer menu order: Experts leads the fork's
+ * rows, ahead of Skill.
  * @param deps - row capabilities.
- * @returns the `skills`, `mcp`, and `knowledge` contributions.
+ * @returns the `experts`, `skills`, `mcp`, and `knowledge` contributions.
  */
 export function createCapabilityRows(deps: CapabilityRowDeps): readonly CommandContribution[] {
-  return [skillRow(deps), mcpRow(deps), knowledgeRow(deps)]
+  return [expertRow(deps), skillRow(deps), mcpRow(deps), knowledgeRow(deps)]
 }

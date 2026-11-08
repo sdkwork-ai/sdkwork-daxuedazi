@@ -31,10 +31,13 @@ describe('webApp (the real web profile)', () => {
     const dangling = webApp.rows.flatMap(row => row.inject.filter(target => !known.has(target)).map(target => `${row.name} -> ${target}`))
     // FORK DIVERGENCE: upstream's list is empty. The fork asserts exactly its
     // documented edges, so one more dangling declaration still fails:
-    // - `ui-sdkwork-skills`, `ui-sdkwork-demand-hall` and the third-party
-    //   `@xmanrui/dsh-im` each declare their foundation load order against
-    //   `@deepseek-ai/dsh-client-runtime`, which upstream's composition reaches
-    //   through a roster row this fork loads as foundation instead;
+    // - `ui-sdkwork-skills` and `ui-sdkwork-demand-hall` each declare their
+    //   foundation load order against `@deepseek-ai/dsh-client-runtime`, which
+    //   upstream's composition reaches through a roster row this fork loads as
+    //   foundation instead. The third-party `@xmanrui/dsh-im` declares the same
+    //   edge, but its row is disabled by default in this product, so this reader
+    //   drops the row and the dangling edge disappears with it; re-enabling the
+    //   IM plugin adds the edge back.
     // - `ui-sdkwork-automation` pairs with the schedule Host package, which has
     //   no browser row at all (the page reads it through the Remote assembly);
     // - `ui-entry-customization` and the four host-plane settings pages extend
@@ -71,7 +74,6 @@ describe('webApp (the real web profile)', () => {
       '@deepseek-ai/dsh-client-ui-settings-agent-loop -> @deepseek-ai/dsh-client-ui-plugin-manager',
       '@deepseek-ai/dsh-client-ui-settings-subagent -> @deepseek-ai/dsh-client-ui-plugin-manager',
       '@deepseek-ai/dsh-client-ui-settings-web-search -> @deepseek-ai/dsh-client-ui-plugin-manager',
-      '@xmanrui/dsh-im -> @deepseek-ai/dsh-client-runtime',
     ])
     expect(bundleRoster(WEB_PROFILE_BUNDLES, undefined, profileScope('web')).rows).toEqual(webApp.rows)
     expect(names).not.toContain('@deepseek-ai/dsh-client-ui-sidebar-browser')

@@ -3,7 +3,7 @@ import type { McpManagedServerView, SkillEntry } from '@deepseek-ai/dsh-api-remo
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { KnowledgeBaseSummary } from '@deepseek-ai/dsh-client-ui-sdkwork-knowledge/client'
 import { zh } from '../src/client/locales.ts'
-import { knowledgeOptions, mcpOptions, skillOptions } from '../src/client/options.ts'
+import { expertOptions, knowledgeOptions, mcpOptions, skillOptions } from '../src/client/options.ts'
 
 const t = makeTranslate(zh)
 
@@ -22,6 +22,13 @@ function skill(overrides: Partial<SkillEntry> & { name: string }): SkillEntry {
 function server(name: string, status: McpManagedServerView['status']): McpManagedServerView {
   return { name, configured: true, status }
 }
+
+describe('expert rows', () => {
+  it('offers the three adding entries in menu order', () => {
+    expect(expertOptions(t).map(row => row.id)).toEqual(['create', 'market', 'mine'])
+    expect(expertOptions(t)[0]).toMatchObject({ label: '创建专家' })
+  })
+})
 
 describe('skill rows', () => {
   it('offers only user-invocable skills, in catalog order', () => {

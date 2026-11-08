@@ -10,6 +10,7 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import { resolveBrandDisplayName, shippedBrand } from '../desktop/scripts/brand-manifest.mjs'
 import { WEB_SOURCE_ALIASES } from './vite-source-aliases.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
 import { katexWoff2Fonts } from './katex-fonts.ts'
@@ -19,20 +20,42 @@ const repoRoot = src('../..')
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
-const DEFAULT_CLIENT_TITLE = 'DSH Local Build'
+/** Page global carrying the brand manifest's per-locale installed application names. */
+const APP_NAMES_BOOT_GLOBAL = '__DSH_APP_NAMES__'
 
 /** Escape build-time text before placing it in the HTML title element. */
 function escapeHtmlText(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Project the public build title into the initial HTML document. */
-function clientDocumentTitle(): Plugin {
-  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? DEFAULT_CLIENT_TITLE)
+/**
+ * Project the installed application's name into the initial HTML document.
+ *
+ * FORK DIVERGENCE: the startup page paints before client plugins (and therefore
+ * before the OEM brand projection) load, so the name has to be in the document
+ * itself. `brands/<key>.json` owns both the title and the per-locale map, which
+ * `boot-brand.ts` and `ui-primitives/oem-brand.ts` read from this one global.
+ * The old `<title>DSH Local Build</title>` anchor had already been renamed, so
+ * the replacement had silently become a no-op; match the element instead.
+ */
+function clientBrandIdentity(): Plugin {
+  const brand = shippedBrand()
+  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? resolveBrandDisplayName(brand, undefined))
+  // `<` cannot appear in a JSON string here, but escaping keeps a future brand
+  // name from terminating the inline script element.
+  const names = JSON.stringify(brand.displayNames).replace(/</gu, '\\u003c')
+  // The element above carries the default name so a page without scripting still
+  // reads the product; this keeps the tab in step with the browser language
+  // before the SPA (and its locale registry) can load.
+  const localizeTitle = `(function(){var n=window.${APP_NAMES_BOOT_GLOBAL}||{};`
+    + "var l=((navigator.languages&&navigator.languages[0])||navigator.language||'').toLowerCase().replace(/_/g,'-').split('-')[0];"
+    + "var t=n[(l==='zh'?'zh-CN':l)]||n['default'];if(t)document.title=t})()"
   return {
-    name: 'dsh-client-document-title',
+    name: 'dsh-client-brand-identity',
     transformIndexHtml(html) {
-      return html.replace('<title>DSH Local Build</title>', `<title>${title}</title>`)
+      return html
+        .replace(/<title>[^<]*<\/title>/u, `<title>${title}</title>`)
+        .replace('</head>', `    <script>window.${APP_NAMES_BOOT_GLOBAL}=${names};${localizeTitle}</script>\n  </head>`)
     },
   }
 }
@@ -304,7 +327,7 @@ export default defineConfig(({ mode }) => {
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), katexWoff2Fonts(), react(), tailwindcss(), emitPreviewPage(),
+    rejectStandaloneServe(), clientBrandIdentity(), brandFontLicense(), katexWoff2Fonts(), react(), tailwindcss(), emitPreviewPage(),
     sdkworkEnvInjection(deploymentProfile, environment),
     productWebBundleIsolation(src('../..'), src('.')),
   ],

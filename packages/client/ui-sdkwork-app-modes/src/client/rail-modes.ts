@@ -43,6 +43,27 @@ export function isFixedMode(mode: RailModeId): boolean {
 }
 
 /**
+ * Modes temporarily withdrawn from the UI: Chat, Contacts, App Store,
+ * Courses and Search. This is a display-layer switch, not a removal: every
+ * id stays in the rail vocabulary, its rail entry stays registered in
+ * its owning plugin, its page and locale copy stay shipped, and the layout
+ * preference still carries the id (including the user's order and visibility
+ * choice). Only the rail seat and the customize-dialog row are filtered out.
+ *
+ * Re-enabling a mode is a one-line change — drop its id from this array —
+ * with no re-registration, no migration and no lost preference: it comes
+ * back in its shipped position through the vocabulary that never changed.
+ */
+export const SUSPENDED_RAIL_MODES: readonly RailModeId[] = [
+  'chat', 'contacts', 'appstore', 'course', 'search',
+]
+
+/** Whether a mode is temporarily withdrawn from the rail and its customize dialog. */
+export function isSuspendedRailMode(mode: RailModeId): boolean {
+  return SUSPENDED_RAIL_MODES.includes(mode)
+}
+
+/**
  * Hideable modes the shipped layout shows besides the fixed set. It is empty:
  * the product ships App Store and every other hideable mode hidden, and the
  * customize dialog (plus Settings → Sidebar for the sidebar row) is the user's

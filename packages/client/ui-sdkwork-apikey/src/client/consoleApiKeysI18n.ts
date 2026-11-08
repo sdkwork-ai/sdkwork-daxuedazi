@@ -17,7 +17,7 @@
  */
 import i18next, { type i18n as I18nInstance } from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import { readOemBrandName } from '@deepseek-ai/dsh-client-ui-primitives'
+import { readOemBrandNameForLocale } from '@deepseek-ai/dsh-client-ui-primitives'
 import { consoleApiKeysMessages } from './consoleApiKeysMessages.ts'
 
 /** The cloudrouter console catalogs use one flat namespace. */
@@ -36,12 +36,20 @@ const CONSOLE_API_KEYS_RESOURCES = {
 let initialized = false
 
 /**
+ * Interpolation variables shared by every catalog lookup. The product name is
+ * resolved per catalog language by {@link ensureConsoleApiKeysI18n}, and the
+ * object identity never changes, so i18next keeps reading the current value.
+ */
+const brandVariables: Record<string, string> = { platformName: readOemBrandNameForLocale('en-US') }
+
+/**
  * Idempotently register the api-keys catalog on the global react-i18next
  * singleton and apply `language`. First call initializes (synchronously, so
  * the first render already resolves keys); later calls only changeLanguage —
  * re-init would wipe subscribers' language state.
  */
 export function ensureConsoleApiKeysI18n(language: string): I18nInstance {
+  brandVariables.platformName = readOemBrandNameForLocale(cloudRouterLocale(language))
   if (!initialized) {
     void i18next.use(initReactI18next).init({
       defaultNS: CONSOLE_API_KEYS_NAMESPACE,
@@ -51,9 +59,10 @@ export function ensureConsoleApiKeysI18n(language: string): I18nInstance {
       // ignoreJSONStructure fallback.
       initAsync: false,
       interpolation: {
-        // The vendored console catalog spells the shipped product name; an
-        // OEM deployment's page projection supplies the display brand.
-        defaultVariables: { platformName: readOemBrandName() },
+        // The vendored console catalog spells `{{platformName}}`; the brand
+        // manifest (or an OEM override) supplies the name for the language the
+        // console renders in.
+        defaultVariables: brandVariables,
         escapeValue: false,
       },
       keySeparator: false,

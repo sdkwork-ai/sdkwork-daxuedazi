@@ -20,6 +20,12 @@
  * Work is temporarily hidden: its entry stays registered (BASE_MODES still
  * owns it), but the shell no longer dispatches it. Restore the mode by
  * adding 'work' back to MODE_ORDER.
+ *
+ * The modes in SUSPENDED_RAIL_MODES are likewise withdrawn, but without
+ * touching the vocabulary: their entries remain registered and their layout
+ * preferences remain stored, and this shell filters them out of both the
+ * visible rail seats and the customize dialog's rows. Clearing that list
+ * restores them; see rail-modes.ts.
  */
 import { useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
@@ -35,7 +41,7 @@ import type {} from './contract/slots.ts'
 import { RailTooltip } from './RailTooltip.tsx'
 import { RailCustomizeDialog } from './RailCustomizeDialog.tsx'
 import type { RailLayoutStore } from './rail-layout-store.ts'
-import { FALLBACK_MODE, PINNED_MODE, isRailModeId } from './rail-modes.ts'
+import { FALLBACK_MODE, PINNED_MODE, isRailModeId, isSuspendedRailMode } from './rail-modes.ts'
 import type { RailModeId } from './rail-modes.ts'
 import css from './ModeRail.module.css'
 
@@ -83,8 +89,11 @@ export function ModeRail({ mode, setMode, t, renderSlot, layout, registered, use
   for (const key of entryKeys) {
     if (isRailModeId(key)) available.add(key)
   }
-  const visibleModes = order.filter(id => !hiddenModes.has(id) && available.has(id))
-  const customizableModes = order.filter(id => available.has(id))
+  // A suspended mode keeps its registration and its stored preference; only
+  // its rail seat and its customize-dialog row are withheld from the UI.
+  const visibleModes = order.filter(id =>
+    !hiddenModes.has(id) && available.has(id) && !isSuspendedRailMode(id))
+  const customizableModes = order.filter(id => available.has(id) && !isSuspendedRailMode(id))
 
   const renderEntry = (id: AppModeId) =>
     renderSlot('mode.rail.entry', { active: mode === id && !panelOpen, setMode }, { entryKey: id })

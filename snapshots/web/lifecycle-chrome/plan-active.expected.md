@@ -17,7 +17,7 @@
 - button "Account menu": More
 - banner:
   - button "Open right sidebar"
-- text: Help university students grow and realize their dreams Preview
+- text: Help university students grow and realize their dreams
 - button "Choose workspace": workspace
 - button "Standard mode"
 - textbox "Describe what you want to build, / commands, @ files or sessions"

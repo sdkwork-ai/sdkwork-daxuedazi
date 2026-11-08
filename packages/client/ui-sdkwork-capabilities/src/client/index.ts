@@ -1,9 +1,10 @@
 /**
- * Composer capability rows, browser half: three `ctx.commandUi` contributions
- * (`skills`, `mcp`, `knowledge`) that the composer's Add section renders, each
- * opening the shared popupSelect shell over its own catalog and settling the
- * pick into the current draft. Wiring only — row behavior lives in
- * `rows.ts`, option mapping in `options.ts`, and draft text in `insertion.ts`.
+ * Composer capability rows, browser half: four `ctx.commandUi` contributions
+ * (`experts`, `skills`, `mcp`, `knowledge`) that the composer's Add section
+ * renders. The first opens a roster of expert-adding entries; the other three
+ * open the shared popupSelect shell over their own catalog and settle the pick
+ * into the current draft. Wiring only — row behavior lives in `rows.ts`, option
+ * mapping in `options.ts`, and draft text in `insertion.ts`.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls `ctx.remote` and the remote namespace types the option
@@ -20,7 +21,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-knowledge/client'
 import type { McpManagedServerView, SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { en, NS, zh } from './locales.ts'
-import { createCapabilityRows, type CapabilityRowDeps } from './rows.ts'
+import { createCapabilityRows, type CapabilityRowDeps, type ExpertsEntry } from './rows.ts'
 
 /** Services the composer capability rows require. */
 export const inject = [
@@ -34,7 +35,7 @@ export const inject = [
 ]
 
 /**
- * Register the three composer capability rows.
+ * Register the composer capability rows.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -50,6 +51,9 @@ export function apply(ctx: ClientContext): void {
       if (sessions.subagentAddress(session.sessionId) !== undefined) return false
       return sessions.binding(session.sessionId) !== undefined
     },
+    // Optional: ui-sdkwork-markets may activate after this plugin. Read at
+    // pick time so the Experts row never depends on that plugin's load order.
+    experts: () => ctx.get('marketsExperts') as ExpertsEntry | undefined,
     loadSkills: async (sessionId: SessionId, signal: AbortSignal): Promise<readonly SkillEntry[]> => {
       const result = await ctx.remote.skills.list({ sessionId }, signal)
       signal.throwIfAborted()

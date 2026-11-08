@@ -136,6 +136,18 @@ The other six dictionaries carry the same positioning under `hero.headline` — 
 
 Three surfaces carry the name as a document title rather than locale copy: `apps/web/index.html`'s `<title>`, `apps/web/public/manifest.webmanifest`'s `name`/`short_name`, and `website/.vitepress/config.ts`'s `title`.
 
+**Application name (i18n).** The installed name is display copy, so it is internationalized while the identity is not. `brands/<key>.json` carries `displayNames` — one name per shipped language plus `default` — while `displayName` stays the default; `desktop.productName`, the executable name, the appId, and everything Electron derives from `app.name` (`userData`, the single-instance lock, the logs directory, the updater cache) never follow that map, so changing a display name can never strand an installed user's data. Packaging maps the names onto `nsis.shortcutName` / `uninstallDisplayName`, `dmg.title`, macOS `CFBundleDisplayName` / `CFBundleName`, every `Name[<lang>]` entry of `linux.desktop`, the installer's `{brand}` copy and the copyright line; the shell resolves the same map for the About panel, the macOS application menu, the tray tooltip and the welcome window (`resolveDesktopLocale` accepts the map, not only one name); and the web build publishes it as `window.__DSH_APP_NAMES__` for the framework-free boot page (`packages/client/web/src/boot-brand.ts`), the OEM plugin (`LocaleRuntime.setBrandNames`, which follows the active interface language) and the vendored API-key console. An OEM profile that sets `brand.name` to something else still wins in every language. `protocols[0].name` stays the ASCII identity because macOS treats it as a URL-type identifier, not a visible label.
+
+Re-verify after every upstream merge:
+
+```sh
+grep -c '"displayNames"' brands/daxuedazi.json   # 1: the name map every visible surface resolves
+grep -c "APP_NAMES_BOOT_GLOBAL" packages/client/web/src/boot-brand.ts   # 2: declaration and read
+grep -c "setBrandNames" packages/client/ui-sdkwork-oem/src/client/index.ts   # 1: the client follows the interface language
+grep -rn "shortcutName: '\${productName}'\|uninstallDisplayName: '\${productName}'" apps/desktop/scripts   # nothing: no visible name falls back to the identity
+pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/installer-packaging.spec.ts packages/client/locale/tests/locale.client.spec.ts packages/client/ui-sdkwork-oem/tests/apply.client.spec.ts
+```
+
 Re-verify after every upstream merge (the first must return nothing; the rest are named counts):
 
 ```sh
@@ -147,7 +159,13 @@ grep -c "帮助大学生成长与实现梦想" packages/client/ui-conversation/s
 grep -rn "DeepSeek Harness" apps/desktop/tests/expected packages/client/ui-settings-account/tests/expected packages/client/ui-settings-models/tests apps/web/tests/scaffold.ts   # nothing
 ```
 
-**Deliberately not rebranded**, beyond the upstream source text above: the repository `README.md` H1 (it documents the upstream project the fork is forked from and declares the fork relationship in its own section, so renaming it makes "forked from what?" unanswerable) and the generated `packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md` (`scripts/gen-plugin-packages.ts` writes it from workspace manifests and `pnpm run verify-plugin-packages` checks it, so hand-editing fails the gate). The vendored `packages/client/ui-sdkwork-apikey/src/client/consoleApiKeysMessages.ts` spells the product `Birdcoder` in its `console.apiKeys.quickImport.birdcoder*` rows; it is a hand copy of `sdkwork-cloudrouter`'s console copy ("Re-sync by hand"), so the fix belongs in that source followed by a re-sync — never in the mirror alone. The Electron userData directory is no longer in this list: it is fork-owned and covered by [Desktop application identity](#desktop-application-identity-merge-stable-contract).
+**No hero release badge.** The fork ships no release-stage badge beside the conversation hero headline: `EmptyHero.tsx` renders `hero.headline` alone, and none of the eight dictionaries carries a `hero.preview` row. Upstream's `previewBadge` pill and its locale rows were deliberately removed, so an upstream merge that restores either is a regression, not a neutral change. Re-verify after every upstream merge (must return nothing):
+
+```sh
+grep -rn "hero.preview\|previewBadge" packages/client/ui-conversation/src/client --exclude="*.d.ts"   # nothing: no release-stage badge beside the hero headline
+```
+
+**Deliberately not rebranded**, beyond the upstream source text above: the repository `README.md` H1 (it documents the upstream project the fork is forked from and declares the fork relationship in its own section, so renaming it makes "forked from what?" unanswerable) and the generated `packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md` (`scripts/gen-plugin-packages.ts` writes it from workspace manifests and `pnpm run verify-plugin-packages` checks it, so hand-editing fails the gate). The vendored `packages/client/ui-sdkwork-apikey/src/client/consoleApiKeysMessages.ts` is a hand copy of `sdkwork-cloudrouter`'s console copy ("Re-sync by hand"), so the fix belongs in that source followed by a re-sync — never in the mirror alone. Its quick-import rows spell the product as `{{platformName}}`; `consoleApiKeysI18n.ts` fills that variable from the brand projection for the console's current language, so a re-sync must not reintroduce a literal product name. The Electron userData directory is no longer in this list: it is fork-owned and covered by [Desktop application identity](#desktop-application-identity-merge-stable-contract).
 
 ## OEM profile (merge-stable contract)
 

@@ -19,7 +19,12 @@ export const CLIENT_BUILD_PROFILE_SELECTOR = 'DSH_BUILD_CLIENT_PROFILE'
 /** Public client environment required by official DSH artifacts. */
 const OFFICIAL_CLIENT_BUILD_ENVIRONMENT = {
   DSH_CLIENT_BUILD_PROFILE: 'official',
-  DSH_CLIENT_TITLE: 'DeepSeek Harness',
+  // FORK DIVERGENCE: the installed application's display name, not the upstream
+  // product name. Keep in step with `brands/daxuedazi.json` displayNames.default;
+  // `client-build-environment.client.spec.ts` guards the two. This value becomes
+  // the document title of the startup page, so an upstream merge that restores
+  // the old literal would rename the app before any plugin can rebrand it.
+  DSH_CLIENT_TITLE: '学伴AI',
 } as const
 
 /** Public variable carrying the source commit embedded in client artifacts. */
