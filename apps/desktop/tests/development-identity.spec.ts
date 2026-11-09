@@ -9,7 +9,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
 import { BRAND_DIRECTORY, BRAND_PORT_BLOCK, readBrandManifest, shippedBrand } from '../scripts/brand-manifest.mjs'
-import { developmentLaneHome, developmentLanePorts } from '../scripts/development-identity.ts'
+import {
+  developmentLaneDirectories,
+  developmentLaneHome,
+  developmentLanePorts,
+  developmentLaneWebEnvironment,
+} from '../scripts/development-identity.ts'
 
 /** Shipped brand directory name, used by the manifest fixtures below. */
 const SHIPPED_KEY = 'daxuedazi'
@@ -152,4 +157,37 @@ it.runIf(process.platform === 'win32')('refuses a foreign home that differs only
     homeDirectory,
     brandDirectory,
   })).toMatchObject({ home: defaultHome, owner: 'birdcoder' })
+})
+
+it('gives each lane its own installation and state directories', () => {
+  const buildRoot = join('D:', 'checkout', 'apps', 'desktop', '.desktop-build')
+  const development = developmentLaneDirectories(buildRoot, 'development')
+  const online = developmentLaneDirectories(buildRoot, 'online')
+  for (const lane of [development, online]) {
+    expect(lane.stateRoot).toContain(join('.desktop-build'))
+    expect(lane.home).toBe(join(lane.stateRoot, 'home'))
+    expect(lane.userData).toBe(join(lane.stateRoot, 'electron-user-data'))
+    expect(lane.project).toBe(join(lane.stateRoot, 'project'))
+    expect(lane.primaryRuntime).toBe(join(lane.runtimeRoot, 'primary-runtime'))
+  }
+  // Preparing one lane replaces its project and runtime; a shared directory
+  // would delete what the other lane is serving.
+  expect(development.stateRoot).not.toBe(online.stateRoot)
+  expect(development.project).not.toBe(online.project)
+  expect(development.runtimeRoot).not.toBe(online.runtimeRoot)
+  expect(development.primaryRuntime).not.toBe(online.primaryRuntime)
+})
+
+it('makes the built page of each lane carry its own deployment', () => {
+  expect(developmentLaneWebEnvironment('development')).toMatchObject({
+    deploymentProfile: 'standalone',
+    environment: 'development',
+    profileId: 'standalone.development',
+  })
+  // The online lane mirrors a packaged release, whose page bakes cloud.production.
+  expect(developmentLaneWebEnvironment('online')).toMatchObject({
+    deploymentProfile: 'cloud',
+    environment: 'production',
+    profileId: 'cloud.production',
+  })
 })

@@ -5,13 +5,23 @@ import { cpSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
+import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
+import { assertWebBuildEnvironment, readWebBuildEnvironment } from '../../../scripts/web-build-environment.ts'
 import { resolveApplicationCode } from '../../../packages/boot/sdkwork-env-bootstrap/src/index.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import type { DesktopRelease } from '../src/release.ts'
-import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
+import { snapshotWebApplicationDist } from '../src/web-application.ts'
+import { resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
-import { developmentLaneHome, developmentLanePorts } from './development-identity.ts'
+import {
+  developmentLaneDirectories,
+  developmentLaneHome,
+  developmentLanePorts,
+  developmentLaneWebEnvironment,
+  type DevelopmentLaneDirectories,
+  type DevelopmentLaneName,
+} from './development-identity.ts'
 import { resolveBrand } from './brand-manifest.mjs'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { KEEP_INHERITED_SDKWORK_ENV, developmentLaunchEnvironment } from './development-sdkwork-env.ts'
@@ -22,9 +32,6 @@ import { INSECURE_TLS_ELECTRON_SWITCH, ONLINE_REQUEST_LOG_VARIABLE, PRODUCTION_G
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
-const DEVELOPMENT_ROOT = join(BUILD_ROOT, 'development')
-/** Home, npm project and browser data of the `--online` debug lane, kept out of the development state. */
-const ONLINE_ROOT = join(BUILD_ROOT, 'online')
 /** Request logger preloaded into the `--online` Electron child through `NODE_OPTIONS`. */
 const ONLINE_REQUEST_LOG_MODULE = join(APP_ROOT, 'scripts', 'online-request-log.cjs')
 
@@ -79,7 +86,10 @@ async function runPackageScript(script: string, cwd: string, environment: NodeJS
  */
 function stagedElectronExecutable(electron: string): string {
   const source = resolve(electron, '..')
-  const target = join(DEVELOPMENT_ROOT, 'electron-dist')
+  // The mirror is a read-only copy of the toolchain both lanes launch, not an
+  // installation either lane owns: one copy serves development, the online lane
+  // and every checkout of this repository on the machine.
+  const target = join(BUILD_ROOT, 'electron-dist')
   const sourceBinary = join(source, 'electron.exe')
   const targetBinary = join(target, 'electron.exe')
   const stale = (() => {
@@ -96,7 +106,13 @@ function stagedElectronExecutable(electron: string): string {
   return targetBinary
 }
 
-async function launchElectron(sdkworkEnvironment: NodeJS.ProcessEnv, online: boolean, insecureTls: boolean): Promise<void> {
+async function launchElectron(
+  sdkworkEnvironment: NodeJS.ProcessEnv,
+  lane: DevelopmentLaneName,
+  directories: DevelopmentLaneDirectories,
+  webDist: string,
+  insecureTls: boolean,
+): Promise<void> {
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
   if (typeof electron !== 'string') throw new Error('desktop development: electron executable is unavailable')
@@ -108,28 +124,36 @@ async function launchElectron(sdkworkEnvironment: NodeJS.ProcessEnv, online: boo
   // rest.
   const brand = resolveBrand(process.env)
   const lanePorts = developmentLanePorts(brand)
-  const lane = online ? 'online' : 'development'
   const inspectors = lanePorts.inspectors[lane]
   const mainPort = debugPort('DSH_DESKTOP_MAIN_INSPECT_PORT', inspectors.main)
   const rendererPort = debugPort('DSH_DESKTOP_RENDERER_DEBUG_PORT', inspectors.renderer)
   const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', inspectors.host)
-  // The online lane keeps its own Harness home and browser data so production
-  // credentials and sessions never mix with the development state.
-  const stateRoot = online ? ONLINE_ROOT : DEVELOPMENT_ROOT
+  // Every lane keeps its own Harness home, browser data, runtime project and
+  // primary runtime, so neither the other lane nor the installed release of this
+  // brand reads or rewrites what this launch serves.
   // An installed brand serves `desktop.webPort`, this lane the next port, and the
   // online lane the one after that.
   const webPort = process.env.DSH_DESKTOP_HOST_WEB_PORT ?? String(lanePorts.web[lane])
   const laneHome = developmentLaneHome({
     brand,
     environment: process.env,
-    defaultHome: join(stateRoot, 'home'),
+    defaultHome: directories.home,
     warn: (line) => { console.warn(line) },
   })
-  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(stateRoot, 'electron-user-data'))
+  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? directories.userData)
   const environment: NodeJS.ProcessEnv = {
     ...sdkworkEnvironment,
     DSH_HOME: laneHome.home,
-    DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
+    // The shell loads the runtime project of this lane, not a shared
+    // `.desktop-build/development/project` one: preparing a project replaces it,
+    // and a lane that replaced the directory a running lane serves from would
+    // break that lane's module resolution mid-session.
+    DSH_DESKTOP_DSH_DIR: directories.project,
+    DSH_DESKTOP_PRIMARY_RUNTIME_DIR: directories.primaryRuntime,
+    // The shell serves the page snapshot this launch verified, not the shared
+    // `apps/web/dist` another lane or the `dev:web` watcher may rewrite while this
+    // shell runs.
+    DSH_DESKTOP_WEB_DIST: webDist,
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     // The Host reads its Web port from this variable; without it the development
     // shell would bind the brand's packaged port and lose startup to the installed
@@ -152,13 +176,17 @@ async function launchElectron(sdkworkEnvironment: NodeJS.ProcessEnv, online: boo
       + 'NODE_EXTRA_CA_CERTS with the gateway certificate for real use')
   }
   const launchEnvironment = insecureTls ? insecureTlsLaunchEnvironment(environment) : environment
-  console.log(`desktop development: brand=${brand.key} DSH_HOME=${laneHome.home} web port=${webPort}`)
+  console.log(`desktop development: lane=${lane} brand=${brand.key} DSH_HOME=${laneHome.home} web port=${webPort}`)
   console.log(`desktop development: userData=${userData}`)
+  console.log(`desktop development: project=${directories.project}`)
+  console.log(`desktop development: primary runtime=${directories.primaryRuntime}`)
+  console.log(`desktop development: web page=${webDist}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`
-    + (online ? '; attach the debugger through chrome://inspect (renderer console) or your IDE inspector (main and host)' : ''))
+    + (lane === 'online' ? '; attach the debugger through chrome://inspect (renderer console) or your IDE inspector (main and host)' : ''))
   if (process.platform === 'darwin') {
-    const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: stateRoot, home: laneHome.home,
-      userData, webPort, mainPort, rendererPort, hostPort, openDevtools: launchEnvironment.DSH_DESKTOP_OPEN_DEVTOOLS! })
+    const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: directories.stateRoot,
+      home: laneHome.home, dshDir: directories.project, webDist, userData, webPort, mainPort, rendererPort, hostPort,
+      openDevtools: launchEnvironment.DSH_DESKTOP_OPEN_DEVTOOLS! })
     await run(executable, [], APP_ROOT, launchEnvironment)
     return
   }
@@ -198,8 +226,8 @@ async function main(): Promise<void> {
     // (AGENTS.md, "Desktop application identity" applies to state isolation; the
     // production identity and request-log wiring live in online-debug-launch.ts).
     // The profile and gateway are guaranteed: identity and gateway keys are
-    // forced to the canonical standalone.production values, and every other
-    // SDKWork value is inherited untouched.
+    // forced to the canonical cloud.production values a packaged release bakes,
+    // and every other SDKWork value is inherited untouched.
     if (!existsSync(ONLINE_REQUEST_LOG_MODULE)) {
       throw new Error(`desktop development: missing request logger ${ONLINE_REQUEST_LOG_MODULE}`)
     }
@@ -214,7 +242,7 @@ async function main(): Promise<void> {
       + `(${ONLINE_REQUEST_LOG_VARIABLE}=${onlineLaunch.environment[ONLINE_REQUEST_LOG_VARIABLE]})`)
     if (arguments_.printGateway) return
     await launchDevelopment(onlineBuildEnvironment(onlineLaunch.environment, process.env),
-      onlineLaunch.environment, online, arguments_)
+      onlineLaunch.environment, 'online', arguments_)
     return
   }
   // A packaged Desktop application exports the deployment it resolved into every child
@@ -235,32 +263,58 @@ async function main(): Promise<void> {
   console.log(`desktop development: SDKWork gateway=${gateway.url} (${gateway.mode})`)
   if (arguments_.printGateway) return
   const sdkworkEnvironment = applyDevelopmentGateway(sdkwork.environment, gateway)
-  await launchDevelopment(sdkworkEnvironment, sdkworkEnvironment, online, arguments_)
+  await launchDevelopment(sdkworkEnvironment, sdkworkEnvironment, 'development', arguments_)
 }
 
-/** Shared tail of both lanes: build, stage the development project, launch Electron. */
+/**
+ * Require the artifacts this lane is about to run to be its own.
+ *
+ * The Web page embeds exactly one SDKWork deployment, and every lane builds into
+ * the same `apps/web/dist`. The lane proves both the recorded deployment and the
+ * complete-build digest before launch, so `--skip-build` (or a build another lane
+ * left behind) cannot make a development shell load production credentials, or
+ * the online shell load a development page.
+ * @param lane - lane whose deployment the page must carry.
+ * @throws When the page or the client artifacts belong to another environment.
+ */
+function assertLaneWebBuild(lane: DevelopmentLaneName): void {
+  assertWebBuildEnvironment(readWebBuildEnvironment(REPOSITORY_ROOT), developmentLaneWebEnvironment(lane),
+    `the desktop ${lane} lane`)
+  readClientBuildRecord(REPOSITORY_ROOT)
+}
+
+/** Shared tail of both lanes: build the lane's deployment, stage its installation, launch Electron. */
 async function launchDevelopment(
   buildEnvironment: NodeJS.ProcessEnv,
   launchEnvironment: NodeJS.ProcessEnv,
-  online: boolean,
+  lane: DevelopmentLaneName,
   options: DevelopmentArguments,
 ): Promise<void> {
+  const directories = developmentLaneDirectories(BUILD_ROOT, lane)
+  const webEnvironment = developmentLaneWebEnvironment(lane)
   if (!options.skipBuild) {
-    // The Web build bakes the SDKWork env file its mode selects, so each lane
-    // builds its own environment: the development shell bakes
-    // `.env.standalone.development`, the online shell bakes production. The
-    // resolved gateway is the one launch-time value the file cannot carry
-    // (`--gateway`), so it goes through the build's explicit override channel.
+    // Each lane bakes its own deployment into the Web page: the development lane
+    // reads `.env.standalone.development`, the online lane the release's
+    // `.env.cloud.production`. The resolved gateway is the one launch-time value
+    // the file cannot carry (`--gateway`), so it goes through the build's
+    // explicit override channel.
     const gatewayOverride = buildEnvironment.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?.trim()
     await runPackageScript('build:artifacts', REPOSITORY_ROOT, {
       ...buildEnvironment,
-      DSH_WEB_BUILD_MODE: online ? 'production' : 'development',
+      DSH_WEB_BUILD_MODE: webEnvironment.environment,
+      DSH_WEB_DEPLOYMENT_PROFILE: webEnvironment.deploymentProfile,
       ...gatewayOverride === undefined || gatewayOverride === ''
         ? {}
         : { DSH_WEB_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: gatewayOverride },
     })
     await runPackageScript('build', APP_ROOT, buildEnvironment)
   }
+  assertLaneWebBuild(lane)
+  // Serve a snapshot of the page this launch verified: a later build for another
+  // lane rewrites the shared `apps/web/dist`, and a running shell must keep the
+  // document its own deployment produced.
+  const webDist = join(directories.stateRoot, 'web')
+  snapshotWebApplicationDist(join(REPOSITORY_ROOT, 'apps', 'web', 'dist'), webDist)
   for (const path of [
     join(APP_ROOT, 'lib', 'main.js'),
     join(REPOSITORY_ROOT, 'apps', 'desktop-host', 'lib', 'index.js'),
@@ -278,15 +332,19 @@ async function launchDevelopment(
     pnpmVersion,
   }
   prepareDevelopmentProject({
-    projectDir: join(DEVELOPMENT_ROOT, 'project'),
+    // One project per lane: the directory is replaced on every preparation, so a
+    // shared one would let the other lane delete the runtime this lane serves from.
+    projectDir: directories.project,
     cliDir: join(REPOSITORY_ROOT, 'apps', 'cli'),
     hostDir: join(REPOSITORY_ROOT, 'apps', 'desktop-host'),
     dependencyDir: join(REPOSITORY_ROOT, 'node_modules', '.pnpm', 'node_modules'),
     release,
     target: resolveDesktopBuildTarget(),
   })
-  await preparePrimaryRuntime()
-  await launchElectron(launchEnvironment, online, options.insecureTLS)
+  // The lane's own payload, never the release target directory a packaging run
+  // consumes and verifies.
+  await preparePrimaryRuntime({ output: directories.runtimeRoot })
+  await launchElectron(launchEnvironment, lane, directories, webDist, options.insecureTLS)
 }
 
 await main().catch((error: unknown) => {

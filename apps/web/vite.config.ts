@@ -10,6 +10,7 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
+import { webBuildEnvironment, writeWebBuildEnvironment } from '../../scripts/web-build-environment.ts'
 import { resolveBrandDisplayName, shippedBrand } from '../desktop/scripts/brand-manifest.mjs'
 import { WEB_SOURCE_ALIASES } from './vite-source-aliases.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
@@ -319,6 +320,27 @@ function sdkworkEnvInjection(deploymentProfile: DeploymentProfile, environment: 
   }
 }
 
+/**
+ * Record the deployment one Web build baked.
+ *
+ * The built page is the only carrier of its SDKWork deployment, and the same
+ * `dist/` directory serves the development lane, the online-debug lane, and the
+ * release. Each of those consumers proves this record before launching or
+ * packaging the page, so a lane can never reuse another environment's bundle.
+ * @param deploymentProfile - profile the build reads.
+ * @param environment - lifecycle the build mode selected.
+ * @returns the plugin that writes the record after a successful bundle.
+ */
+function webBuildRecord(deploymentProfile: DeploymentProfile, environment: SdkworkLaunchProfile): Plugin {
+  return {
+    name: 'dsh-web-build-environment',
+    apply: 'build',
+    writeBundle() {
+      writeWebBuildEnvironment(repoRoot, webBuildEnvironment(deploymentProfile, environment))
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const environment = resolveSdkworkBuildProfile(process.env.DSH_WEB_BUILD_MODE?.trim() || mode)
   const deploymentProfile = resolveDeploymentProfile(process.env.DSH_WEB_DEPLOYMENT_PROFILE)
@@ -329,6 +351,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     rejectStandaloneServe(), clientBrandIdentity(), brandFontLicense(), katexWoff2Fonts(), react(), tailwindcss(), emitPreviewPage(),
     sdkworkEnvInjection(deploymentProfile, environment),
+    webBuildRecord(deploymentProfile, environment),
     productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {

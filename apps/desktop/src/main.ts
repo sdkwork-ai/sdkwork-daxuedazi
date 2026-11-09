@@ -33,6 +33,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
+import { resolveWebApplicationDist } from './web-application.ts'
 import { resolveApplicationIcon, resolveWindowIcon } from './app-icon.ts'
 import { applyDevToolsWindowIcon } from './devtools-icon.ts'
 import { DesktopProjectManager } from './project-manager.ts'
@@ -1010,7 +1011,7 @@ async function main(): Promise<void> {
     if (url.hostname === 'app') {
       if (url.pathname === '/' || url.pathname === '/index.html' || url.pathname.startsWith('/assets/')
         || ['/favicon.png', '/favicon.svg', '/manifest.webmanifest'].includes(url.pathname)) {
-        return serveWebDocument(request, join(resources.dsh, 'node_modules', '@deepseek-ai', 'dsh-web-frontend', 'dist'))
+        return serveWebDocument(request, resolveWebApplicationDist(resources.dsh))
       }
       if (backend.host === undefined || hostUrl === undefined || hostCookie === undefined) {
         return Promise.resolve(new Response(null, { status: 503 }))

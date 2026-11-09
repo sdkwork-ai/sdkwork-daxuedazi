@@ -5,15 +5,15 @@
  * inherited production deployment and declares the development tier, while this
  * one guarantees the production tier for a local debugging run against the
  * deployed online environment. The identity and gateway keys are forced to the
- * canonical `standalone.production` values (SDKWORK-SPECS ENVIRONMENT_SPEC
- * section 5.1: the profile id is `<deploymentProfile>.<environment>`, and
- * production uses the bare role host `https://api.birdcoder.com`), so the
- * launched application and the client build always talk to `api.birdcoder.com`
- * under the production profile no matter what the inheriting shell carries.
- * The credential-store application code is forced to this checkout's own as
- * well, so a Home outside the checkout still resolves the bundle this checkout
- * provisioned. Every other SDKWork value — the access token, provider keys, IM
- * embed URL — is inherited untouched.
+ * cloud production deployment (SDKWORK-SPECS ENVIRONMENT_SPEC section 5.1 and
+ * PNPM_SCRIPT_SPEC section 3.1: `prod` targets `cloud.production`, whose gateway
+ * is the bare role host `https://api.sdkwork.com`), which is exactly what a
+ * packaged release bakes from `.env.cloud.production`. The launched application
+ * and the client build therefore reach the release's deployment no matter what
+ * the inheriting shell carries. The credential-store application code is forced
+ * to this checkout's own as well, so a Home outside the checkout still resolves
+ * the bundle this checkout provisioned. Every other SDKWork value — the access
+ * token, provider keys, IM embed URL — is inherited untouched.
  *
  * The same composed environment turns on the outbound-HTTP request log: the
  * Electron child inherits a `NODE_OPTIONS` `--require` of
@@ -26,6 +26,9 @@
 
 import { insecureTlsEnvironment } from '../src/tls-trust.ts'
 import { SDKWORK_APPLICATION_CODE_ENV_KEY } from '../../../packages/boot/sdkwork-env-bootstrap/src/index.ts'
+import { PRODUCTION_GATEWAY_URL, PRODUCTION_LANE_PROFILE } from './sdkwork-lane-profiles.ts'
+
+export { PRODUCTION_GATEWAY_URL } from './sdkwork-lane-profiles.ts'
 
 /** Environment variable that turns the preloaded request log on. */
 export const ONLINE_REQUEST_LOG_VARIABLE = 'DSH_ONLINE_REQUEST_LOG'
@@ -61,11 +64,8 @@ export const DESKTOP_SDKWORK_PROFILE_VARIABLE = 'DSH_DESKTOP_SDKWORK_PROFILE'
 /** Basename of the preloaded request logger; `NODE_OPTIONS` entries are deduplicated on it. */
 export const ONLINE_REQUEST_LOG_MODULE_BASENAME = 'online-request-log.cjs'
 
-/** Gateway origin the production tier uses (`https://api.birdcoder.com`). */
-export const PRODUCTION_GATEWAY_URL = 'https://api.birdcoder.com'
-
-/** Profile id of the canonical production materialization (`.env.standalone.production`). */
-export const PRODUCTION_PROFILE_ID = 'standalone.production'
+/** Profile id of the production materialization (`.env.cloud.production`). */
+export const PRODUCTION_PROFILE_ID = PRODUCTION_LANE_PROFILE.profileId
 
 /** Gateway keys one launch selection projects, mirroring the development lane's three-key projection. */
 const PRODUCTION_GATEWAY_KEYS = [
@@ -76,16 +76,16 @@ const PRODUCTION_GATEWAY_KEYS = [
 
 /**
  * Canonical production identity (SDKWORK-SPECS ENVIRONMENT_SPEC section 5.1.2,
- * the same key set the tracked `.env.standalone.production` materializes),
- * forced onto every launch so the profile and its gateway are guaranteed.
+ * the same key set the tracked `.env.cloud.production` materializes), forced
+ * onto every launch so the profile and its gateway are guaranteed.
  */
 const PRODUCTION_IDENTITY: Record<string, string> = {
-  SDKWORK_ENVIRONMENT: 'production',
-  SDKWORK_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_PROFILE_ID: PRODUCTION_PROFILE_ID,
-  SDKWORK_BIRDCODER_ENVIRONMENT: 'production',
-  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_BIRDCODER_PROFILE_ID: PRODUCTION_PROFILE_ID,
+  SDKWORK_ENVIRONMENT: PRODUCTION_LANE_PROFILE.environment,
+  SDKWORK_DEPLOYMENT_PROFILE: PRODUCTION_LANE_PROFILE.deploymentProfile,
+  SDKWORK_PROFILE_ID: PRODUCTION_LANE_PROFILE.profileId,
+  SDKWORK_BIRDCODER_ENVIRONMENT: PRODUCTION_LANE_PROFILE.environment,
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: PRODUCTION_LANE_PROFILE.deploymentProfile,
+  SDKWORK_BIRDCODER_PROFILE_ID: PRODUCTION_LANE_PROFILE.profileId,
 }
 
 /** Result of {@link onlineLaunchEnvironment}. */
@@ -148,7 +148,7 @@ export function onlineBuildEnvironment(
 
 /**
  * Guarantee the production tier for a source `desktop:prod` launch. The
- * identity and gateway keys are forced to the canonical `standalone.production`
+ * identity and gateway keys are forced to the canonical `cloud.production`
  * values; inherited SDKWork values of every other name (access token, provider
  * keys) pass through. The request log defaults on and its preloaded module
  * joins `NODE_OPTIONS` unless {@link ONLINE_REQUEST_LOG_VARIABLE} is `0`.

@@ -76,6 +76,7 @@ Re-verify after every upstream merge; the spec below also fails when any of them
 
 ```sh
 pnpm run verify-oem-identity   # shipped brand, home rule, IAM scheme, artifact derivations, docs pointers
+pnpm run verify-desktop-lane-isolation   # lane install dirs, ports, homes, and baked deployments stay apart
 grep -c '"productName": "daxuedazi"' apps/desktop/package.json   # 1
 grep -rn "setAsDefaultProtocolClient('dsh')\|'dsh://\|DeepSeek Harness" apps/desktop/src apps/desktop/scripts/electron-builder-config.mjs apps/desktop/scripts/development-app.ts   # nothing
 grep -rn "setAsDefaultProtocolClient('birdcoder')\|'birdcoder://\|/usr/local/bin/birdcoder\|'birdcoder.cmd'" apps/desktop/src   # nothing: the brand manifest owns them
@@ -84,6 +85,8 @@ pnpm exec vitest run apps/desktop/tests/desktop-application-identity.spec.ts app
 ```
 
 The Harness home is per brand: `~/.<home.dirName>` from the manifest, exported as `DSH_HOME` before any plugin mounts. Two installed brands therefore keep separate sessions, credentials, profiles and workspaces: a brand without `home.adoptLegacyDshHome` always uses its own directory and never reads `~/.dsh`, and only a brand that declares the flag takes over a legacy `~/.dsh` (rename, then link, then keep it for that launch). The development lanes follow the same rule from the other side: `apps/desktop/scripts/development-identity.ts` refuses an inherited `DSH_HOME` that another brand (or the upstream `~/.dsh`) owns and reports it, because a packaged application exports its home into every child process — including the terminal a developer starts `pnpm dev:desktop` from. The same module derives every lane port from `desktop.webPort`, so a lane never binds an installed brand's Web port or another lane's debugger.
+
+**The source lanes are separate installs, not views of the installed release.** `pnpm dev:desktop` and `pnpm desktop:prod` each own a state root under `apps/desktop/.desktop-build/<lane>/`: the Harness home, the Electron userData directory (which carries the single-instance lock and the browser profile), the disposable runtime project the shell loads (`DSH_DESKTOP_DSH_DIR`), and the primary runtime payload the Host and plugin manager run. Preparing either lane replaces only that lane's project and runtime, so one lane can never delete the files a running lane serves, and neither lane ever writes the release target directory a packaging run consumes. Each lane also bakes exactly one SDKWork deployment into `apps/web/dist`: `standalone.development` for `dev:desktop`, the release's `cloud.production` (`https://api.sdkwork.com`) for `desktop:prod`. The Web build records that deployment in `.dsh-build/web-environment.json`; every lane proves the record and the complete-build digest before launching, and `pack-local-packages.ts` proves it again for a release, so no lane can run or ship a page another environment baked. The lane then serves a snapshot of that page (`DSH_DESKTOP_WEB_DIST`), so a later build for another lane cannot swap the document under a running shell. The result is three independent processes on one machine: the installed release keeps `%APPDATA%\daxuedazi` / `~/.daxuedazi` and port 19400, the development lane uses 19401 plus inspectors 19403–19405, and the online lane uses 19402 plus inspectors 19406–19408.
 
 ## Linux desktop runtime (merge-stable contract)
 

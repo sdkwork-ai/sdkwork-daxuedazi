@@ -11,6 +11,10 @@ export interface DevelopmentAppOptions {
   readonly appRoot: string
   readonly directory: string
   readonly home: string
+  /** Disposable npm project this lane's shell and Host load. */
+  readonly dshDir: string
+  /** Verified Web page snapshot this lane serves. */
+  readonly webDist: string
   readonly userData: string
   /** Web port this lane serves; the brand's packaged port and the other lane are taken. */
   readonly webPort: string
@@ -74,6 +78,8 @@ export function prepareDevelopmentApp(options: DevelopmentAppOptions): string {
 export function developmentLauncher(options: DevelopmentAppOptions, bundle: string): string {
   const environment = {
     DSH_HOME: options.home,
+    DSH_DESKTOP_DSH_DIR: options.dshDir,
+    DSH_DESKTOP_WEB_DIST: options.webDist,
     DSH_DESKTOP_DEV_APP: '1',
     DSH_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),
     DSH_DESKTOP_HOST_WEB_PORT: options.webPort,

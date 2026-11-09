@@ -19,8 +19,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { webBuildEnvironment, type WebBuildEnvironment } from '../../../scripts/web-build-environment.ts'
 import { LEGACY_DSH_HOME_DIR_NAME } from '../src/brand.ts'
 import { BRAND_DIRECTORY, BRAND_PORT_BLOCK, parseBrandManifest, type DesktopBrand } from './brand-manifest.mjs'
+import { DEVELOPMENT_LANE_PROFILE, PRODUCTION_LANE_PROFILE, type LaneSdkworkProfile } from './sdkwork-lane-profiles.ts'
 
 /** Inspector ports one lane exposes. */
 export interface LaneInspectorPorts {
@@ -48,6 +50,72 @@ export interface DevelopmentLanePorts {
     /** Inspector ports of the `dev:desktop:online` lane. */
     readonly online: LaneInspectorPorts
   }
+}
+
+/** Source lane whose installation and state one launch owns. */
+export type DevelopmentLaneName = 'development' | 'online'
+
+/** Every directory one source lane owns under the checkout's build root. */
+export interface DevelopmentLaneDirectories {
+  /** Root holding the lane's Harness home and browser data. */
+  readonly stateRoot: string
+  /** Default Harness home of the lane. */
+  readonly home: string
+  /** Electron browser data, including the single-instance lock. */
+  readonly userData: string
+  /**
+   * Disposable npm project the lane's Electron shell loads.
+   *
+   * Each lane owns this directory rather than sharing one: preparing a project
+   * replaces it, and a shared directory would let one lane delete the runtime a
+   * running lane is serving from.
+   */
+  readonly project: string
+  /** Directory the lane prepares its primary runtime payload into. */
+  readonly runtimeRoot: string
+  /** Prepared Node/pnpm/Python payload the lane's Host and plugin manager run. */
+  readonly primaryRuntime: string
+}
+
+/**
+ * Directories of one source lane.
+ *
+ * The lane's own state root keeps the installation the lane runs from and the
+ * state it writes out of the checkout's release build target directory, so a
+ * development launch can never rewrite the payload a release packaging run
+ * consumes.
+ * @param buildRoot - the checkout's `.desktop-build` directory.
+ * @param lane - lane whose directories are resolved.
+ * @returns absolute directories owned by the lane.
+ */
+export function developmentLaneDirectories(
+  buildRoot: string,
+  lane: DevelopmentLaneName,
+): DevelopmentLaneDirectories {
+  const stateRoot = resolve(buildRoot, lane)
+  const runtimeRoot = join(stateRoot, 'runtime')
+  return {
+    stateRoot,
+    home: join(stateRoot, 'home'),
+    userData: join(stateRoot, 'electron-user-data'),
+    project: join(stateRoot, 'project'),
+    runtimeRoot,
+    primaryRuntime: join(runtimeRoot, 'primary-runtime'),
+  }
+}
+
+/**
+ * SDKWork deployment one lane's built page must carry.
+ *
+ * The page embeds its deployment at build time, so the lane that launches it has
+ * to prove the bundle matches its own profile instead of trusting that the last
+ * build was its own.
+ * @param lane - lane whose deployment is resolved.
+ * @returns the record the lane's Web build must have written.
+ */
+export function developmentLaneWebEnvironment(lane: DevelopmentLaneName): WebBuildEnvironment {
+  const profile: LaneSdkworkProfile = lane === 'online' ? PRODUCTION_LANE_PROFILE : DEVELOPMENT_LANE_PROFILE
+  return webBuildEnvironment(profile.deploymentProfile, profile.environment)
 }
 
 /**

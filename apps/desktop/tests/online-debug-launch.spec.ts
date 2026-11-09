@@ -24,12 +24,14 @@ describe('onlineLaunchEnvironment', () => {
   it('forces the canonical production identity and gateway onto a blank environment', () => {
     const { environment, forced } = onlineLaunchEnvironment({ PATH: '/usr/bin' }, OPTIONS)
     expect(environment.SDKWORK_ENVIRONMENT).toBe('production')
-    expect(environment.SDKWORK_DEPLOYMENT_PROFILE).toBe('standalone')
+    expect(environment.SDKWORK_DEPLOYMENT_PROFILE).toBe('cloud')
     expect(environment.SDKWORK_PROFILE_ID).toBe(PRODUCTION_PROFILE_ID)
+    expect(PRODUCTION_PROFILE_ID).toBe('cloud.production')
     expect(environment.SDKWORK_BIRDCODER_ENVIRONMENT).toBe('production')
-    expect(environment.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE).toBe('standalone')
+    expect(environment.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE).toBe('cloud')
     expect(environment.SDKWORK_BIRDCODER_PROFILE_ID).toBe(PRODUCTION_PROFILE_ID)
     expect(environment.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL).toBe(PRODUCTION_GATEWAY_URL)
+    expect(PRODUCTION_GATEWAY_URL).toBe('https://api.sdkwork.com')
     expect(environment.SDKWORK_BIRDCODER_APP_API_BASE_URL).toBe(PRODUCTION_GATEWAY_URL)
     expect(environment.SDKWORK_IM_API_BASE_URL).toBe(PRODUCTION_GATEWAY_URL)
     expect(forced).toEqual([
@@ -154,7 +156,7 @@ describe('onlineBuildEnvironment', () => {
     expect(launch.environment.NODE_OPTIONS).toContain('online-request-log.cjs')
     const build = onlineBuildEnvironment(launch.environment, { NODE_OPTIONS: '--max-old-space-size=8192' })
     expect(build.NODE_OPTIONS).toBe('--max-old-space-size=8192')
-    expect(build.SDKWORK_PROFILE_ID).toBe('standalone.production')
+    expect(build.SDKWORK_PROFILE_ID).toBe('cloud.production')
   })
 
   it('omits NODE_OPTIONS when the launch inherited none', () => {
@@ -167,9 +169,9 @@ describe('onlineBuildEnvironment', () => {
 
 describe('insecureTlsLaunchEnvironment', () => {
   it('disables Node-side certificate verification without touching the input', () => {
-    const environment = insecureTlsLaunchEnvironment({ SDKWORK_PROFILE_ID: 'standalone.production' })
+    const environment = insecureTlsLaunchEnvironment({ SDKWORK_PROFILE_ID: 'cloud.production' })
     expect(environment.NODE_TLS_REJECT_UNAUTHORIZED).toBe('0')
-    expect(environment.SDKWORK_PROFILE_ID).toBe('standalone.production')
+    expect(environment.SDKWORK_PROFILE_ID).toBe('cloud.production')
   })
 
   it('keeps the production composition the insecure flag layers onto', () => {

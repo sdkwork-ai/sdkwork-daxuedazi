@@ -13,12 +13,12 @@ const LEAKED_PRODUCTION: NodeJS.ProcessEnv = {
   PATH: '/usr/bin',
   DSH_HOME: '/home/dev/.dsh',
   SDKWORK_ENVIRONMENT: 'production',
-  SDKWORK_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_PROFILE_ID: 'standalone.production',
+  SDKWORK_DEPLOYMENT_PROFILE: 'cloud',
+  SDKWORK_PROFILE_ID: 'cloud.production',
   SDKWORK_BIRDCODER_ENVIRONMENT: 'production',
-  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_BIRDCODER_PROFILE_ID: 'standalone.production',
-  SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.birdcoder.com',
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'cloud',
+  SDKWORK_BIRDCODER_PROFILE_ID: 'cloud.production',
+  SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com',
 }
 
 describe('declaresProductionSdkworkEnvironment', () => {
@@ -40,7 +40,7 @@ describe('declaresProductionSdkworkEnvironment', () => {
 
   it('treats an inherited production gateway without identity keys as production', () => {
     expect(declaresProductionSdkworkEnvironment({
-      SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.birdcoder.com',
+      SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com',
     })).toBe(true)
     expect(declaresProductionSdkworkEnvironment({
       SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10240',
@@ -111,7 +111,7 @@ describe('developmentLaunchEnvironment', () => {
   it('drops VITE_-projected SDKWork keys too', () => {
     const { dropped } = developmentLaunchEnvironment({
       SDKWORK_ENVIRONMENT: 'production',
-      VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.birdcoder.com',
+      VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.sdkwork.com',
     }, OPTIONS)
     expect(dropped).toContain('VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL')
   })

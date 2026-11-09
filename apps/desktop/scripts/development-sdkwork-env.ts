@@ -26,12 +26,12 @@
  */
 
 import { SDKWORK_APPLICATION_CODE_ENV_KEY } from '../../../packages/boot/sdkwork-env-bootstrap/src/index.ts'
+import { DEVELOPMENT_LANE_PROFILE, PRODUCTION_GATEWAY_URL } from './sdkwork-lane-profiles.ts'
+
+export { PRODUCTION_GATEWAY_URL } from './sdkwork-lane-profiles.ts'
 
 /** Opt-out that keeps the inherited SDKWork environment untouched. */
 export const KEEP_INHERITED_SDKWORK_ENV = 'DSH_DESKTOP_DEV_KEEP_SDKWORK_ENV'
-
-/** Gateway origin the production tier uses; an inherited copy marks a leaked deployment. */
-export const PRODUCTION_GATEWAY_URL = 'https://api.birdcoder.com'
 
 /**
  * Canonical development identity (SDKWORK-SPECS ENVIRONMENT_SPEC section 5.1.2)
@@ -40,12 +40,12 @@ export const PRODUCTION_GATEWAY_URL = 'https://api.birdcoder.com'
  * development default when no checkout encloses the profile directory.
  */
 const DEVELOPMENT_IDENTITY: Record<string, string> = {
-  SDKWORK_ENVIRONMENT: 'development',
-  SDKWORK_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_PROFILE_ID: 'standalone.development',
-  SDKWORK_BIRDCODER_ENVIRONMENT: 'development',
-  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
-  SDKWORK_BIRDCODER_PROFILE_ID: 'standalone.development',
+  SDKWORK_ENVIRONMENT: DEVELOPMENT_LANE_PROFILE.environment,
+  SDKWORK_DEPLOYMENT_PROFILE: DEVELOPMENT_LANE_PROFILE.deploymentProfile,
+  SDKWORK_PROFILE_ID: DEVELOPMENT_LANE_PROFILE.profileId,
+  SDKWORK_BIRDCODER_ENVIRONMENT: DEVELOPMENT_LANE_PROFILE.environment,
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: DEVELOPMENT_LANE_PROFILE.deploymentProfile,
+  SDKWORK_BIRDCODER_PROFILE_ID: DEVELOPMENT_LANE_PROFILE.profileId,
 }
 
 const ENVIRONMENT_KEYS = ['SDKWORK_BIRDCODER_ENVIRONMENT', 'SDKWORK_ENVIRONMENT'] as const
