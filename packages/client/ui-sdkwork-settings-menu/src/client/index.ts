@@ -1,7 +1,7 @@
 /**
  * Settings menu + settings shell plugin, browser half: occupies the
  * `mode.rail.settings` seat with the hover settings menu (account header,
- * membership/points group, settings/persona/appearance/check-updates group,
+ * membership/points group, settings/appearance/check-updates group,
  * sign-out footer) and the centered settings panel with section navigation
  * and the onboarding coordinator, declares the settings slots, provides the
  * `ctx.account` anonymous-profile service, and registers the chrome content,
@@ -20,6 +20,10 @@
  * without a visible entry is therefore intentional — dropping the declaration
  * throws `SlotOwnershipError` at registration and takes the whole rail entry
  * down.
+ * The 角色与兴趣 persona row is likewise absent (the picker stays a first-run
+ * surface in this build); `ctx.persona` remains provided so the
+ * ui-sdkwork-persona plugin keeps binding its source, exactly like the
+ * feedback seam below.
  * Export discipline: packages/client/AGENTS.md.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -131,8 +135,10 @@ export function apply(ctx: ClientContext): void {
   ctx.provide('feedback', feedback)
 
   // The persona seam: the unavailable default; the ui-sdkwork-persona plugin
-  // replaces the source behind the same snapshot face, so the role row exists
-  // exactly while that feature is mounted — whatever order the entries activate.
+  // replaces the source behind the same snapshot face. This product's popover
+  // renders no persona row (the picker stays a first-run surface), so the seam
+  // is provided for the feature plugin's own binding only — same contract as
+  // `ctx.feedback` above.
   const persona = new PersonaRuntime()
   ctx.provide('persona', persona)
 
@@ -218,12 +224,10 @@ export function apply(ctx: ClientContext): void {
       },
       theme: themeSource,
       account,
-      persona,
     },
     setTheme: (id) => { ctx.theme.setTheme(id) },
     signIn: () => { void account.signIn() },
     logout: () => { void account.logout() },
-    openPersona: () => { persona.open() },
     checkForUpdates: () => {
       const updates = updatesOf()
       if (updates === undefined) return

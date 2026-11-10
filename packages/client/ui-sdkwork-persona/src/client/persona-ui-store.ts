@@ -1,8 +1,9 @@
 /**
  * ui-sdkwork-persona UI store: the cross-entry viewing state the picker shares.
- * The settings-menu persona row and the first-run gate open the dialog; the
- * `shell.overlay` host renders it. Dialog open state is the only member; the
- * choices themselves live in the service's settings scope.
+ * The first-run gate (and the settings-menu seam's dispatch, which this build
+ * renders no row for) opens the dialog; the `shell.overlay` host renders it.
+ * Dialog open state is the only member; the choices themselves live in the
+ * service's settings scope.
  */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 

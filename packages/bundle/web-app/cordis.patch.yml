@@ -1135,14 +1135,16 @@
       name: '@deepseek-ai/dsh-client-ui-sdkwork-feedback'
 
     # Persona personalization: the first-run role + interest picker and the
-    # settings-menu "角色与兴趣" row (bound to the ui-sdkwork-settings-menu
-    # persona seam). The choice lives on the signed-in IAM account
+    # settings-menu persona seam the plugin binds. This product's settings
+    # popover renders no "角色与兴趣" row (the picker stays a first-run
+    # surface), so removing this row turns the whole personalization surface
+    # off while keeping the seam intact changes nothing visible. The choice
+    # lives on the signed-in IAM account
     # (`/app/v3/api/iam/users/current/persona` through the ui-sdkwork-iam
     # service), and the ui-sdkwork-persona settings section
     # ($DSH_HOME/settings.yaml) caches it for offline rendering and signed-out
     # use; recommendation surfaces read the account profile through the IAM App
-    # SDK. Removing this row turns the whole personalization surface off,
-    # including the row.
+    # SDK.
     - id: ui-sdkwork-persona
       name: '@deepseek-ai/dsh-client-ui-sdkwork-persona'
 

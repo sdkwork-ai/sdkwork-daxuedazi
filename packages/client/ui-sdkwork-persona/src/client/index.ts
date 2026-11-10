@@ -3,9 +3,10 @@
  * and write path (role + followed interest directions) through the IAM account
  * profile, the local `ui-sdkwork-persona` cache the picker renders while signed
  * out or offline, the first-run picker that opens once while no role is chosen,
- * and the settings-menu persona row that reopens the same picker at any time.
- * The settings-menu seam (`ctx.persona`) is bound here, so the row exists
- * exactly while this plugin is mounted.
+ * and the settings-menu seam binding (`ctx.persona`) that keeps the picker
+ * dispatch addressable. The settings popover renders no 角色与兴趣 row in this
+ * build, so the picker's only entry point is the first-run gate; the binding
+ * stays so the seam is live whenever that row returns.
  *
  * The account owns the choice; this entry never exposes the picker state to
  * other plugins. Recommendation surfaces read the same account profile through
@@ -132,9 +133,11 @@ export function apply(ctx: ClientContext): void {
   // must not leave an orphaned account listener behind.
   ctx.effect(() => service.start(), 'ui-sdkwork-persona: account sync')
 
-  // The settings-menu row: the label follows the locale, so the seam spreads
-  // both subscriptions. The disposer restores the unavailable default when this
-  // plugin is unloaded, so a reloaded menu never keeps a dead source.
+  // The settings-menu seam: the label follows the locale, so the seam spreads
+  // both subscriptions. The popover renders no row from it in this build (the
+  // picker stays a first-run surface), but the binding keeps the seam live for
+  // whenever that entry returns. The disposer restores the unavailable default
+  // when this plugin is unloaded, so a reloaded menu never keeps a dead source.
   ctx.effect(() => ctx.persona.setSource({
     getSnapshot: () => service.menuProfile(),
     subscribe: (listener) => {

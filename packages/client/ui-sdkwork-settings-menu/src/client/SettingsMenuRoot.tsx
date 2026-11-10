@@ -5,10 +5,10 @@
  * hover/focus/click: a header row with the account identity, the account
  * group (sign-in row while a provider advertises one, membership/points rows
  * when the account provider publishes them), the feature group (settings →
- * panel, persona → role picker, appearance → theme submenu), the desktop shell
- * group (desktop plugins → plugin manager window, check-for-updates → desktop
- * updater, quit) migrated from the native application menu the shell hides on
- * Windows/Linux, and the pinned sign-out footer row.
+ * panel, appearance → theme submenu), the desktop shell group (desktop plugins
+ * → plugin manager window, check-for-updates → desktop updater, quit) migrated
+ * from the native application menu the shell hides on Windows/Linux, and the
+ * pinned sign-out footer row.
  *
  * The SDKWork cloud-console surfaces are deliberately absent from this
  * popover: 公众号账号, 小程序账号, 域名管理, 证书管理, 我的应用部署, and
@@ -20,6 +20,13 @@
  * `mode.rail.settings` entry down, so the seat table is the runtime permission
  * for those plugins, not an entry list. Bringing an entry back is therefore a
  * row plus its host slot here, not a contract change.
+ *
+ * The 角色与兴趣 persona row is absent for the same product reason: this build
+ * keeps the picker to its first-run gate, so the popover offers no entry for
+ * it. The `ctx.persona` seam stays provided (index.ts) and the persona plugin
+ * keeps binding its source, so the feature itself is untouched; restoring the
+ * row means restoring its injected share (the `persona` hook and
+ * `openPersona`) together with the row, not rebuilding the feature.
  *
  * Modal open state, active section id, and menu open state are component-local
  * viewing state; the onboarding coordinator mounts exactly one ordered
@@ -34,7 +41,7 @@ import {
   IconDataOutlineRegular, IconFollowsystemOutlineRegular, IconLightOutlineRegular,
   IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular,
   IconRefreshOutlineRegular, IconSettingsOutlineRegular, IconSkillOutlineRegular,
-  IconUserOutlineRegular, IconUsersOutlineRegular,
+  IconUserOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { IconCoinOutline16, IconCrownOutline16, IconLogoutOutline14, IconPowerOutline14 } from './sdkwork-icons.tsx'
 import { IconCheckOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -132,8 +139,8 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
  */
 export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const {
-    useSections, useOnboardingSteps, useTheme, useAccount, useSessions, usePersona,
-    renderSlot, setTheme, signIn, logout, checkForUpdates, openPersona, updatesAvailable,
+    useSections, useOnboardingSteps, useTheme, useAccount, useSessions,
+    renderSlot, setTheme, signIn, logout, checkForUpdates, updatesAvailable,
     openDesktopPlugins, desktopPluginsAvailable, desktopPluginsUsable, quitApp, quitAvailable, t,
   } = props
   const [menuOpen, setMenuOpen] = useState(false)
@@ -152,7 +159,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const rows = useSections(s => s)
   const theme = useTheme(s => s)
   const account = useAccount(s => s)
-  const persona = usePersona(s => s)
   const onboardingSteps = useOnboardingSteps(s => s)
   const closeMenu = useCallback(() => { setMenuOpen(false) }, [])
   const onboardingActive = useSessions(state =>
@@ -177,9 +183,9 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   // The account group carries the sign-in row while a provider advertises one
   // and the membership/points rows a signed-in provider publishes; the
   // anonymous default renders the settings/feature group directly. The
-  // command list is the product menu: settings, the persona picker, appearance,
-  // and the desktop shell group — no cloud-console administration rows (see the
-  // header note: their seats stay declared, their entries do not ship).
+  // command list is the product menu: settings, appearance, and the desktop
+  // shell group — no cloud-console administration rows and no persona row (see
+  // the header note: their seats stay declared, their entries do not ship).
   const items = useMemo<readonly MenuEntry[]>(() => {
     const entries: MenuEntry[] = []
     if (account.signedIn && account.username !== undefined) {
@@ -207,18 +213,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     }
     if (entries.length > 0) entries.push({ type: 'separator', id: 'account-separator' })
     entries.push({ id: 'settings', label: t('menu.settings'), icon: <IconSettingsOutlineRegular size={14} /> })
-    // The persona row exists only while the persona feature is mounted and its
-    // settings section is served; the chosen role rides the label so the menu
-    // answers "who am I here" without opening the picker.
-    if (persona.available) {
-      entries.push({
-        id: 'persona',
-        label: persona.roleLabel === undefined
-          ? t('menu.persona')
-          : <>{`${t('menu.persona')} · `}<span className={css.personaRole}>{persona.roleLabel}</span></>,
-        icon: <IconUsersOutlineRegular size={16} />,
-      })
-    }
     entries.push({
       id: 'appearance',
       label: t('menu.appearance'),
@@ -271,7 +265,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     return entries
   }, [
     account.membership, account.points, account.signInAvailable, account.signedIn, account.username,
-    persona.available, persona.roleLabel, t, renderSlot, closeMenu,
+    t, renderSlot, closeMenu,
     updatesAvailable, desktopPluginsAvailable, desktopPluginsUsable, quitAvailable,
   ])
 
@@ -289,8 +283,6 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     setMenuOpen(false)
     if (id === 'settings') {
       setDialogOpen(true)
-    } else if (id === 'persona') {
-      openPersona()
     } else if (id === 'light' || id === 'dark' || id === 'system') {
       setTheme(id)
     } else if (id === 'check-updates') {
@@ -304,7 +296,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     } else if (id === 'logout') {
       logout()
     }
-  }, [setTheme, signIn, logout, checkForUpdates, openPersona, openDesktopPlugins, quitApp])
+  }, [setTheme, signIn, logout, checkForUpdates, openDesktopPlugins, quitApp])
 
   return (
     <>

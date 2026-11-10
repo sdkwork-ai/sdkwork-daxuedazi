@@ -1,5 +1,5 @@
 ---
-description: "BirdCoder 的角色与兴趣个性化：存放在 SDKWork IAM 账号上的角色与关注方向画像、首次引导弹窗、设置菜单行，以及未登录时使用的本地缓存。"
+description: "BirdCoder 的角色与兴趣个性化：存放在 SDKWork IAM 账号上的角色与关注方向画像、首次引导弹窗、所绑定的设置菜单接缝，以及未登录时使用的本地缓存。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-BirdCoder 客户端的角色与兴趣个性化能力。用户选择的角色、关注的兴趣方向、首次引导应答与可选字典都保存在已登录的 SDKWork IAM 账号上，并通过 `ctx.iam` 读取，因此选择会跟随用户跨设备、跨应用生效。本插件在 `shell.overlay` 上承载选择弹窗，绑定设置菜单的 `角色与兴趣` 行，并把本地 `ui-sdkwork-persona` 分区保留为离线与未登录缓存。
+BirdCoder 客户端的角色与兴趣个性化能力。用户选择的角色、关注的兴趣方向、首次引导应答与可选字典都保存在已登录的 SDKWork IAM 账号上，并通过 `ctx.iam` 读取，因此选择会跟随用户跨设备、跨应用生效。本插件在 `shell.overlay` 上承载选择弹窗，绑定设置菜单的 `ctx.persona` 接缝（本构建的弹窗不渲染 `角色与兴趣` 行，选角弹窗只保留首次引导入口），并把本地 `ui-sdkwork-persona` 分区保留为离线与未登录缓存。
 
 ## 目录
 
@@ -45,7 +45,7 @@ BirdCoder 客户端的角色与兴趣个性化能力。用户选择的角色、�
 <details>
 <summary>给维护者的工作背景 —— 点击展开</summary>
 
-本插件不在 `ctx` 上拥有服务：弹窗的打开由 settings-menu 的 `ctx.persona` 接缝承载，settings-menu 以“不可用”的默认值提供该服务，因此它的注入面与激活顺序无关。功能插件通过 `setSource` 安装真实数据源，并拿到一个恢复默认值的 disposer —— 这样 HMR 重新加载不会让菜单停在已经失效的数据源上。
+本插件不在 `ctx` 上拥有服务：弹窗的打开由 settings-menu 的 `ctx.persona` 接缝承载，settings-menu 以“不可用”的默认值提供该服务，因此它的注入面与激活顺序无关。功能插件通过 `setSource` 安装真实数据源，并拿到一个恢复默认值的 disposer —— 这样 HMR 重新加载不会让菜单停在已经失效的数据源上。菜单当前不从该接缝渲染任何行 —— `角色与兴趣` 已从弹窗隐藏，选角弹窗由首次引导打开 —— 绑定因此只为该入口回来时保持接缝可用。
 
 `PersonaService` 把账号端口与缓存分区作为两个协作者：读优先使用最新的账号快照、回退到缓存；账号可用时写入账号，否则写入缓存；`service.start()` 安装两个订阅并由同一个 `ctx.effect` 持有，因此重新加载不会留下孤儿监听。账号同步会同时读取画像与字典，账号变化时作废进行中的读取，并在弹窗打开时重试失败的读取。账号端口在 `apply` 中基于 `ctx.iam` 构建 —— 生成式 IAM App SDK 客户端、base URL 与共享 TokenManager 都由 `ctx.iam` 持有，persona 包不会另建一条传输。
 

@@ -6,7 +6,6 @@ import { SettingsMenuRoot } from '../src/client/SettingsMenuRoot.tsx'
 import type { SettingsMenuRootComponentProps, SettingsOnboardingStep, SettingsSectionRow } from '../src/client/shell-contract.ts'
 import { zh } from '../src/client/locales.ts'
 import type { AccountProfile } from '../src/client/account.ts'
-import type { PersonaMenuProfile } from '../src/client/persona.ts'
 import type { ThemeMenuSnapshot } from '../src/client/theme-source.ts'
 
 afterEach(cleanup)
@@ -16,14 +15,12 @@ const t = (key: string): string => (zh as Record<string, string>)[key] ?? key
 
 const EMPTY_SESSIONS = { phase: 'ready', current: 's1', byId: {} } as { phase: string; current: string | undefined; byId: Record<string, unknown> }
 const EMPTY_ACCOUNT: AccountProfile = { signedIn: false }
-const UNAVAILABLE_PERSONA: PersonaMenuProfile = { available: false }
 
 interface RootOverrides {
   sections?: readonly SettingsSectionRow[]
   steps?: readonly SettingsOnboardingStep[]
   theme?: ThemeMenuSnapshot
   account?: AccountProfile
-  persona?: PersonaMenuProfile
   sessions?: typeof EMPTY_SESSIONS
   updatesAvailable?: boolean
   desktopPluginsAvailable?: boolean
@@ -37,7 +34,6 @@ function root(over: RootOverrides = {}) {
   const signIn = vi.fn()
   const logout = vi.fn()
   const checkForUpdates = vi.fn()
-  const openPersona = vi.fn()
   const openDesktopPlugins = vi.fn()
   const quitApp = vi.fn()
   const useSections = vi.fn((sel: (rows: readonly SettingsSectionRow[]) => readonly SettingsSectionRow[]) => sel(over.sections ?? []))
@@ -46,7 +42,6 @@ function root(over: RootOverrides = {}) {
   )
   const useTheme = vi.fn((sel: (theme: ThemeMenuSnapshot) => ThemeMenuSnapshot) => sel(over.theme ?? { preference: 'system', revision: 0 }))
   const useAccount = vi.fn((sel: (account: AccountProfile) => AccountProfile) => sel(over.account ?? EMPTY_ACCOUNT))
-  const usePersona = vi.fn((sel: (persona: PersonaMenuProfile) => PersonaMenuProfile) => sel(over.persona ?? UNAVAILABLE_PERSONA))
   const useSessions = vi.fn((sel: (sessions: typeof EMPTY_SESSIONS) => boolean) => sel(over.sessions ?? EMPTY_SESSIONS))
   const renderSlot = vi.fn((name: string, _owner: unknown, opts?: { only?: string }): ReactNode => (
     <span data-slot={name}>{name}{opts?.only !== undefined ? `:${opts.only}` : ''}</span>
@@ -56,14 +51,12 @@ function root(over: RootOverrides = {}) {
     useOnboardingSteps: useOnboardingSteps as never,
     useTheme: useTheme as never,
     useAccount: useAccount as never,
-    usePersona: usePersona as never,
     useSessions: useSessions as never,
     renderSlot: renderSlot as never,
     setTheme,
     signIn,
     logout,
     checkForUpdates,
-    openPersona,
     updatesAvailable: over.updatesAvailable ?? false,
     openDesktopPlugins,
     desktopPluginsAvailable: over.desktopPluginsAvailable ?? false,
@@ -73,7 +66,7 @@ function root(over: RootOverrides = {}) {
     t,
   }
   render(<SettingsMenuRoot {...props as unknown as SettingsMenuRootComponentProps} />)
-  return { setTheme, signIn, logout, checkForUpdates, openPersona, openDesktopPlugins, quitApp, renderSlot }
+  return { setTheme, signIn, logout, checkForUpdates, openDesktopPlugins, quitApp, renderSlot }
 }
 
 function trigger(): HTMLButtonElement {
@@ -121,17 +114,20 @@ describe('SettingsMenuRoot', () => {
     expect(logout).not.toHaveBeenCalled()
   })
 
-  it('keeps the cloud-console, help, and feedback rows out of the product menu', () => {
-    root({ persona: { available: true } })
+  it('keeps the cloud-console, help, feedback, and persona rows out of the product menu', () => {
+    root()
     openMenu()
     const labels = screen.getAllByRole('menuitem').map(item => item.textContent ?? '')
     // The console surfaces (WeChat accounts, domain, certificate, deployments,
-    // relay credential) are administration rather than product commands, and
-    // the help/feedback rows are gone with them. Their seats stay declared so
-    // the owning plugins can still register — the entry list is the product
-    // decision, the seat table is the runtime grant.
+    // relay credential) are administration rather than product commands, the
+    // help/feedback rows are gone with them, and 角色与兴趣 stays a first-run
+    // surface rather than a menu entry. Their seats stay declared so the owning
+    // plugins can still register — the entry list is the product decision, the
+    // seat table is the runtime grant. The persona feature is not removed: its
+    // picker still opens on first run and its seam is still provided.
     const hidden = [
       '公众号账号', '小程序账号', '域名管理', '证书管理', '我的应用部署', '中转站 API Key 管理', '帮助', '反馈',
+      '角色与兴趣',
     ]
     expect(hidden.filter(label => labels.includes(label))).toEqual([])
     for (const seat of [
@@ -279,27 +275,6 @@ describe('SettingsMenuRoot', () => {
     act(() => { screen.getByRole('menuitem', { name: '检查更新' }).click() })
     expect(checkForUpdates).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('menu')).toBeNull()
-  })
-
-  it('renders the persona row only for a mounted persona feature and opens the picker on click', () => {
-    // Without the persona provider the row is absent (broken-composition state
-    // renders nothing rather than a dead row).
-    root()
-    openMenu()
-    expect(screen.queryByRole('menuitem', { name: '角色与兴趣' })).toBeNull()
-    cleanup()
-    const { openPersona } = root({ persona: { available: true } })
-    openMenu()
-    const personaRow = screen.getByRole('menuitem', { name: '角色与兴趣' })
-    expect(personaRow).not.toBeNull()
-    act(() => { personaRow.click() })
-    expect(openPersona).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('menu')).toBeNull()
-    // A chosen role rides the row label, so the menu answers who the person is.
-    cleanup()
-    root({ persona: { available: true, roleLabel: '学员' } })
-    openMenu()
-    expect(screen.getByRole('menuitem', { name: '角色与兴趣 · 学员' })).not.toBeNull()
   })
 
   it('renders the desktop shell group from the native menu migration and fires its callbacks', () => {

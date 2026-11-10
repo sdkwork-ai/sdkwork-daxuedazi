@@ -11,7 +11,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-app-modes/client'
 // Type-only: pulls the settings slot declarations the shell renders into.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { AccountProfile } from './account.ts'
-import type { PersonaMenuProfile } from './persona.ts'
 import type { ThemeMenuSnapshot } from './theme-source.ts'
 
 /** One nav row projected from a settings.section registration's options. */
@@ -43,13 +42,9 @@ export type SettingsMenuRootInjected = {
     theme: HostObservable<ThemeMenuSnapshot>
     /** account profile feeding the username header and account group. */
     account: HostObservable<AccountProfile>
-    /** persona profile feeding the role & interests row (unavailable without ui-sdkwork-persona). */
-    persona: HostObservable<PersonaMenuProfile>
   }
   /** Switch the theme preference (light/dark/system). */
   setTheme: (id: string) => void
-  /** Open the persona picker through the persona provider (no-op while unavailable). */
-  openPersona: () => void
   /** Start the sign-in flow through the account provider (no-op while anonymous). */
   signIn: () => void
   /** End the session through the account provider. */

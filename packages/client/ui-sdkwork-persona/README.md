@@ -1,5 +1,5 @@
 ---
-description: "Persona personalization for BirdCoder: the role and interest profile stored on the SDKWork IAM account, the first-run picker, the settings-menu row, and the local cache used while signed out."
+description: "Persona personalization for BirdCoder: the role and interest profile stored on the SDKWork IAM account, the first-run picker, the settings-menu seam it binds, and the local cache used while signed out."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Persona personalization for BirdCoder. The role, the followed interest directions, the first-run answer, and the selectable taxonomy are stored on the signed-in SDKWork IAM account and read through `ctx.iam`, so a choice follows the person across devices and surfaces. This package hosts the picker on `shell.overlay`, binds the settings-menu `角色与兴趣` row, and keeps the local `ui-sdkwork-persona` section as the offline and signed-out cache.
+Persona personalization for BirdCoder. The role, the followed interest directions, the first-run answer, and the selectable taxonomy are stored on the signed-in SDKWork IAM account and read through `ctx.iam`, so a choice follows the person across devices and surfaces. This package hosts the picker on `shell.overlay`, binds the settings-menu `ctx.persona` seam (the popover renders no `角色与兴趣` row in this build, so the picker stays a first-run surface), and keeps the local `ui-sdkwork-persona` section as the offline and signed-out cache.
 
 ## Table of Contents
 
@@ -45,7 +45,7 @@ None; this package neither assembles nor sends a provider request.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-The plugin owns no service on `ctx`: the picker dispatch rides the settings-menu `ctx.persona` seam, which the settings menu provides as an unavailable default so its injected face is independent of activation order. The feature plugin installs its source through `setSource` and receives a disposer that restores the default, which is what keeps an HMR reload from leaving the menu on a dead source.
+The plugin owns no service on `ctx`: the picker dispatch rides the settings-menu `ctx.persona` seam, which the settings menu provides as an unavailable default so its injected face is independent of activation order. The feature plugin installs its source through `setSource` and receives a disposer that restores the default, which is what keeps an HMR reload from leaving the menu on a dead source. The menu currently draws no row from this seam — 角色与兴趣 is hidden from the popover and the picker opens through the first-run gate — so the binding keeps the seam live for when the entry returns.
 
 `PersonaService` takes the account port and the cache scope as two collaborators. Reads prefer the freshest account snapshot and fall back to the cache; writes go to the account when it is available and to the cache otherwise; `service.start()` installs both subscriptions and is owned by one `ctx.effect`, so a reload leaves no orphaned listener. The account sync reads the persona and the catalog together, invalidates an in-flight read when the account changes, and retries a failed read when the picker opens. The account port is built in `apply` over `ctx.iam`, which owns the generated IAM App SDK client, the base URL, and the shared token manager — the persona package never builds a second transport.
 

@@ -1,16 +1,20 @@
 /**
- * The persona seam the settings menu renders: whether the persona feature is
+ * The persona seam the settings menu provides: whether the persona feature is
  * mounted, the localized label of the chosen role, and the gesture that opens
- * the picker. The shipped provider is the unavailable default — the settings
- * menu must render with or without the persona plugin, and its injected face is
- * assembled once at apply time, so activation order cannot decide whether the
- * row exists. The ui-sdkwork-persona plugin installs a real source through
- * `setSource` and gets a disposer that restores the default when it unloads.
+ * the picker. This product's popover renders no persona row — the picker stays
+ * a first-run surface — so no component consumes the seam; it stays provided so
+ * the ui-sdkwork-persona plugin can bind its source behind a stable face, and
+ * restoring the row later becomes a row plus its injected share instead of a
+ * rebuilt feature. The shipped provider is the unavailable default: the menu
+ * must load with or without the persona plugin, and the injected face is
+ * assembled once at apply time, so activation order cannot decide availability.
+ * The plugin installs a real source through `setSource` and gets a disposer
+ * that restores the default when it unloads.
  */
 
-/** What the menu row shows for the current persona state. */
+/** What the seam reports about the persona feature. */
 export interface PersonaMenuProfile {
-  /** Whether the persona section is served and editable (the row renders only then). */
+  /** Whether the persona section is served and editable. */
   available: boolean
   /** Localized label of the chosen role; undefined while unchosen. */
   roleLabel?: string
@@ -28,7 +32,7 @@ export interface PersonaMenuSource {
 
 const UNAVAILABLE_PROFILE: PersonaMenuProfile = { available: false }
 
-/** The shipped default: no persona feature mounted, so no row. */
+/** The shipped default: no persona feature mounted. */
 const ABSENT_SOURCE: PersonaMenuSource = {
   getSnapshot: () => UNAVAILABLE_PROFILE,
   subscribe: () => () => {},

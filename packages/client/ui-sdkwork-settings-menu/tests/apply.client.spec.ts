@@ -190,22 +190,27 @@ describe('ui-sdkwork-settings-menu apply', () => {
     expect(b.theme.setTheme).toHaveBeenCalledWith('dark')
   })
 
-  it('provides the persona seam, projects an installed source into the shell hook, and restores the default on unload', async () => {
+  it('provides the persona seam for the feature plugin while the popover exposes no persona row', async () => {
     const b = await bench()
     declare(b.slots)
     await b.ctx.plugin({ inject: [...inject], apply }).await()
     const persona = b.ctx.get('persona')!
     expect(persona.getSnapshot()).toEqual({ available: false })
+    // The popover renders no 角色与兴趣 row, so the injected face carries
+    // neither the persona hook nor the picker gesture: the picker stays a
+    // first-run surface and this shell only hosts the seam the persona plugin
+    // binds its source to.
     const entry = b.slots.entries('mode.rail.settings')[0]!
-    const injected = (entry.inject as never as () => {
-      hooks: { persona: { getSnapshot(): { available: boolean; roleLabel?: string } } }
-      openPersona: () => void
-    })()
-    expect(injected.hooks.persona.getSnapshot()).toEqual({ available: false })
-    // The persona plugin installs its source; the menu row follows it live.
+    const injected = (entry.inject as never as () => { hooks: Record<string, unknown> })()
+    expect(injected.hooks).not.toHaveProperty('persona')
+    expect(injected).not.toHaveProperty('openPersona')
+    // The persona plugin installs its source through `setSource`; every live
+    // subscriber moves to it, and the disposer restores the default.
     const open = vi.fn()
     const listeners = new Set<() => void>()
+    const seen: (string | undefined)[] = []
     let profile: { available: boolean; roleLabel?: string } = { available: true }
+    const off = persona.subscribe(() => { seen.push(persona.getSnapshot().roleLabel) })
     const restore = persona.setSource({
       getSnapshot: () => profile,
       subscribe: (listener) => {
@@ -214,17 +219,18 @@ describe('ui-sdkwork-settings-menu apply', () => {
       },
       open,
     })
-    expect(injected.hooks.persona.getSnapshot()).toEqual({ available: true })
+    expect(persona.getSnapshot()).toEqual({ available: true })
     profile = { available: true, roleLabel: '学员' }
     for (const listener of [...listeners]) listener()
-    expect(injected.hooks.persona.getSnapshot()).toEqual({ available: true, roleLabel: '学员' })
-    injected.openPersona()
+    expect(persona.getSnapshot()).toEqual({ available: true, roleLabel: '学员' })
+    persona.open()
     expect(open).toHaveBeenCalledTimes(1)
     // Unloading the persona plugin restores the unavailable default.
     restore()
-    expect(injected.hooks.persona.getSnapshot()).toEqual({ available: false })
+    expect(persona.getSnapshot()).toEqual({ available: false })
     expect(listeners.size).toBe(0)
-    expect(() => { injected.openPersona() }).not.toThrow()
+    expect(seen).toEqual([undefined, '学员', undefined])
+    off()
   })
 
   it('refreshes loaded document availability on reconnect without reading it eagerly', async () => {
