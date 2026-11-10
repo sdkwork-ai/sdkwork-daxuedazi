@@ -151,7 +151,7 @@
     {
       "id": "sdkwork-agents",
       "repository": "sdkwork-ai/sdkwork-agents",
-      "ref": "6954959176300da6a716099a880a556d7b573abb",
+      "ref": "8138d908ebacaf6c45758c000c1dc6fc82a3757c",
       "refInput": "SDKWORK_AGENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -186,7 +186,7 @@
     {
       "id": "sdkwork-cloudrouter",
       "repository": "sdkwork-ai/sdkwork-cloudrouter",
-      "ref": "b945119cff970737e276c07c805fe634323f622e",
+      "ref": "171115e6bee69b9563653087ee161c184488a06e",
       "refInput": "SDKWORK_CLOUDROUTER_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -235,7 +235,7 @@
     {
       "id": "sdkwork-deployments",
       "repository": "sdkwork-ai/sdkwork-deployments",
-      "ref": "64bb3216843cd2ae3d09170834f907ee05de9a8a",
+      "ref": "17d2c3002e9cae564c4e3ce9c03140f2049b7ab0",
       "refInput": "SDKWORK_DEPLOYMENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -270,7 +270,7 @@
     {
       "id": "sdkwork-knowledgebase",
       "repository": "sdkwork-ai/sdkwork-knowledgebase",
-      "ref": "65756063f41d91d48002a5ff0b4a5089c4233bba",
+      "ref": "d367ac786952ff0c4801f395c6b2f418389927c9",
       "refInput": "SDKWORK_KNOWLEDGEBASE_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -305,7 +305,7 @@
     {
       "id": "sdkwork-models",
       "repository": "sdkwork-ai/sdkwork-models",
-      "ref": "8c0360930cbab27c598aaefcf1db2807fdf0e811",
+      "ref": "576c77435789295760458e892c13af7cbe456a77",
       "refInput": "SDKWORK_MODELS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -319,7 +319,7 @@
     {
       "id": "sdkwork-promotion",
       "repository": "sdkwork-ai/sdkwork-promotion",
-      "ref": "e4437df48fb850f4eda9f166c49f77fa70caa7ec",
+      "ref": "4c137634dc3f0b66d86fefbfd3f0825b87263747",
       "refInput": "SDKWORK_PROMOTION_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -382,7 +382,7 @@
     {
       "id": "sdkwork-messaging",
       "repository": "sdkwork-ai/sdkwork-messaging",
-      "ref": "5a182ea2771b4a72631b065313b26986f354f840",
+      "ref": "451c3fee81ab121ce1e1b119fa194de7895eed9b",
       "refInput": "SDKWORK_MESSAGING_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
@@ -410,7 +410,7 @@
     {
       "id": "sdkwork-documents",
       "repository": "sdkwork-ai/sdkwork-documents",
-      "ref": "337e21355dba3f1696fdda8073a13a6772451926",
+      "ref": "3dd9febdfae0627af5652ad7d2d99d8b26fa7c93",
       "refInput": "SDKWORK_DOCUMENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
