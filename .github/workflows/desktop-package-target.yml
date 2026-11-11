@@ -123,7 +123,7 @@ jobs:
       # Windows short build roots; the `runner` context is not available in
       # job-level `env`, so the path is spelled out here.
       - name: Restore cached downloads
-        uses: actions/cache@v6.1.0
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/dsh-desktop-package-cache
           key: desktop-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
