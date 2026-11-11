@@ -47,6 +47,12 @@
       "path": "../../packages/sandbox/sandbox-policy"
     },
     {
+      "path": "../../packages/skill/skill-office"
+    },
+    {
+      "path": "../../packages/skill/tool-workspace-dependencies"
+    },
+    {
       "path": "../../packages/util/workspace-path"
     },
     {
