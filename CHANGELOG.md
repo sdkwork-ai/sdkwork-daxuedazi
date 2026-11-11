@@ -12,7 +12,7 @@
 * **冲突处理**：387 个冲突文件按 fork-first 规则解决——356 个 `package.json` 只有版本行冲突，一律保留 fork 的 `0.2.2-rc.5`（上游 `0.2.2-rc.2` 不覆盖 fork 发布线），其余字段完整采纳上游；7 个 `package.json` 的描述/改名冲突采用上游新描述与包名（`dsh-office-to-pdf` → `dsh-office-kit`）并保留 fork 版本号；共享源码、locale 与清单按语义合并（品牌字面仍为 fork 的 BirdCoder/学伴AI）。
 * **采纳上游删除**：`packages/api/account-controller` 与 `packages/credentials/deepseek-account-platform` 已由上游 `d51d623bfc`（统一账号服务）删除，源码零引用，随上游删除；`packages/document/office-to-pdf` 跟随上游改名为 `office-kit`。同时清理 `packages/api/remotes` 与 `packages/bundle/web-app` 中指向已删包的失效 `workspace:*` 声明，使 workspace 可解析。
 * **子模块**：`plugins/sdkwork-deepseekbot` 快进到上游 pin `9611a07b2`（`ac7c85d8a` 为其祖先）；上游新增的私有镜像 `plugins/sdkwork-dsh-agents`（专家市场，提供 `@michengai/dsh-agency-agents`）已初始化到 `e05cd2282a`。
-* **文档与配对**：`AGENTS.md` 的 OEM 契约段落保留 fork 版本，上游新增的子模块镜像说明一并采纳；`ui-sdkwork-settings-menu` 中英文 README 补入上游的账号钱包卡（`settings.menu.plan`）描述；README 与 `.i18n.yaml` 配对记录待重录（`pnpm run verify-translation-pairing --write --all`）。
+* **文档与配对**：`AGENTS.md` 的 OEM 契约段落保留 fork 版本，上游新增的子模块镜像说明一并采纳；`ui-sdkwork-settings-menu` 中英文 README 补入上游的账号钱包卡（`settings.menu.plan`）描述；`plugins/README.zh.md` 补齐上游新增的专家市场、用量与费用看板、助理三节及「fork 自有例外」段，`ui-primitives` 中文 README 补入 `WideModal`、`Drawer` 两行与抽屉浮层层级限制条目；`scripts/translation-pairing.manifest.json` 把上游新增的两个私有镜像子模块（`plugins/dsh-ui-usage-billing/`、`plugins/sdkwork-dsh-agents/`）纳入排除项，与既有 `plugins/*` 子模块一致。全部 1487 对中英文配对已重录并通过 `pnpm run verify-translation-pairing` 校验。
 * **后续步骤**：`pnpm-lock.yaml` 已按合并后的 `package.json` 重新规范化（`pnpm install --lockfile-only`），完整 `pnpm install` 与类型/测试门禁需在合并后单独执行。
 
 ### 上游变更（deepseek-harness 0.2.2-rc.2）
