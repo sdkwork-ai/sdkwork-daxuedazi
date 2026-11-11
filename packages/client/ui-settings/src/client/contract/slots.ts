@@ -28,6 +28,15 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * on one another.
      */
     'settings.menu.account': { kind: 'single'; scope: 'root'; owner: SettingsMenuAccountOwnerProps }
+    /**
+     * Account-wallet seat: the membership plan and compute-points balance card
+     * rendered directly under the account card, above the menu's command rows.
+     * The feature that owns the commerce data contributes it through the same
+     * `close` affordance as the account card, because its upgrade and top-up
+     * actions leave the menu for the Token Plan surface. Declared at runtime by
+     * ui-sdkwork-settings-menu's `mode.rail.settings` entry.
+     */
+    'settings.menu.plan': { kind: 'single'; scope: 'root'; owner: SettingsMenuPlanOwnerProps }
 
     /**
      * The sidebar-foot trigger row content: icon + label, supplied as slot
@@ -226,6 +235,11 @@ export interface SettingsMenuAccountOwnerProps {
   /** Dismiss the settings menu (content opened its own surface over it). */
   close: () => void
 }
+/** Owner share of the settings menu's plan/points card seat. */
+export interface SettingsMenuPlanOwnerProps {
+  /** Dismiss the settings menu (content opened its own surface over it). */
+  close: () => void
+}
 
 /** Owner share of a General preference row (the section supplies nothing). */
 export interface SettingsGeneralItemOwnerProps {
@@ -291,8 +305,8 @@ export interface SettingsLauncherOwnerProps {
   settingsOpen: boolean
   /** Effective Settings key labels and accessible combination; omitted when unbound. */
   settingsShortcut?: { readonly keys: readonly string[]; readonly aria?: string | undefined }
-  /** Open the settings panel. */
-  openSettings: () => void
+  /** @param sectionId - section to open; absent uses the shell's default section. */
+  openSettings: (sectionId?: string) => void
   /** @param id - registered onboarding editor to open explicitly. */
   openOnboarding: (id: string) => void
 }

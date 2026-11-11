@@ -4,10 +4,21 @@
  * The adapter maps the shared ui-sdkwork-env, ui-sdkwork-iam, and locale services to
  * the embeddable `AppstoreMarketsSurface` inputs. Environment changes remount
  * the App Store runtime; IAM and locale changes propagate through host props.
+ *
+ * Every cloud catalog reads the SDKWork app-api. The template shelf the
+ * catalogs list (`catalog/templates`) admits an application-scoped anonymous
+ * read, but an app-api call still needs the application Access-Token the
+ * environment provides — the generated app SDK cannot dispatch without one.
+ * The adapter therefore owns the sign-in face both ends of that edge need: the
+ * snapshot says whether the surface holds credentials ({@link
+ * MarketsHostRenderSnapshot.authenticated}), and the runtime hands the
+ * surface's sign-in gesture back to this application's own login entry
+ * ({@link MarketsHostRuntime.requestSignIn}).
  */
 import { createElement, useSyncExternalStore, type FC, type ReactNode } from 'react'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { SdkworkHostThemeSurface, type HostThemeBridge } from './sdkworkHostThemeSurface.tsx'
+import { MarketsAuthSurface } from './MarketsAuthSurface.tsx'
 import { MarketsEmptySurface } from './MarketsEmptySurface.tsx'
 import '../../../../../../sdkwork-appstore/apps/sdkwork-appstore-pc/src/index.css'
 import {
@@ -46,6 +57,20 @@ export interface MarketsHostIam {
   }
 }
 
+/**
+ * This application's sign-in entry, as the market catalogs' gate needs it: one
+ * call that raises the product login surface the settings menu uses, modal or
+ * full page per its presentation setting, so no market surface grows a second
+ * login form.
+ */
+export interface MarketsHostSignIn {
+  /** Open this application's own sign-in surface. */
+  openSignIn(): void
+}
+
+/** The complete IAM face the market host adapter reads. */
+export type MarketsHostIamFace = MarketsHostIam & MarketsHostSignIn
+
 /** Minimal locale runtime consumed by the adapter. */
 export interface MarketsHostLocale {
   /** @returns the active BirdCoder locale id. */
@@ -74,7 +99,8 @@ export interface MarketsHostSession {
 /** Dependencies used to configure the SDKWork surface. */
 export interface ConfigureMarketsHostOptions {
   env: MarketsHostEnvironment
-  iam: MarketsHostIam
+  /** The IAM controller plus the sign-in entry the catalogs' gate raises. */
+  iam: MarketsHostIamFace
   locale: MarketsHostLocale
   theme: MarketsHostTheme
 }
@@ -108,6 +134,14 @@ export interface MarketsHostRenderSnapshot {
   accessToken: string
   locale: string
   session: MarketsHostSessionSnapshot | null
+  /**
+   * Whether the embedded surface holds credentials to call app-api: an IAM
+   * session or the environment's static access token. False means the
+   * generated app SDK has no application credential to dispatch an app-api
+   * call with, so the surface renders its sign-in face instead of a catalog
+   * that cannot load.
+   */
+  authenticated: boolean
 }
 
 /**
@@ -165,6 +199,8 @@ export interface MarketsHostRuntime extends MarketsHostAdapter {
   resolveHostLanguage(): string
   /** @returns the render snapshot for the embedded host component. */
   getHostSnapshot(): MarketsHostRenderSnapshot
+  /** Open the application's own sign-in surface from a catalog's gate. */
+  requestSignIn(): void
 }
 
 /** Host adapter implementation and SDKWork host prop owner. */
@@ -239,6 +275,7 @@ class MarketsHostRuntimeImpl implements MarketsHostRuntime {
       accessToken,
       locale,
       session,
+      authenticated: session !== null,
     }
     return this.cachedSnapshot
   }
@@ -246,6 +283,15 @@ class MarketsHostRuntimeImpl implements MarketsHostRuntime {
   /** @returns the host theme bridge for the embedded market page. */
   readThemeBridge(): HostThemeBridge {
     return this.options.theme
+  }
+
+  /**
+   * Hand the catalog's sign-in gesture to this application's login entry. The
+   * IAM service owns the presentation (modal overlay or full-page account
+   * mode) and the methods it offers, so the market never re-implements either.
+   */
+  requestSignIn(): void {
+    this.options.iam.openSignIn()
   }
 
   /** Dispose subscriptions and prevent later adapter notifications. */
@@ -307,6 +353,10 @@ export interface MarketsAppProps {
  * Render one SDKWork market page through the configured host adapter.
  * With no configured gateway the adapter mounts no SDKWork runtime and the
  * unconfigured status panel keeps the tab panel a complete themed surface.
+ * With no credentials the panel states the sign-in requirement and hands the
+ * gesture to this application's login entry: the generated app SDK cannot
+ * dispatch an app-api call without an application Access-Token, and would
+ * surface its own transport error instead of a market.
  * @param props - the market page id, the header query, and the Markets locale seat.
  * @returns the market page element tree.
  */
@@ -324,6 +374,12 @@ export function MarketsApp(props: MarketsAppProps): ReactNode {
   )
   if (snapshot.apiBaseUrl === '') {
     return createElement(MarketsEmptySurface, { t })
+  }
+  if (!snapshot.authenticated) {
+    return createElement(MarketsAuthSurface, {
+      t,
+      onSignIn: () => { adapter.requestSignIn() },
+    })
   }
   return createElement(
     SdkworkHostThemeSurface,

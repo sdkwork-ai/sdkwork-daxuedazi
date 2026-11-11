@@ -3,8 +3,9 @@
  * settings menu) plus the centered modal panel with the section nav rail
  * (figma 501:29947, 1080x700). The menu pops to the right of the trigger on
  * hover/focus/click: a header row with the account identity, the account
- * group (sign-in row while a provider advertises one, membership/points rows
- * when the account provider publishes them), the feature group (settings →
+ * group (the usage card, the Token Plan wallet card, a sign-in row while a
+ * provider advertises one, membership/points rows when the account provider
+ * publishes them), the feature group (settings →
  * panel, appearance → theme submenu), the desktop shell group (desktop plugins
  * → plugin manager window, check-for-updates → desktop updater, quit) migrated
  * from the native application menu the shell hides on Windows/Linux, and the
@@ -55,6 +56,9 @@ function navIcon(id: string) {
   // The sidebar's own page (`ui-sdkwork-sidebar`) draws the column's glyph.
   if (id === 'sidebar-layout') return <IconPanelLeftOutlineRegular className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutlineRegular className={css.navIcon} size={16} />
+  // The Token Plan plugin's plan/points page: same coin glyph as the wallet
+  // card so the settings row and the account summary agree.
+  if (id === 'points') return <IconCoinOutline16 className={css.navIcon} size={16} />
   // The fork's own Skills settings page, which shares the rail with a
   // marketplace skill manager; the skill glyph keeps the two rows apart.
   if (id === 'skills') return <IconSkillOutlineRegular className={css.navIcon} size={16} />
@@ -202,6 +206,15 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
       id: 'account-usage',
       node: renderSlot('settings.menu.account', { close: closeMenu }),
     })
+    // The wallet card sits immediately after the usage card: the same account
+    // group answers "what did I spend" and "what do I have left", and its
+    // upgrade/top-up actions leave for the Token Plan surface through the same
+    // `close` contract. Absent without the token-plan feature mounted.
+    entries.push({
+      type: 'block',
+      id: 'account-plan',
+      node: renderSlot('settings.menu.plan', { close: closeMenu }),
+    })
     if (!account.signedIn && account.signInAvailable === true) {
       entries.push({ id: 'sign-in', label: t('menu.signIn'), icon: <IconUserOutlineRegular size={14} /> })
     }
@@ -326,6 +339,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
         selectedIds={[theme.preference]}
         onSelect={onSelect}
         onClose={() => { setMenuOpen(false) }}
+        listClassName={css.menuPanel}
       />
       {dialogOpen && (
         <SettingsPanel

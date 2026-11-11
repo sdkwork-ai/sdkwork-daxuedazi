@@ -3,11 +3,13 @@
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { runCli } from '@deepseek-ai/dsh/lib/bin.js'
 import { installOfficeEngineResolution, runtimeArchivePath } from './office-engine.ts'
+// FORK DIVERGENCE: upstream inlines this helper; the fork keeps it in
+// office-engine.ts and re-exports it for packaged-runtime smoke checks.
+export { runtimeArchivePath }
 import { installLinuxSharpGuard } from './sharp-platform.ts'
 
 /**
  * Run the ordinary CLI with Desktop's bundled package manager and reserved-profile plugin access.
- * @param runtimeDir - Prepared or ASAR-contained production DSH package tree.
  * @param supportDir - Physical Desktop runtime directory containing the primary-runtime payload and Node launchers.
  * @returns Completion of the selected CLI command; profile plugins own their process lifetime.
  */
