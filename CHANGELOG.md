@@ -2,9 +2,9 @@
 
 本文件只记录**当前版本**——`##` 标题就是本次发布打的 tag，不累积历史版本条目；往期条目随各自版本的提交保留在 git 历史里（`git log -p CHANGELOG.md`）。「上游变更」逐字摘自上游该 release 的官方 Release notes（中文部分，英文版见各 Release 页面）；上游尚未发布 Release notes 时，按该 tag 内的实际提交归纳并注明来源。「BirdCoder 本地修改」记录 fork 在该版本上的自有变更（SDKWork 组件、品牌、打包与部署等），不受上游发布节奏影响。
 
-## 0.2.2-rc.5（fork 发布 2026-11-10，2026-11-12 同步上游 `24e386c2c8`）
+## 0.2.2-rc.6（fork 发布 2026-11-12，基于上游同步 `24e386c2c8`）
 
-本轮为 rc.4 之后的迭代版本，并在同一版本线上完成一次完整上游同步：把 `sdkwork-ai/sdkwork-birdcoder2` 的 944 个提交（含其内部的 `deepseek-harness` 0.2.2-rc.2 合并，923 个提交）合入当前 fork，同时保留 fork 自有的 SDKWork 组件、品牌与打包链路。
+本轮为 rc.5 之后的迭代版本，交付一次完整上游同步后的首个发布构建：把 `sdkwork-ai/sdkwork-birdcoder2` 的 944 个提交（含其内部的 `deepseek-harness` 0.2.2-rc.2 合并，923 个提交）合入当前 fork，并在此基础上推进全部子模块与 SDKWork 兄弟仓库到各自 `main`，重新对齐锁文件、切版本并重跑全平台打包，同时保留 fork 自有的 SDKWork 组件、品牌与打包链路。
 
 ### 本次同步摘要（2026-11-12）
 
@@ -14,6 +14,9 @@
 * **子模块**：`plugins/sdkwork-deepseekbot` 快进到上游 pin `9611a07b2`（`ac7c85d8a` 为其祖先）；上游新增的私有镜像 `plugins/sdkwork-dsh-agents`（专家市场，提供 `@michengai/dsh-agency-agents`）已初始化到 `e05cd2282a`。
 * **文档与配对**：`AGENTS.md` 的 OEM 契约段落保留 fork 版本，上游新增的子模块镜像说明一并采纳；`ui-sdkwork-settings-menu` 中英文 README 补入上游的账号钱包卡（`settings.menu.plan`）描述；`plugins/README.zh.md` 补齐上游新增的专家市场、用量与费用看板、助理三节及「fork 自有例外」段，`ui-primitives` 中文 README 补入 `WideModal`、`Drawer` 两行与抽屉浮层层级限制条目；`scripts/translation-pairing.manifest.json` 把上游新增的两个私有镜像子模块（`plugins/dsh-ui-usage-billing/`、`plugins/sdkwork-dsh-agents/`）纳入排除项，与既有 `plugins/*` 子模块一致。全部 1487 对中英文配对已重录并通过 `pnpm run verify-translation-pairing` 校验。
 * **后续步骤**：`pnpm-lock.yaml` 已按合并后的 `package.json` 重新规范化（`pnpm install --lockfile-only`），完整 `pnpm install` 与类型/测试门禁需在合并后单独执行。
+* **子模块推进到最新**：`plugins/dsh-better-sidebar` → `v0.31.1`（`8d8592bb`，含超长单行 diff 卡死的线性高亮修复）、`plugins/dsh-mcp-connector` → `v0.2.101`（`ed73328a`，启信宝迁移恢复）、`plugins/sdkwork-deepseekbot` → `5f10691a`（机器人文案统一为「助理 / Assistant」）；其余子模块经检查已在最新发布 pin 上。
+* **外部依赖对齐 `main`**：`scripts/sdkwork-sources.manifest.json` 一次推进 17 个 SDKWork 兄弟仓库（`sdkwork-sdk-commons`、`sdkwork-appbase`、`sdkwork-iam`、`sdkwork-appstore`、`sdkwork-cloudrouter`、`sdkwork-models`、`sdkwork-order`、`sdkwork-promotion`、`sdkwork-knowledgebase`、`sdkwork-drive`、`sdkwork-course`、`sdkwork-plugins`、`sdkwork-generations`、`sdkwork-community`、`sdkwork-feeds`、`sdkwork-agents`、`sdkwork-deployments`、`sdkwork-messaging`、`sdkwork-payment`、`sdkwork-web-framework`）到各自 `main` 最新提交，其余仓库已在最新；本地按相对路径解析、release 按 git 依赖解析的 sdkwork-specs 约定保持不变。
+* **锁文件修复**：`pnpm-lock.yaml` 与兄弟仓库 `sdkwork-ui/sdkwork-ui-pc-react` 的 `lucide-react` 规格不一致（锁文件 `^1.31.0`、其 `main` 为 `1.7.0`），导致 CI 的 `pnpm install --frozen-lockfile` 报 `ERR_PNPM_OUTDATED_LOCKFILE`。本次按兄弟仓库**已提交的 main** 重新生成锁文件，`Release (dsh)`、`Release (vendor)`、`Sandbox`、`E2E` 四个工作流随之恢复可安装状态。
 
 ### 上游变更（deepseek-harness 0.2.2-rc.2）
 
@@ -111,8 +114,6 @@
 
 * **桌面开发 lane 隔离**（`1feb0f0ab0`）：开发、在线与已安装发布三个 lane 相互独立——开发 lane 不读写已安装版的数据与端口，Web 构建环境约束由新脚本 `scripts/web-build-environment.ts` 固化（`scripts/web-build-environment.spec.ts` 90 行规格测试），`scripts/verify-desktop-lane-isolation.ts` 以 57 项检查守护该不变量并已接入 `run-gates.ts` 门禁。
 * **设置菜单 persona 状态抽取**（`8b2b424a05`）：`ui-sdkwork-settings-menu` 把 persona UI 状态从设置壳层抽出为独立状态层（`persona.ts`），精简 `SettingsMenuRoot` 与 shell 契约，README 中英文案同步对齐（`1fcefae141`）。
-* **`sdkwork-deepseekbot` 子模块推进**（`8ee54bff6d`）：pin 前进到 `ac7c85d8`。
-* **`dsh-mcp-connector` 子模块推进**：`66961e57` → `618cbd3c`（上游 `v0.2.100`，新增 npm 下载趋势图与日常维护）。
-* **SDKWork 生态兄弟仓库 pin 推进**：`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 双记录同步 8 个仓库到各自 `main` 最新（`sdkwork-cloudrouter`、`sdkwork-models`、`sdkwork-promotion`、`sdkwork-knowledgebase`、`sdkwork-agents`、`sdkwork-deployments`、`sdkwork-messaging`、`sdkwork-documents`），`pnpm-lock.yaml` 相应刷新。外部依赖遵循 sdkwork-specs 规范：本地相对路径解析、release 经 manifest 固定到各仓库 `main` 的 git 提交。
-* 版本号升级至 `0.2.2-rc.5`（根、`apps/desktop`、`apps/web` 三处 package.json 与全部 455 个 workspace 包一致），发布 tag `sdkwork-daxuedazi-v0.2.2-rc.5` 触发 `container-release.yml`：六个桌面目标（mac-arm64、mac-x64、win-x64、win-arm64、linux-x64、linux-arm64）+ 两个原生容器镜像 + Compose/Kubernetes 部署捆绑包，资产齐全后发布 GitHub Release；Release 说明只携带本 `## 0.2.2-rc.5` 章节。
+* **文档配对补齐**：`plugins/README.zh.md` 补入上游新增的专家市场、用量与费用看板、助理三节；`ui-primitives` 中文 README 补入 `WideModal`、`Drawer` 两行与抽屉浮层层级限制条目；`scripts/translation-pairing.manifest.json` 把上游新增的两个私有镜像子模块纳入排除项。全部 1487 对中英文配对通过 `pnpm run verify-translation-pairing` 校验。
+* 版本号升级至 `0.2.2-rc.6`（根、`apps/desktop`、`apps/web` 三处 package.json 与全部 workspace 包一致），发布 tag `sdkwork-daxuedazi-v0.2.2-rc.6` 触发 `container-release.yml`：六个桌面目标（mac-arm64、mac-x64、win-x64、win-arm64、linux-x64、linux-arm64）+ 两个原生容器镜像 + Compose/Kubernetes 部署捆绑包，资产齐全后发布 GitHub Release；Release 说明只携带本 `## 0.2.2-rc.6` 章节。
 * 部署配置保持安装期高度可自定义：Compose 侧 `DSH_PUBLISH_HOST` / `DSH_PUBLISH_PORT` / `DSH_WEB_PORT` / `DSH_TRUSTED_HOSTS` / `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` 环境变量、`DSH_DATA_DIR` / `DSH_WORKSPACE_DIR` 数据落盘目录绑定挂载，以及 `etc/topology/<profile>.<environment>.env` 部署档位文件选择；Kubernetes 侧 `values.yaml` 覆盖表、`configmap.yaml` 与 `secret.example.yaml`。数据层为内嵌文件存储（无外部数据库/Redis 进程），持久化位置由上述卷映射完全自定义。
