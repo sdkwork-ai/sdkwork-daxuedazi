@@ -31,6 +31,7 @@ import { desktopArtifactOutput, desktopTargetBuildPaths, resolveDesktopBuildTarg
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
+import { verifyWindowsInstallPathBudget } from './windows-install-path-budget.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
   verifyPackagedApplicationIdentity,
@@ -541,6 +542,13 @@ export function createElectronBuilderConfig(
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
       // Unsigned Windows builds skip electron-builder's afterSign hook.
       if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
+      // FORK DIVERGENCE: NSIS creates the installed tree with Win32 path calls, so the
+      // released `0.2.2-rc.6` installer aborted with `Failed to decompress files ...
+      // Error opening output file(s)` once a duplicate nested Office engine pushed eight
+      // files past `MAX_PATH` below `%LOCALAPPDATA%\Programs\daxuedazi`. The build
+      // directory is always shorter than an installed one, so the depth is measured
+      // against the installation prefix here rather than on the packaging lane.
+      if (packagesWindows) verifyWindowsInstallPathBudget(context.appOutDir)
     },
     afterSign: async context => {
       if (windowsSigner !== undefined) {

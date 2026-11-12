@@ -6,6 +6,14 @@
 
 本轮为 rc.5 之后的迭代版本，交付一次完整上游同步后的首个发布构建：把 `sdkwork-ai/sdkwork-birdcoder2` 的 944 个提交（含其内部的 `deepseek-harness` 0.2.2-rc.2 合并，923 个提交）合入当前 fork，并在此基础上推进全部子模块与 SDKWork 兄弟仓库到各自 `main`，重新对齐锁文件、切版本并重跑全平台打包，同时保留 fork 自有的 SDKWork 组件、品牌与打包链路。
 
+### 安装器修复（2026-11-12，rc.6 重新打包）
+
+* **症状**：Windows 安装包在解包阶段直接中止，弹窗为 `Failed to decompress files. Please try running the installer again.` + `Error opening output file(s)`，安装目录里只留下半截文件；已安装的 rc.6 无法通过再次运行安装器修复。
+* **根因**：`apps/desktop-host` 仍钉在 `@deepseek-ai/libreoffice-kit@^0.1.5`，而 `packages/document/office-kit` 与 `packages/bundle/web-app` 已到 `0.2.3`。pnpm 无法把两个版本收敛，于是为 Host 私有链路额外物化了一整套 Office 引擎：`dsh/node_modules/@deepseek-ai/dsh-desktop-host/node_modules/@deepseek-ai/libreoffice-kit-win32-x64`。该副本最深资源 `program/share/config/soffice.cfg/modules/simpress/popupmenu/pagepanecanvasmaster.xml` 为 214 字符，加上默认安装目录 `%LOCALAPPDATA%\Programs\daxuedazi`（52 字符）共 267 字符，越过 Win32 的 `MAX_PATH`（259 个可用字符），NSIS 用普通 Win32 调用创建这 8 个文件全部失败，安装器按设计整体回滚并报解包错误。
+* **修复**：把 `apps/desktop-host` 的 `@deepseek-ai/libreoffice-kit` 对齐到 `0.2.3`（与另外两处声明一致，改用精确版本避免再次漂移）。pnpm 收敛为单一引擎后，嵌套副本消失：最深路径降到 224 字符，全树无条目超过 259；同时每个平台少 842 个文件、182 MB 解压体积（压缩后 67 MB）。
+* **打包门禁**：新增 `apps/desktop/scripts/windows-install-path-budget.mjs`，在 `afterPack` 用安装目录相对深度（预留 62 字符默认安装前缀）校验整棵打包树，超限时直接报出越界文件，不再让一台机器上的“构建路径够短”掩盖用户侧的安装失败。既有 `smoke-packaged-runtime.ts` 的 `MAX_PATH` 检查只量被提升的引擎根、且量的是构建路径，正是漏掉这个嵌套副本的原因。
+* **发布形态**：本次为 rc.6 的**重新打包**（重建同名 tag，发布流程按既有约定替换该 tag 的整套资产），版本号不变；六个桌面目标与容器镜像一并重建，因为该重复副本存在于每个平台的 dsh 载荷中，不只是 Windows。
+
 ### 本次同步摘要（2026-11-12）
 
 * **同步范围**：`sdkwork-ai/sdkwork-birdcoder2` 的 `70f1bfb22b` → `24e386c2c8`，共 **944 个上游提交、3595 个文件变更**（+115256 / −33733）。其中 `fa9a9ad3eb` 是上游自己的 deepseek-harness 合并（`e8f7b93a34`，923 个提交），因此本次同步把 `deepseek-harness` 0.2.2-rc.2 的全部改动一并带入。使用真实双亲 merge commit，上游提交记录、commit message 与代码注释逐字保留，未做 squash、rebase 或 cherry-pick。
