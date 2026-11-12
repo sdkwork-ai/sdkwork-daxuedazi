@@ -7,6 +7,7 @@ import { usesProductCaption } from './caption-platform.ts'
 import { configurationFailure, channelSaveFailure, configurationMessage } from './update-configuration.ts'
 import type { DesktopChannelState, DesktopChannelChangeResult } from '@deepseek-ai/dsh-client-ui-settings-general/types'
 import { DesktopUpdateSettings } from './update-settings.ts'
+import { createUpdateConfigSource } from './updates/config/index.ts'
 import { isDesktopUpdateChannel } from './settings-file.ts'
 import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-product-analytics/types'
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
@@ -202,6 +203,34 @@ function packagedApplicationManifest(): unknown {
   }
 }
 
+/** Distribution facts the packaging step embeds for the Deployments updater. */
+interface DesktopDistributionSettings {
+  readonly productKey: string
+  readonly configUrl?: string
+  readonly allowedHosts: readonly string[]
+}
+
+/**
+ * Reads the Deployments distribution block from the packaged manifest, with an
+ * environment override for local qualification. Missing values simply mean the
+ * build keeps using its packaged `app-update.yml`.
+ * @param manifest - Parsed application manifest.
+ */
+function readDesktopDistribution(manifest: unknown): DesktopDistributionSettings {
+  const record = typeof manifest === 'object' && manifest !== null && 'dshDesktopDistribution' in manifest
+    ? (manifest as { dshDesktopDistribution?: unknown }).dshDesktopDistribution
+    : undefined
+  const block = typeof record === 'object' && record !== null ? record as Record<string, unknown> : {}
+  const text = (value: unknown): string => typeof value === 'string' ? value.trim() : ''
+  const configUrl = text(process.env.DSH_DESKTOP_UPDATE_CONFIG_URL) || text(block.configUrl)
+  const productKey = text(process.env.DSH_DESKTOP_PRODUCT_KEY) || text(block.productKey)
+  const manifestHosts = Array.isArray(block.allowedHosts)
+    ? block.allowedHosts.filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+    : []
+  const envHosts = text(process.env.DSH_DESKTOP_UPDATE_ALLOWED_HOSTS).split(',').map(entry => entry.trim()).filter(entry => entry !== '')
+  return { productKey, ...(configUrl === '' ? {} : { configUrl }), allowedHosts: envHosts.length > 0 ? envHosts : manifestHosts }
+}
+
 /**
  * Load and cache the OEM profile.
  *
@@ -391,10 +420,10 @@ function developmentHostInspectPort(enabled: boolean): number | undefined {
 /**
  * Opaque chrome fallback matching the built-in sidebar palette (the resolved
  * `--dsw-static-neutral-bluish-900` / `-50` tokens). An approximation for
- * custom themes: the caption platforms swap in the renderer's measured palette
- * over the windowsAppearance IPC, and macOS shows it only while minimized or
- * hidden.
- * @returns the sidebar fill hex for the active system color scheme.
+ * custom themes: Windows captions use the renderer's measured palette over
+ * windowsAppearance IPC. The Windows workspace base stays opaque and follows
+ * the effective light/dark theme; macOS uses it only while minimized or hidden.
+ * @returns the sidebar fill hex for the effective application color scheme.
  */
 function chromeFallbackFill(): string {
   return nativeTheme.shouldUseDarkColors ? '#1b1b1c' : '#f9fafb'
@@ -426,6 +455,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     show,
     ...(icon === undefined ? {} : { icon }),
     ...(usesProductCaption(process.platform) && primary ? {
+      backgroundColor: chromeFallbackFill(),
       titleBarStyle: 'hidden' as const,
       titleBarOverlay: { height: WINDOWS_TITLEBAR_HEIGHT, color: chromeFallbackFill(),
         symbolColor: nativeTheme.shouldUseDarkColors ? '#f9fafb' : '#0f1115' },
@@ -469,6 +499,13 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     // Reloads and navigations re-register the preload listener; resend the
     // current state so a fullscreen reload does not fall back to windowed CSS.
     window.webContents.on('did-finish-load', sendFullscreen)
+  }
+  if (process.platform === 'win32' && primary) {
+    const updateBackground = (): void => {
+      if (!window.isDestroyed()) window.setBackgroundColor(chromeFallbackFill())
+    }
+    nativeTheme.on('updated', updateBackground)
+    window.once('closed', () => { nativeTheme.removeListener('updated', updateBackground) })
   }
   if (process.platform === 'darwin') {
     // Deminiaturize reattaches the NSVisualEffectView material late
@@ -837,7 +874,7 @@ async function main(): Promise<void> {
     return shown
   }
   const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
-    updateJournal?.state(state)
+    updateJournal?.state({ ...state, configSource: updates.feedSource })
     updateState = state
     mandatoryUI?.sync()
     for (const window of BrowserWindow.getAllWindows()) {
@@ -905,6 +942,19 @@ async function main(): Promise<void> {
   }
 
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
+  const distribution = readDesktopDistribution(manifest)
+  const updateConfigSource = distribution.configUrl === undefined || distribution.productKey === ''
+    ? undefined
+    : createUpdateConfigSource({
+      configUrl: distribution.configUrl,
+      productKey: distribution.productKey,
+      platform: process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux',
+      architecture: process.arch === 'arm64' ? 'arm64' : 'x64',
+      allowedHosts: distribution.allowedHosts,
+      cachePath: join(app.getPath('userData'), 'desktop', 'update-config.json'),
+      installIdPath: join(app.getPath('userData'), 'desktop', 'install-id'),
+      currentVersion: app.getVersion(),
+    })
   const packagedChannel = desktopUpdateChannel(manifest)
   const channelSettings = new DesktopUpdateSettings(app.getPath('userData'), packagedChannel)
   const initialChannel = await channelSettings.load()
@@ -970,6 +1020,8 @@ async function main(): Promise<void> {
     undefined, undefined, undefined,
     (success, reason) => { void track('desktop_upgrade_download_result', { is_success: success, ...reason === undefined ? {} : { error_reason: reason } }) },
     updateChannel,
+    undefined,
+    updateConfigSource,
   )
 
   if (initialChannel.kind === 'error') updates.suspendConfiguration(initialChannel.error.path)
@@ -982,7 +1034,13 @@ async function main(): Promise<void> {
     return state
   }
 
-  const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
+  const updateSchedule = new DesktopUpdateSchedule(
+    updates,
+    resolveDesktopUpdateScheduleConfig(process.env),
+    undefined,
+    undefined,
+    () => updates.checkIntervalMs,
+  )
 
   const downloadUpdate = async (version: string, revision = updates.revision): Promise<DesktopUpdateState> => {
     void track('desktop_upgrade_click', {})
@@ -1152,8 +1210,11 @@ async function main(): Promise<void> {
   ipcMain.handle(PLATFORM_IPC.close, (event) => { assertMainApplication(event); platformView.close() })
   // Only the main window may synchronize its palette with the native material.
   ipcMain.on(DESKTOP_IPC.nativeThemeSet, (event, source: unknown) => {
-    if (mainWindow === undefined || event.sender !== mainWindow.webContents) return
-    if (source === 'light' || source === 'dark' || source === 'system') nativeTheme.themeSource = source
+    if (mainWindow === undefined || event.sender !== mainWindow.webContents
+      || event.senderFrame !== mainWindow.webContents.mainFrame
+      || !event.senderFrame.url.startsWith(`${SCHEME}://app/`)) return
+    if (source !== 'light' && source !== 'dark' && source !== 'system') return
+    nativeTheme.themeSource = source
   })
   ipcMain.handle(DESKTOP_IPC.localeBootstrap, async (event) => {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame
@@ -1281,6 +1342,21 @@ async function main(): Promise<void> {
     }
     if (authenticationOperation !== undefined) {
       policyAuth?.focus(); updateDialog.focus()
+    }
+    if (!isMandatory() && (updates.state.phase === 'downloading' || updates.state.phase === 'verifying')) {
+      if (updateDialog.isOpen) {
+        updateDialog.focus()
+        return Promise.resolve()
+      }
+      const options = { type: 'info' as const, title: locale.messages.updateCheckTitle,
+        message: updates.state.phase === 'downloading' ? locale.messages.updateDownloadInProgress : locale.messages.updateVerifying,
+        detail: updates.state.phase === 'downloading' ? locale.messages.updateDownloadDetail : '', buttons: [locale.messages.updateClose], cancelId: 0,
+      }
+      return ordinaryMessageBox(options).then(() => {}).catch(async (error: unknown) => {
+        console.error(error)
+        try { await dialog.showMessageBox(options) }
+        catch (nativeError) { console.error(nativeError) }
+      })
     }
     let failedOperation: 'check' | 'download' | 'install' = 'check'
     promptOperation ??= Promise.resolve().then(async () => {
@@ -1641,6 +1717,7 @@ async function main(): Promise<void> {
     const window = mainWindow ?? createMainWindow()
     await navigateMain(applicationUrl)
     if (isQuitting() || recovery.active || window.isDestroyed()) return
+    if (process.platform === 'win32') window.setBackgroundColor(chromeFallbackFill())
     if (activate) window.show()
     else window.showInactive()
     enteredWorkspace = true
@@ -1810,6 +1887,7 @@ async function main(): Promise<void> {
     if (quitting || recovery.active) return
     const state = await readWelcomeState()
     if (isQuitting() || backend.state.phase !== 'ready') return
+    nativeTheme.themeSource = state.themePreference
     // The process was launched by the IAM login callback. The pending PKCE
     // flow is durable now (the renderer persists it), so the workspace can
     // redeem the code on boot; sending the user through the welcome screen

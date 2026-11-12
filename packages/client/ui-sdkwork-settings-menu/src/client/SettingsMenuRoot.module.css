@@ -44,7 +44,9 @@
 }
 
 /* Panel (figma Settings 501:29947): r24, white, lv3 shadow (figma effects
-   match --dsw-shadow-lv3 exactly); figma's 1080x700 is shrunk to 800 wide.
+   match --dsw-shadow-lv3 exactly); the desktop width is 960px so account
+   cards and detail tables keep breathing room without the surface reading
+   oversized on a 1280px window.
    One height for every section, taken from the viewport rather than the
    content: sections differ by hundreds of pixels (a settings list against the
    composition editor), and a content-sized panel would resize under the
@@ -53,7 +55,7 @@
   position: relative;
   z-index: 1;
   display: flex;
-  width: 800px;
+  width: 960px;
   height: min(800px, calc(100vh - 48px));
   max-width: calc(100vw - 48px);
   border-radius: 24px;
@@ -202,6 +204,15 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* Settings popover width: wide enough for the account figures and the wallet
+ * actions without turning the menu into a page. The doubled class lifts it
+ * over SubmenuMenu's base `max-width` without depending on stylesheet
+ * injection order; the second clause keeps the card inside a narrow window. */
+.menuPanel.menuPanel {
+  width: 306px;
+  max-width: min(306px, calc(100vw - 24px));
 }
 
 /* Menu header row (the account identity above the scroll region): user glyph

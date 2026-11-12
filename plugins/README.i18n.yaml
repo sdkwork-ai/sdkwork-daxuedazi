@@ -3,11 +3,11 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write plugins/README.md
 /git-linked-plugins:
-  en: c2c0e2a376cc3b2a
-  zh: 074ef0c3f2f117f0
+  en: 77f4e53e75b4ee29
+  zh: 11a3daf01099064f
 /git-linked-plugins/dsh-im-im-channels:
-  en: ac25c48bff8a6cad
-  zh: 75c2fa555d0f1887
+  en: e749a077e0c8dd26
+  zh: d58f43b76d29e0c5
 /git-linked-plugins/dsh-better-sidebar-the-right-sidebar-workbench-and-the-left-column-page-model:
   en: d73756af3bcd8ea7
   zh: 36c534ca62043d32
@@ -17,3 +17,12 @@
 /git-linked-plugins/dsh-mcp-connector-the-mcp-connector-market-connections-and-tool-workbench:
   en: 5aee62ba3417dc4e
   zh: 1acac7708eff177b
+/git-linked-plugins/sdkwork-dsh-agents-the-expert-market:
+  en: 597babb6296ebe9f
+  zh: 8e2b625ebfc4e85f
+/git-linked-plugins/dsh-ui-usage-billing-the-usage-and-cost-dashboard:
+  en: b6c8b624a7cae031
+  zh: bd50a70c47b26029
+/git-linked-plugins/sdkwork-deepseekbot-the-assistant-assistant:
+  en: 025618a2800d9397
+  zh: ff9478eb4111da2a

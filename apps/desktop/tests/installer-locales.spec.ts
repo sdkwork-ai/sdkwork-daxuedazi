@@ -29,6 +29,7 @@ it('generates Japanese NSIS strings from the same files that select packaged lan
   expect(source).toContain('!ifdef LANG_JAPANESE\n')
   // One line per translated key, plus the localized application name NSIS chrome reads.
   expect(source.match(/^LangString /gmu)).toHaveLength((Object.keys(locales[0]!.strings).length + 1) * locales.length)
+  expect(source.match(/^LangString INSTALLER_UPDATE_WAIT /gmu)).toHaveLength(8)
   // Installer copy names the selected brand, never a literal product token.
   expect(source).not.toContain('{brand}')
   expect(source).not.toContain('BirdCoder')

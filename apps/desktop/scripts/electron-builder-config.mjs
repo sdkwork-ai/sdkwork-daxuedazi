@@ -31,6 +31,7 @@ import { desktopArtifactOutput, desktopTargetBuildPaths, resolveDesktopBuildTarg
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
+import { verifyWindowsInstallPathBudget } from './windows-install-path-budget.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
   verifyPackagedApplicationIdentity,
@@ -350,6 +351,21 @@ export function createElectronBuilderConfig(
       productName: brand.desktop.productName,
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
+      // Deployments distribution: the update configuration endpoint and the
+      // feed hosts this build may follow. Absent values keep the packaged
+      // `app-update.yml` as the only update source.
+      ...(env.DSH_DESKTOP_PRODUCT_KEY === undefined || env.DSH_DESKTOP_UPDATE_CONFIG_URL === undefined
+        ? {}
+        : {
+            dshDesktopDistribution: {
+              productKey: env.DSH_DESKTOP_PRODUCT_KEY,
+              configUrl: env.DSH_DESKTOP_UPDATE_CONFIG_URL,
+              allowedHosts: (env.DSH_DESKTOP_UPDATE_ALLOWED_HOSTS ?? '')
+                .split(',')
+                .map(value => value.trim())
+                .filter(value => value !== ''),
+            },
+          }),
       // Read by `src/tls-trust.ts` before the first window: this release accepts
       // a gateway certificate it cannot verify.
       ...(insecureTls ? { dshDesktopInsecureTls: true } : {}),
@@ -526,6 +542,13 @@ export function createElectronBuilderConfig(
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
       // Unsigned Windows builds skip electron-builder's afterSign hook.
       if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
+      // FORK DIVERGENCE: the installer unzips with Win32 path calls, so the released
+      // `0.2.2-rc.6` aborted with `Failed to decompress files ... Error opening output
+      // file(s)` once a duplicate nested Office engine pushed its deepest resource past
+      // `MAX_PATH` below the `$INSTDIR.new-{GUID}` staging root. The build directory is
+      // always shorter than an installed one, so the depth is measured against the
+      // installation prefix here rather than on the packaging lane.
+      if (packagesWindows) verifyWindowsInstallPathBudget(context.appOutDir)
     },
     afterSign: async context => {
       if (windowsSigner !== undefined) {
