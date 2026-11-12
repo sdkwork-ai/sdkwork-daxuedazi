@@ -1,27 +1,33 @@
 /**
- * Refuse a packaged Windows application whose installed layout cannot be extracted.
+ * Refuse a packaged Windows application whose extraction would exceed `MAX_PATH`.
  *
- * NSIS creates the installed tree with plain Win32 calls, which stop at `MAX_PATH`, so an
- * over-long installed path fails the whole installation with
+ * The installer unzips the payload with plain Win32 calls, which stop at `MAX_PATH`, so an
+ * over-long path aborts the whole installation with
  * `Failed to decompress files ... Error opening output file(s)` before the application is
  * ever launched. The packaged directory is always built somewhere short and disposable
  * (`.desktop-build`, a CI workspace), so the build machine cannot observe the depth the
- * user's profile produces: the invariant has to be measured against the install directory
- * rather than against the path the packaging lane happens to use.
+ * user's staging directory produces: the invariant has to be measured against the
+ * installation root rather than against the path the packaging lane happens to use.
  */
 import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 /**
- * Characters reserved for `%LOCALAPPDATA%\Programs\<appName>`, the default per-user
- * installation directory the branded installer offers.
+ * Characters reserved ahead of the packaged tree while the installer extracts it.
  *
- * `C:\Users\` (9) + a 20-character profile name + `\AppData\Local\Programs\` (24) +
- * `daxuedazi` (9). A profile name of 20 characters is the longest Windows reliably
- * creates; the branded display name never reaches the file system, because `productName`
- * and the executable stay ASCII.
+ * The branded installer stages the application in `$INSTDIR.new-{GUID}` and renames it
+ * into place afterwards (`installer-directories.nsh`, `dshStageApplication`), so every
+ * file is created one staging suffix deeper than its final home. With the shipped
+ * per-machine default that root is:
+ *
+ *   `C:\Program Files\` (16) + the application directory (16, covering `daxuedazi` and a
+ *   localized product name) + `.new-` and a braced GUID (43) = 75 characters.
+ *
+ * Measured against that root rather than a bare installation directory, the released
+ * `0.2.2-rc.6` payload reaches 291 characters and fails, while the single-engine payload is
+ * 248 and fits.
  */
-export const WINDOWS_INSTALL_PREFIX_BUDGET = 62
+export const WINDOWS_INSTALL_PREFIX_BUDGET = 76
 
 /** Usable characters in a Win32 path, one short of `MAX_PATH` for the terminator. */
 export const WINDOWS_INSTALL_PATH_LIMIT = 259
@@ -58,9 +64,9 @@ export function verifyWindowsInstallPathBudget(appOutDir) {
   const longest = longestInstalledPath(appOutDir)
   const installed = WINDOWS_INSTALL_PREFIX_BUDGET + 1 + longest.length
   if (installed > WINDOWS_INSTALL_PATH_LIMIT) {
-    throw new Error(`desktop package: the installed Windows tree reaches a ${installed}-character path `
-      + `(${longest.path}) under a ${WINDOWS_INSTALL_PREFIX_BUDGET}-character default installation directory, `
-      + `past the ${WINDOWS_INSTALL_PATH_LIMIT}-character ceiling the NSIS installer can create; `
+    throw new Error(`desktop package: the extracted Windows tree reaches a ${installed}-character path `
+      + `(${longest.path}) below a ${WINDOWS_INSTALL_PREFIX_BUDGET}-character staging root, `
+      + `past the ${WINDOWS_INSTALL_PATH_LIMIT}-character ceiling the installer can create; `
       + 'shorten the packaged path (drop a duplicate nested dependency or a deep asset directory) before packaging')
   }
   return longest

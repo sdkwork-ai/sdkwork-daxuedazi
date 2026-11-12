@@ -55,7 +55,7 @@ it('refuses a payload the NSIS installer could not extract', async () => {
   // Every segment stays inside the 255-character component limit so the fixture itself is
   // creatable; the total is what the installer cannot create.
   await plantFile(root, 'resources', 'app.asar.unpacked', 'y'.repeat(100), 'z'.repeat(100), 'file.xml')
-  expect(() => verifyWindowsInstallPathBudget(root)).toThrow(/NSIS installer can create/u)
+  expect(() => verifyWindowsInstallPathBudget(root)).toThrow(/the installer can create/u)
   // The failure names the install-relative path, not the build directory, so the message
   // stays readable on a CI workspace whose own path is already long.
   expect(() => verifyWindowsInstallPathBudget(root)).toThrow(/^desktop package: .*\(resources\\/u)

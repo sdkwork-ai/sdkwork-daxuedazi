@@ -1,4 +1,4 @@
-/** Characters reserved for the default per-user Windows installation directory. */
+/** Characters reserved ahead of the packaged tree while the installer extracts it. */
 export const WINDOWS_INSTALL_PREFIX_BUDGET: number
 
 /** Usable characters in a Win32 path, one short of `MAX_PATH` for the terminator. */

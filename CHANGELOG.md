@@ -9,9 +9,9 @@
 ### 安装器修复（2026-11-12，rc.6 重新打包）
 
 * **症状**：Windows 安装包在解包阶段直接中止，弹窗为 `Failed to decompress files. Please try running the installer again.` + `Error opening output file(s)`，安装目录里只留下半截文件；已安装的 rc.6 无法通过再次运行安装器修复。
-* **根因**：`apps/desktop-host` 仍钉在 `@deepseek-ai/libreoffice-kit@^0.1.5`，而 `packages/document/office-kit` 与 `packages/bundle/web-app` 已到 `0.2.3`。pnpm 无法把两个版本收敛，于是为 Host 私有链路额外物化了一整套 Office 引擎：`dsh/node_modules/@deepseek-ai/dsh-desktop-host/node_modules/@deepseek-ai/libreoffice-kit-win32-x64`。该副本最深资源 `program/share/config/soffice.cfg/modules/simpress/popupmenu/pagepanecanvasmaster.xml` 为 214 字符，加上默认安装目录 `%LOCALAPPDATA%\Programs\daxuedazi`（52 字符）共 267 字符，越过 Win32 的 `MAX_PATH`（259 个可用字符），NSIS 用普通 Win32 调用创建这 8 个文件全部失败，安装器按设计整体回滚并报解包错误。
-* **修复**：把 `apps/desktop-host` 的 `@deepseek-ai/libreoffice-kit` 对齐到 `0.2.3`（与另外两处声明一致，改用精确版本避免再次漂移）。pnpm 收敛为单一引擎后，嵌套副本消失：最深路径降到 224 字符，全树无条目超过 259；同时每个平台少 842 个文件、182 MB 解压体积（压缩后 67 MB）。
-* **打包门禁**：新增 `apps/desktop/scripts/windows-install-path-budget.mjs`，在 `afterPack` 用安装目录相对深度（预留 62 字符默认安装前缀）校验整棵打包树，超限时直接报出越界文件，不再让一台机器上的“构建路径够短”掩盖用户侧的安装失败。既有 `smoke-packaged-runtime.ts` 的 `MAX_PATH` 检查只量被提升的引擎根、且量的是构建路径，正是漏掉这个嵌套副本的原因。
+* **根因**：`apps/desktop-host` 仍钉在 `@deepseek-ai/libreoffice-kit@^0.1.5`，而 `packages/document/office-kit` 与 `packages/bundle/web-app` 已到 `0.2.3`。pnpm 无法把两个版本收敛，于是为 Host 私有链路额外物化了一整套 Office 引擎：`dsh/node_modules/@deepseek-ai/dsh-desktop-host/node_modules/@deepseek-ai/libreoffice-kit-win32-x64`。该副本最深资源 `program/share/config/soffice.cfg/modules/simpress/popupmenu/pagepanecanvasmaster.xml` 为 214 字符；安装器解包时先展开到 `$INSTDIR.new-{GUID}` 暂存目录再改名（`installer-directories.nsh` 的 `dshStageApplication`），默认每机器安装目录 `C:\Program Files\daxuedazi` 加上这段暂存后缀是 68 字符，合计 283 字符，越过 Win32 的 `MAX_PATH`（259 个可用字符）。解包插件用普通 Win32 调用创建这些文件全部失败，安装器按设计整体回滚并报解包错误。rc.5 之所以正常，是因为当时三处声明都是 `^0.1.5`，只有一份引擎（最深 171 字符，合计 240 字符）。
+* **修复**：把 `apps/desktop-host` 的 `@deepseek-ai/libreoffice-kit` 对齐到 `0.2.3`（与另外两处声明一致，改用精确版本避免再次漂移）。pnpm 收敛为单一引擎后，嵌套副本消失：最深路径从 214 降到 171 字符，暂存根下的完整路径从 283 降到 240，全树无条目超过 259；同时每个平台少 842 个文件、182 MB 解压体积（压缩后 67 MB）。
+* **打包门禁**：新增 `apps/desktop/scripts/windows-install-path-budget.mjs`，在 `afterPack` 按“暂存根 + 安装目录相对深度”校验整棵打包树，超限时直接报出越界文件，不再让一台机器上的“构建路径够短”掩盖用户侧的安装失败。既有 `smoke-packaged-runtime.ts` 的 `MAX_PATH` 检查只量被提升的引擎根、且量的是构建路径，正是漏掉这个嵌套副本的原因。
 * **发布形态**：本次为 rc.6 的**重新打包**（重建同名 tag，发布流程按既有约定替换该 tag 的整套资产），版本号不变；六个桌面目标与容器镜像一并重建，因为该重复副本存在于每个平台的 dsh 载荷中，不只是 Windows。
 
 ### 本次同步摘要（2026-11-12）
