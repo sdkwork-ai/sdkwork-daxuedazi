@@ -2,7 +2,7 @@
 
 本文件只记录**当前版本**——`##` 标题就是本次发布打的 tag，不累积历史版本条目；往期条目随各自版本的提交保留在 git 历史里（`git log -p CHANGELOG.md`）。「上游变更」逐字摘自上游该 release 的官方 Release notes（中文部分，英文版见各 Release 页面）；上游尚未发布 Release notes 时，按该 tag 内的实际提交归纳并注明来源。「BirdCoder 本地修改」记录 fork 在该版本上的自有变更（SDKWork 组件、品牌、打包与部署等），不受上游发布节奏影响。
 
-## 0.2.2-rc.6（fork 发布 2026-11-12，基于上游同步 `24e386c2c8`）
+## 0.2.2-rc.6（fork 发布 2026-11-12，基于上游同步 `bad40ca7cb`）
 
 本轮为 rc.5 之后的迭代版本，交付一次完整上游同步后的首个发布构建：把 `sdkwork-ai/sdkwork-birdcoder2` 的 944 个提交（含其内部的 `deepseek-harness` 0.2.2-rc.2 合并，923 个提交）合入当前 fork，并在此基础上推进全部子模块与 SDKWork 兄弟仓库到各自 `main`，重新对齐锁文件、切版本并重跑全平台打包，同时保留 fork 自有的 SDKWork 组件、品牌与打包链路。
 
@@ -17,6 +17,17 @@
 * **子模块推进到最新**：`plugins/dsh-better-sidebar` → `v0.31.1`（`8d8592bb`，含超长单行 diff 卡死的线性高亮修复）、`plugins/dsh-mcp-connector` → `v0.2.101`（`ed73328a`，启信宝迁移恢复）、`plugins/sdkwork-deepseekbot` → `5f10691a`（机器人文案统一为「助理 / Assistant」）；其余子模块经检查已在最新发布 pin 上。
 * **外部依赖对齐 `main`**：`scripts/sdkwork-sources.manifest.json` 一次推进 17 个 SDKWork 兄弟仓库（`sdkwork-sdk-commons`、`sdkwork-appbase`、`sdkwork-iam`、`sdkwork-appstore`、`sdkwork-cloudrouter`、`sdkwork-models`、`sdkwork-order`、`sdkwork-promotion`、`sdkwork-knowledgebase`、`sdkwork-drive`、`sdkwork-course`、`sdkwork-plugins`、`sdkwork-generations`、`sdkwork-community`、`sdkwork-feeds`、`sdkwork-agents`、`sdkwork-deployments`、`sdkwork-messaging`、`sdkwork-payment`、`sdkwork-web-framework`）到各自 `main` 最新提交，其余仓库已在最新；本地按相对路径解析、release 按 git 依赖解析的 sdkwork-specs 约定保持不变。
 * **锁文件修复**：`pnpm-lock.yaml` 与兄弟仓库 `sdkwork-ui/sdkwork-ui-pc-react` 的 `lucide-react` 规格不一致（锁文件 `^1.31.0`、其 `main` 为 `1.7.0`），导致 CI 的 `pnpm install --frozen-lockfile` 报 `ERR_PNPM_OUTDATED_LOCKFILE`。本次按兄弟仓库**已提交的 main** 重新生成锁文件，`Release (dsh)`、`Release (vendor)`、`Sandbox`、`E2E` 四个工作流随之恢复可安装状态。
+
+### 本轮增量同步（2026-11-12，`24e386c2c8` → `bad40ca7cb`）
+
+* **同步范围**：上游该区间 **4 个提交、102 个文件变更**（+2446 / −452），使用真实双亲 merge commit 合入，上游提交记录、commit message 与代码注释逐字保留。
+* **上游发布收敛**（`a146e8fad1`）：上游把自身 449 个 dsh 家族清单推进到 `0.2.2-rc.2` 并修复打包门禁。fork 发布线保持 **`0.2.2-rc.6`**：92 个 `package.json` 的版本行按 fork-first 保留，zod 统一到 `4.6.6`、`files` 数组取双方并集等其余字段完整采纳上游。
+* **桌面 Office 组合交回上游**（`a146e8fad1`）：删除 fork 自有的 `apps/desktop-host/src/office.ts` 插件与 `ctx.plugin` 注册——Office 组合已由 `packages/bundle/web-app/cordis.patch.yml` 的 `office-kit` / `workspace-dependencies` / `skill-office` 三行承接，两处并存会让桌面 profile 重复挂载；`office-engine.ts` 的 ASAR 路径解析保留，打包运行时冒烟检查依赖它。`@deepseek-ai/dsh-office-to-pdf` 的残留声明同步清除。
+* **测试桩修复**（`34a778b443`）：`ui-settings-account` 的 `menu()` 助手补上上游新增的必填 `renderSlot`，消除 `tsc -b tsconfig.client.tests.json` 的 TS2741。
+* **兄弟仓库 pin 对齐**（`1a84d2812c`）：`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 的 20 个 pin 推进到各自 `origin/main`，锁文件随之收敛。
+* **`@tanstack/react-query` 供给**（`bad40ca7cb`）：根 devDependencies 收入 `5.105.0`，修复 `@botharness/ui` 编译 `apps/mobile` 源码时 tsdown 无法内联该依赖、导致助理插件打包被拒；fork 侧同时在其 client 包声明该依赖。
+* **子模块决策**：`plugins/dsh-better-sidebar` 保持 fork 已发布的 **v0.31.1**（`8d8592bb`）——上游 pin `95270afa` 位于未合并的 `origin/dev`，会丢失 v0.31.1 的 markdown 媒体能力；`plugins/sdkwork-deepseekbot` 取 fork 的 `80663d6dc`（上游 pin `5f10691a` 为其祖先）。
+* **冲突处理**：95 个文件——92 个 `package.json` 版本行保留 fork 版本，3 个 controller 的 `files` 数组取双方并集（新增上游 `src` 条目），2 个包描述保留 fork 文案，`CHANGELOG.md`、`pnpm-lock.yaml` 与 2 个子模块按语义解决；品牌与图标字面（BirdCoder / 学伴AI、BirdLogo / BirdWordmark / LoginPanel）未受本次合并影响。
 
 ### 上游变更（deepseek-harness 0.2.2-rc.2）
 
@@ -117,3 +128,4 @@
 * **文档配对补齐**：`plugins/README.zh.md` 补入上游新增的专家市场、用量与费用看板、助理三节；`ui-primitives` 中文 README 补入 `WideModal`、`Drawer` 两行与抽屉浮层层级限制条目；`scripts/translation-pairing.manifest.json` 把上游新增的两个私有镜像子模块纳入排除项。全部 1487 对中英文配对通过 `pnpm run verify-translation-pairing` 校验。
 * 版本号升级至 `0.2.2-rc.6`（根、`apps/desktop`、`apps/web` 三处 package.json 与全部 workspace 包一致），发布 tag `sdkwork-daxuedazi-v0.2.2-rc.6` 触发 `container-release.yml`：六个桌面目标（mac-arm64、mac-x64、win-x64、win-arm64、linux-x64、linux-arm64）+ 两个原生容器镜像 + Compose/Kubernetes 部署捆绑包，资产齐全后发布 GitHub Release；Release 说明只携带本 `## 0.2.2-rc.6` 章节。
 * 部署配置保持安装期高度可自定义：Compose 侧 `DSH_PUBLISH_HOST` / `DSH_PUBLISH_PORT` / `DSH_WEB_PORT` / `DSH_TRUSTED_HOSTS` / `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` 环境变量、`DSH_DATA_DIR` / `DSH_WORKSPACE_DIR` 数据落盘目录绑定挂载，以及 `etc/topology/<profile>.<environment>.env` 部署档位文件选择；Kubernetes 侧 `values.yaml` 覆盖表、`configmap.yaml` 与 `secret.example.yaml`。数据层为内嵌文件存储（无外部数据库/Redis 进程），持久化位置由上述卷映射完全自定义。
+* **本轮增量合并的自有面**：SDKWork 组件、OEM 品牌与说明文案、打包与部署链路在本次 4 个上游提交的合并中零覆盖——`package.json` 只取上游的依赖与 `files` 字段，版本行仍为 `0.2.2-rc.6`；`office.ts` 的删除按上游进行，fork 自有的 OEM / 账号 / 助理等依赖声明（`packages/bundle/web-app/package.json` 的 SDKWork 依赖块）未变。
