@@ -259,6 +259,19 @@
     "standardOwner": "sdkwork-birdcoder2",
     "initializedAt": "2026-05-07T00:00:00Z",
     "deploymentConfig": "etc/sdkwork.deployment.config.json",
-    "preLaunch": true
+    "preLaunch": true,
+    "publishing": {
+      "appIdByTarget": {
+        "cloud.development": "0186a58e-00bc-460e-8a3f-2f442b9b9795"
+      },
+      "birdcoder": {
+        "appId": "0186a58e-00bc-460e-8a3f-2f442b9b9795",
+        "appName": "学伴AI",
+        "appSlug": "ai",
+        "appKey": "sdkwork-birdcoder2",
+        "sourceDirectory": "D:\\sdkwork-space\\sdkwork-daxuedazi",
+        "updatedAt": "2026-11-13T15:05:10.564Z"
+      }
+    }
   }
 }
