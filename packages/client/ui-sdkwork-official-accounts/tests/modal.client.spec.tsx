@@ -25,9 +25,39 @@ vi.mock('@sdkwork/i18n-pc-react', () => ({
   ),
 }))
 
-vi.mock('@sdkwork/iam-pc-oauth', () => ({
-  SDKWORK_IAM_OFFICIAL_ACCOUNTS_I18N_CATALOG: { namespace: 'iam.oauth.officialAccounts' },
-  SdkworkIamOfficialAccountsPanel: () => <div data-official-accounts-panel="" />,
+vi.mock('@sdkwork/iam-pc-official-accounts', () => ({
+  DEFAULT_SELF_SERVICE_CAPABILITIES: {
+    mode: 'self-service',
+    editCredentials: true,
+    publishMenu: false,
+    manageQrLogin: false,
+    manageDomains: true,
+    manageNotify: true,
+    deleteAccount: true,
+  },
+  SDKWORK_OFFICIAL_ACCOUNTS_I18N_CATALOG: { namespace: 'iam.oauth.officialAccounts' },
+  SdkworkOfficialAccountsPanel: (
+    props: {
+      capabilities?: { mode?: string }
+      controller?: unknown
+      domainVerification?: unknown
+      driveUploadImageService?: unknown
+      notifyBaseUrl?: string
+      serverIps?: readonly string[]
+    },
+  ) => (
+    <div
+      data-capabilities-mode={props.capabilities?.mode ?? 'none'}
+      data-has-controller={props.controller === undefined ? 'absent' : 'present'}
+      data-official-accounts-panel=""
+      data-optional-capabilities={String([
+        props.domainVerification,
+        props.driveUploadImageService,
+        props.notifyBaseUrl,
+        props.serverIps,
+      ].filter(value => value !== undefined).length)}
+    />
+  ),
 }))
 
 /** Locale seat stand-in: keys render verbatim so assertions read the contract. */
@@ -112,6 +142,16 @@ describe('OfficialAccountsModal', () => {
     expect(document.querySelector('[data-sdkwork-theme-provider]')).not.toBeNull()
     expect(document.querySelector('[data-sdkwork-i18n-provider]')).not.toBeNull()
     expect(document.querySelector('[data-official-accounts-panel]')).not.toBeNull()
+  })
+
+  it('hands the self-service posture and the controller, and no capability this host lacks', () => {
+    view()
+    const panel = document.querySelector('[data-official-accounts-panel]')
+    expect(panel?.getAttribute('data-capabilities-mode')).toBe('self-service')
+    expect(panel?.getAttribute('data-has-controller')).toBe('present')
+    // This host injects no Logo upload, server IPs, domain verification, or
+    // callback base URL: the panel degrades instead of receiving invented data.
+    expect(panel?.getAttribute('data-optional-capabilities')).toBe('0')
   })
 
   it('closes on Escape and on a mask click', () => {
