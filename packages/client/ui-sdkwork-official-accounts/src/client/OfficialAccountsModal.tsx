@@ -5,10 +5,15 @@
  * The modal is a host frame, not a reimplementation. It decides three things —
  * whether the deployment can reach IAM, whether a session exists, and which
  * host locale/color scheme the embedded surface follows — and then renders
- * `SdkworkIamOfficialAccountsPanel` from `@sdkwork/iam-pc-oauth` (the
- * user-facing app-tier module over the IAM app API) unchanged. Every account,
- * credential, message-push, and custom-menu-draft operation is the module's own
- * controller call; no backend-admin surface is involved.
+ * `SdkworkOfficialAccountsPanel` from `@sdkwork/iam-pc-official-accounts` (the
+ * shared official-account component over the IAM app API) unchanged. Every
+ * account, credential, message-push, and custom-menu-draft operation is the
+ * module's own controller call; no backend-admin surface is involved.
+ *
+ * This host predates the richer embed: it injects no Logo upload capability, no
+ * server egress IP list, no WeChat verification-file capability, and no
+ * callback base URL, so the panel omits those sections instead of showing
+ * invented data.
  *
  * `SdkworkThemeProvider` supplies the SDKWork design tokens (and the `.dark`
  * class the panel's `dark:` variants bind to), because this modal lives in the
@@ -27,10 +32,11 @@ import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@dee
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { SdkworkI18nProvider } from '@sdkwork/i18n-pc-react'
 import {
-  SDKWORK_IAM_OFFICIAL_ACCOUNTS_I18N_CATALOG,
-  SdkworkIamOfficialAccountsPanel,
-  type SdkworkIamOfficialAccountsController,
-} from '@sdkwork/iam-pc-oauth'
+  DEFAULT_SELF_SERVICE_CAPABILITIES,
+  SDKWORK_OFFICIAL_ACCOUNTS_I18N_CATALOG,
+  SdkworkOfficialAccountsPanel,
+  type OfficialAccountsController,
+} from '@sdkwork/iam-pc-official-accounts'
 import { SdkworkThemeProvider } from '@sdkwork/ui-pc-react'
 import {
   OFFICIAL_ACCOUNTS_EMBED_ATTRIBUTE,
@@ -41,7 +47,7 @@ import css from './OfficialAccountsModal.module.css'
 /** The adapter face the modal reads: the account controller. */
 export interface OfficialAccountsPanelSource {
   /** @returns the controller for the embedded panel, or undefined while unconfigured. */
-  readController(): SdkworkIamOfficialAccountsController | undefined
+  readController(): OfficialAccountsController | undefined
 }
 
 /** Injected business face: the host adapter, the sign-in gesture, and live host facts. */
@@ -141,10 +147,13 @@ export function OfficialAccountsModal(props: OfficialAccountsModalProps): ReactN
                 themeSelection={colorScheme}
               >
                 <SdkworkI18nProvider
-                  catalogs={[SDKWORK_IAM_OFFICIAL_ACCOUNTS_I18N_CATALOG]}
+                  catalogs={[SDKWORK_OFFICIAL_ACCOUNTS_I18N_CATALOG]}
                   locale={toOfficialAccountsLocale(language)}
                 >
-                  <SdkworkIamOfficialAccountsPanel controller={controller} />
+                  <SdkworkOfficialAccountsPanel
+                    capabilities={DEFAULT_SELF_SERVICE_CAPABILITIES}
+                    controller={controller}
+                  />
                 </SdkworkI18nProvider>
               </SdkworkThemeProvider>
             )}
