@@ -3,6 +3,7 @@
 import { spawn, execFileSync } from 'node:child_process'
 import { cpSync, existsSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
 import { readClientBuildRecord } from '../../../scripts/client-build-environment.ts'
@@ -25,8 +26,11 @@ import {
 import { resolveBrand } from './brand-manifest.mjs'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { KEEP_INHERITED_SDKWORK_ENV, developmentLaunchEnvironment } from './development-sdkwork-env.ts'
+import { selectDevelopmentHome } from './development-home.ts'
+import { LEGACY_DSH_HOME_DIR_NAME, brandHomePath, resolveRuntimeBrand } from '../src/brand.ts'
 import { applyDevelopmentGateway, resolveDevelopmentGateway } from './development-gateway.ts'
 import { parseDevelopmentArguments, type DevelopmentArguments } from './development-arguments.ts'
+import { assertDevelopmentLanePortFree } from './development-ports.ts'
 import { INSECURE_TLS_ELECTRON_SWITCH, ONLINE_REQUEST_LOG_VARIABLE, PRODUCTION_GATEWAY_URL, PRODUCTION_PROFILE_ID, insecureTlsLaunchEnvironment, onlineBuildEnvironment, onlineLaunchEnvironment } from './online-debug-launch.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -104,6 +108,16 @@ function stagedElectronExecutable(electron: string): string {
     cpSync(source, target, { recursive: true })
   }
   return targetBinary
+}
+
+/**
+ * Harness homes an installed application of this brand may own on this machine:
+ * its manifest home, plus the legacy `~/.dsh` an adopting brand can keep using.
+ * @returns absolute home paths a source lane must not adopt by inheritance.
+ */
+function installedHarnessHomes(): string[] {
+  const brand = resolveRuntimeBrand({ env: process.env })
+  return [brandHomePath(brand), join(homedir(), LEGACY_DSH_HOME_DIR_NAME)]
 }
 
 async function launchElectron(
@@ -292,6 +306,26 @@ async function launchDevelopment(
 ): Promise<void> {
   const directories = developmentLaneDirectories(BUILD_ROOT, lane)
   const webEnvironment = developmentLaneWebEnvironment(lane)
+  // Adopt the upstream home-selection diagnostic, scoped to this lane's own state
+  // directory so an installed application's home is never adopted by inheritance.
+  // `developmentLaneHome` in launchElectron stays authoritative: it also refuses a
+  // home owned by any other brand on the machine, which this check cannot see.
+  const homeSelection = selectDevelopmentHome({
+    environment: process.env,
+    laneHome: directories.home,
+    installedHomes: installedHarnessHomes(),
+    allowInstalledHome: process.env.DSH_DESKTOP_DEV_INSTALLED_HOME === '1',
+  })
+  if (homeSelection.notice !== undefined) console.log(homeSelection.notice)
+  // A previous window of this lane owns this brand's lane web port; the Electron
+  // single-instance lock would only focus it and render that old Host's plugin
+  // snapshots instead of this build. Refuse before building, probing the same
+  // brand-derived port this lane will actually bind.
+  const launchBrand = resolveBrand(process.env)
+  await assertDevelopmentLanePortFree({
+    lane,
+    port: debugPort('DSH_DESKTOP_HOST_WEB_PORT', developmentLanePorts(launchBrand).web[lane]),
+  })
   if (!options.skipBuild) {
     // Each lane bakes its own deployment into the Web page: the development lane
     // reads `.env.standalone.development`, the online lane the release's

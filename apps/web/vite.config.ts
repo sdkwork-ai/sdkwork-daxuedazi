@@ -242,6 +242,12 @@ const SURFACE_ORIGIN_KEYS = [
   'SDKWORK_BIRDCODER_IM_EMBED_URL',
   'SDKWORK_IM_API_BASE_URL',
   'SDKWORK_IM_EMBED_URL',
+  // The hosted SDKWork auth surface (sign-out page) a desktop sign-out opens in
+  // the browser: a packaged build must point at a deployment portal, never the
+  // packaging host's loopback server.
+  'SDKWORK_CLOUDROUTER_PUBLIC_HTTP_URL',
+  'SDKWORK_CLOUDROUTER_ROUTER_APPLICATION_PUBLIC_HTTP_URL',
+  'SDKWORK_BIRDCODER_CLOUDROUTER_URL',
 ] as const
 
 /** A loopback origin, which a non-development build must never bake. */
@@ -432,6 +438,11 @@ export default defineConfig(({ mode }) => {
     // packages/client/web/README.md); they arrive as runtime
     // bundles through the client module system. Order matters — subpath
     // aliases must win over bare-name prefixes.
+    // The node:module alias supports Loader initialization; its filesystem
+    // resolver's other Node imports must stay default imports for Vite's
+    // browser-external stubs. Browser boot supplies loader.internal before
+    // importing plugin entries, so the filesystem resolver is never invoked in
+    // the browser.
     alias: [
       // Browserize the vendored Cordis Loader's only Node import.
       { find: /^node:module$/, replacement: src('./src/node-module-stub.ts') },

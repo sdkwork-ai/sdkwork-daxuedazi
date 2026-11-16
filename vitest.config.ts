@@ -79,6 +79,33 @@ for (const [name, targets] of Object.entries(tsconfigBase.compilerOptions?.paths
   }
 }
 
+// The three vendored framework packages resolve their lib faces through
+// pnpm's flat hoist (`node_modules/.pnpm/node_modules`) whenever a suite's
+// dependency graph carries an npm cordis copy — plugins/dsh-im pins
+// `@deepseek-ai/cordis` 4.0.1, whose built lib predates the rc.12 runtime
+// enums — giving Vitest a SECOND Cordis instance whose Service/Fiber classes
+// and enums split from the vendored source every in-repo importer compiles.
+// These three packages have no separate lib behavior (the lib face is a build
+// of the same sources), so the specifiers pin to the vendored source for
+// module-singleton identity; unlike the dsh-* rows this cannot be left to
+// node resolution, because the hoist shadows it with a divergent copy.
+const vendorFrameworkAliases: PathAlias[] = [
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/cosmokit',
+  '@deepseek-ai/schemastery',
+  // The session-persistence contract harness imports its error classes through
+  // the package-relative source while the jsonl implementation imports them
+  // through this specifier; resolving both to one module keeps
+  // `toBeInstanceOf` meaningful across the contract's assertion sites.
+  '@deepseek-ai/dsh-session-persistence',
+]
+  .flatMap((name) => {
+    const target = tsconfigBase.compilerOptions?.paths?.[name]?.[0]
+    if (target === undefined) return []
+    const index = pathAliasTarget(`${target}/index.ts`)
+    return existsSync(index) ? [{ find: new RegExp(`^${name}$`), replacement: index }] : []
+  })
+
 // Fallback resolver for bare imports issued from sibling checkouts. The
 // sibling checkouts have no node_modules of their own, so any bare import
 // from their sources (sibling-internal @sdkwork/* names and third-party
@@ -167,7 +194,6 @@ const windowsUnsupportedPackages = process.platform === 'win32'
       'packages/experimental/hooks-claude-code',
       'packages/experimental/hooks-codex',
       'packages/terminal/terminal-bash',
-      'packages/experimental/ptc-runtime-python',
       'packages/sandbox/sandbox-local',
       // OpenSSH multiplexing and Unix-socket helper streams require POSIX endpoints.
       'packages/ssh/*',
@@ -324,8 +350,14 @@ const claudeCodeTestingAliasList = Object.entries(claudeCodeTestingAliases).map(
 // only in built `lib/` output. On a clean checkout Vite resolves that import while transforming the
 // entry, before `vi.mock` can answer it, so the jsdom assembly suites need a resolvable stand-in.
 const liveshareRemoteBuild = fileURLToPath(new URL('./packages/experimental/liveshare/lib/typert.remote-client.js', import.meta.url))
-const generatedRemoteAliases = existsSync(liveshareRemoteBuild) ? {} : {
-  '@deepseek-ai/dsh-experimental-liveshare/remote': fileURLToPath(new URL('./packages/experimental/liveshare/tests/generated-remote-stub.ts', import.meta.url)),
+const chatImportRemoteBuild = fileURLToPath(new URL('./packages/experimental/deepseek-chat-import/lib/typert.remote-client.js', import.meta.url))
+const generatedRemoteAliases = {
+  ...existsSync(liveshareRemoteBuild) ? {} : {
+    '@deepseek-ai/dsh-experimental-liveshare/remote': fileURLToPath(new URL('./packages/experimental/liveshare/tests/generated-remote-stub.ts', import.meta.url)),
+  },
+  ...existsSync(chatImportRemoteBuild) ? {} : {
+    '@deepseek-ai/dsh-deepseek-chat-import/remote': fileURLToPath(new URL('./packages/experimental/deepseek-chat-import/tests/generated-remote-stub.ts', import.meta.url)),
+  },
 }
 // FORK DIVERGENCE: `@xmanrui/dsh-im` is the `plugins/dsh-im` git submodule, whose
 // `./client` export is a built ModuleLoader bundle that starts with
@@ -343,7 +375,7 @@ const testingAliasList = [
 ]
 
 export default defineConfig({
-  resolve: { alias: [...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
+  resolve: { alias: [...vendorFrameworkAliases, ...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
   plugins: [tsconfigPaths({
         projects: ['./tsconfig.base.json'],
         // Sibling-checkout importers must NOT go through the plugin: its
@@ -367,7 +399,7 @@ export default defineConfig({
     // Node stability; process-bound suites stay separate for inventory control.
     projects: [
       {
-        resolve: { alias: [...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
+        resolve: { alias: [...vendorFrameworkAliases, ...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
         plugins: [tsconfigPaths({
         projects: ['./tsconfig.base.json'],
         // Sibling-checkout importers must NOT go through the plugin: its
@@ -400,7 +432,7 @@ export default defineConfig({
         },
       },
       {
-        resolve: { alias: [...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
+        resolve: { alias: [...vendorFrameworkAliases, ...optimizerPatternAliases, ...sdkworkExactAliases, ...testingAliasList] },
         plugins: [tsconfigPaths({
         projects: ['./tsconfig.base.json'],
         // Sibling-checkout importers must NOT go through the plugin: its

@@ -6,7 +6,7 @@ import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import { approveEscalation } from '@deepseek-ai/dsh-sandbox'
 import type { ChangeResult, ManagementError, PluginEntryId, PluginInstallFailureKind, RestartReason } from './types.ts'
-import { defineTool } from '@deepseek-ai/dsh-tools'
+import { defineTool, ToolArgsError } from '@deepseek-ai/dsh-tools'
 import { getDshRuntimeVersion } from '@deepseek-ai/dsh-app-boot'
 
 /** What the model does next for each refusal the manager reports. */
@@ -14,7 +14,7 @@ const ERROR_STEPS: Record<ManagementError['code'], string> = {
   'management-required': 'This entry belongs to plugin management itself and cannot be changed.',
   'unaddressable': 'This entry has no unique profile patch target; tell the user to edit the profile patch file directly.',
   'unknown-plugin': 'Call list_plugins and retry with an exact entryId.',
-  'invalid-spec': 'Retry with an npm package name, a git URL, a tarball URL, or an absolute local directory.',
+  'invalid-spec': 'Retry with an npm package name, a git URL, a tarball or plugin-archive URL, a sdkwork-drive download URL, or an absolute local directory.',
   'already-installed': 'The package is already installed; to install another version, call remove_bundle first, then install_bundle again.',
   'ambiguous-install': 'The dependency change named no single package; call list_bundles to see what was installed.',
   'not-bundle': 'The package declares no dsh.bundle and cannot be managed as a plugin; install a DSH plugin bundle instead.',
@@ -116,7 +116,7 @@ export function apply(ctx: Context): void {
           return JSON.stringify({ runtimeVersion: getDshRuntimeVersion(), ...manager.listVersionExemptions() })
         case 'set_version_exemption':
           if (args.target === undefined || args.runtimeVersion === undefined || args.enabled === undefined) {
-            throw new Error('target package-name@version, runtimeVersion, and enabled are required')
+            throw new ToolArgsError(['target package-name@version, runtimeVersion, and enabled are required'])
           }
           return JSON.stringify(withNextStep(
             await manager.setVersionExemption(args.target, args.runtimeVersion, args.enabled, args.acceptRisk)))
@@ -125,7 +125,7 @@ export function apply(ctx: Context): void {
           const offset = args.offset ?? 0
           const limit = args.limit ?? 25
           if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
-            throw new Error('offset must be a non-negative integer and limit must be an integer from 1 to 100')
+            throw new ToolArgsError(['offset must be a non-negative integer and limit must be an integer from 1 to 100'])
           }
           const rows = args.action === 'list_plugins' ? await manager.listPlugins() : await manager.listBundles()
           const entries = rows.slice(offset, offset + limit).map(({ meta: _meta, ...row }) =>
@@ -140,20 +140,20 @@ export function apply(ctx: Context): void {
         }
         case 'set_plugin':
         case 'set_bundle': {
-          if (args.target === undefined || args.enabled === undefined) throw new Error('target and enabled are required')
+          if (args.target === undefined || args.enabled === undefined) throw new ToolArgsError(['target and enabled are required'])
           return JSON.stringify(withNextStep(await (args.action === 'set_plugin'
             ? manager.setPluginEnabled(args.target as PluginEntryId, args.enabled)
             : manager.setBundleEnabled(args.target, args.enabled))))
         }
         case 'install_bundle':
-          if (args.target === undefined) throw new Error('target package spec is required')
+          if (args.target === undefined) throw new ToolArgsError(['target package spec is required'])
           return JSON.stringify(withNextStep(await manager.installBundle(args.target, {
             ...args.enabled === undefined ? {} : { enabled: args.enabled },
             ...args.approvedBuilds === undefined ? {} : { approvedBuilds: args.approvedBuilds },
             ...args.registry === undefined ? {} : { registry: args.registry },
           })))
         case 'remove_bundle':
-          if (args.target === undefined) throw new Error('target bundle name is required')
+          if (args.target === undefined) throw new ToolArgsError(['target bundle name is required'])
           return JSON.stringify(withNextStep(await manager.removeBundle(args.target)))
         /* v8 ignore next -- tool JSON validation rejects actions outside the declared enum */
         default: return assertNever(args.action)

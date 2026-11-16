@@ -15,22 +15,51 @@ import {
   createClient as createIamAppClient,
   type SdkworkAppClient,
 } from '@sdkwork/iam-app-sdk'
+import { createClient as createDriveAppClient } from '@sdkwork/drive-app-sdk'
+import {
+  createDriveNodesImagePreviewReader,
+  createDriveUploadImageService,
+  type DriveUploadImageService,
+} from '@sdkwork/drive-upload-image-core'
 import {
   createOfficialAccountsController,
   createSelfServiceTransport,
   DEFAULT_SELF_SERVICE_CAPABILITIES,
+  type OfficialAccountsCapabilities,
   type OfficialAccountsController,
+  type OfficialAccountsDomainVerification,
 } from '@sdkwork/iam-pc-official-accounts'
+import { createClient as createDeploymentsAppClient } from '@sdkwork/deployments-app-sdk'
+import { DomainVerificationPort } from './officialAccountDomainVerification.ts'
 import {
   getSdkworkGlobalTokenManager,
   syncSdkworkGlobalTokenManager,
 } from '@deepseek-ai/dsh-client-ui-sdkwork-iam/sdkwork-global-token-manager'
+import { OFFICIAL_ACCOUNT_LOGO_UPLOAD } from './officialAccountLogoUpload.ts'
+
+/** The self-service capability posture this host's app SDK actually supports. */
+export const HOST_SELF_SERVICE_CAPABILITIES: OfficialAccountsCapabilities = {
+  ...DEFAULT_SELF_SERVICE_CAPABILITIES,
+  // The app API now exposes the caller-owned menu sync/publish/rollback actions.
+  publishMenu: true,
+  refreshMenu: true,
+  rollbackMenu: true,
+}
 
 /** IAM session credential fields the adapter forwards to the token manager. */
 export interface OfficialAccountsHostSession {
   accessToken?: string
   authToken?: string
   refreshToken?: string
+  user?: {
+    id?: string
+  }
+  /** Signed-in identity context; the adapter rebuilds its controller when it moves. */
+  context?: {
+    tenantId?: string
+    userId?: string
+    organizationId?: string | null
+  }
 }
 
 /** Environment values consumed by the adapter. */
@@ -39,6 +68,11 @@ export interface OfficialAccountsHostEnvironment {
   apiBaseUrl(): string
   /** @returns the configured static access token, if any. */
   accessToken(): string
+  /**
+   * @returns the deployment's published server egress IPs for the WeChat IP
+   * allowlist; empty when this deployment publishes none.
+   */
+  officialAccountServerIps(): readonly string[]
   /** Observe profile or active-environment changes. */
   subscribe(listener: () => void): () => void
 }
@@ -71,6 +105,12 @@ export class OfficialAccountsHost {
   private client: SdkworkAppClient | undefined
   private controller: OfficialAccountsController | undefined
   private clientBaseUrl: string | undefined
+  private logoUploadService: DriveUploadImageService | undefined
+  private logoUploadBaseUrl: string | undefined
+  private domainVerification: OfficialAccountsDomainVerification | undefined
+  private domainVerificationBaseUrl: string | undefined
+  private domainVerificationIdentity: string | undefined
+  private identityKey: string | undefined
   private offEnvironment: (() => void) | undefined
   private offIam: (() => void) | undefined
   private disposed = false
@@ -102,6 +142,12 @@ export class OfficialAccountsHost {
     this.client = undefined
     this.controller = undefined
     this.clientBaseUrl = undefined
+    this.logoUploadService = undefined
+    this.logoUploadBaseUrl = undefined
+    this.domainVerification = undefined
+    this.domainVerificationBaseUrl = undefined
+    this.domainVerificationIdentity = undefined
+    this.identityKey = undefined
   }
 
   /**
@@ -123,6 +169,70 @@ export class OfficialAccountsHost {
   }
 
   /**
+   * The signed-in identity the controller was built for.
+   * @returns `tenant:user` of the current host session, or an empty string.
+   */
+  readIdentityKey(): string {
+    const session = this.options.iam.controller.getState().session
+    const tenantId = session?.context?.tenantId?.trim() ?? ''
+    const userId = (session?.context?.userId ?? session?.user?.id ?? '').trim()
+    return tenantId === '' || userId === '' ? '' : `${tenantId}:${userId}`
+  }
+
+  /**
+   * The deployment's published server egress IPs.
+   *
+   * The drawer's 服务器信息 tab lists them so an operator can paste them into
+   * the WeChat 公众号 IP allowlist. The active environment profile owns the
+   * list; a deployment that publishes none yields an empty list and the tab
+   * states that instead of inventing addresses.
+   * @returns the egress IPs in profile order, de-duplicated by the environment.
+   */
+  readServerIps(): readonly string[] {
+    return this.options.env.officialAccountServerIps()
+  }
+
+  /**
+   * The gateway origin the standard WeChat callback URL is built from.
+   * @returns the active environment's gateway origin (possibly empty).
+   */
+  readNotifyBaseUrl(): string {
+    return this.readBaseUrl()
+  }
+
+  /**
+   * The WeChat verification-file capability for configured domains.
+   *
+   * Backed by the Deploy app API, which owns DNS zones and already serves each
+   * zone's `MP_verify_*.txt` at every hostname of the zone. The port resolves
+   * the zone of each configured domain and reads or replaces that file.
+   * @returns the capability, or undefined while the gateway origin is unconfigured.
+   */
+  readDomainVerification(): OfficialAccountsDomainVerification | undefined {
+    const baseUrl = this.readBaseUrl()
+    if (baseUrl === '') return undefined
+    this.syncTokens()
+    const identity = this.readIdentityKey()
+    if (
+      this.domainVerification === undefined
+      || this.domainVerificationBaseUrl !== baseUrl
+      || this.domainVerificationIdentity !== identity
+    ) {
+      this.domainVerificationBaseUrl = baseUrl
+      this.domainVerificationIdentity = identity
+      this.domainVerification = new DomainVerificationPort(
+        createDeploymentsAppClient({
+          authMode: 'dual-token',
+          baseUrl,
+          platform: 'pc',
+          tokenManager: this.tokenManager,
+        }),
+      )
+    }
+    return this.domainVerification
+  }
+
+  /**
    * The controller the embedded panel renders from.
    * @returns the account controller, or undefined while the gateway origin is
    * unconfigured.
@@ -132,26 +242,104 @@ export class OfficialAccountsHost {
     if (baseUrl === '') return undefined
     this.syncTokens()
     if (this.controller === undefined || this.clientBaseUrl !== baseUrl) {
-      const client = createIamAppClient({
+      const client = this.ensureClient(baseUrl)
+      this.clientBaseUrl = baseUrl
+      this.controller = createOfficialAccountsController(
+        createSelfServiceTransport(client.iam.oauth.officialAccounts),
+        HOST_SELF_SERVICE_CAPABILITIES,
+      )
+    }
+    return this.controller
+  }
+
+  /**
+   * Loads the tenant's maintained server egress IP allowlist through the app
+   * API, falling back to the environment profile when the gateway is
+   * unreachable. The admin page maintains the same list; the modal shows it and
+   * copies entries into the WeChat console.
+   * @returns the deduplicated IP list (possibly empty).
+   */
+  async loadServerIps(): Promise<readonly string[]> {
+    const baseUrl = this.readBaseUrl()
+    if (baseUrl === '') return this.readServerIps()
+    this.syncTokens()
+    try {
+      const client = this.ensureClient(baseUrl)
+      const settings = await client.iam.oauth.officialAccountSettings.retrieve()
+      const record = settings as { serverIps?: unknown }
+      if (!Array.isArray(record.serverIps)) return this.readServerIps()
+      const ips = record.serverIps
+        .filter((value): value is string => typeof value === 'string')
+        .map(value => value.trim())
+        .filter(value => value !== '')
+      return [...new Set(ips)]
+    } catch {
+      return this.readServerIps()
+    }
+  }
+
+  private ensureClient(baseUrl: string): SdkworkAppClient {
+    if (this.client === undefined || this.clientBaseUrl !== baseUrl) {
+      this.client = createIamAppClient({
         authMode: 'dual-token',
         baseUrl,
         platform: 'pc',
         tokenManager: this.tokenManager,
       })
-      this.client = client
       this.clientBaseUrl = baseUrl
-      this.controller = createOfficialAccountsController(
-        createSelfServiceTransport(client.iam.oauth.officialAccounts),
-        DEFAULT_SELF_SERVICE_CAPABILITIES,
-      )
     }
-    return this.controller
+    return this.client
+  }
+
+  /**
+   * The Drive image-upload capability the account logo field consumes.
+   *
+   * The service is built once per gateway origin from this application's
+   * declared upload intent (`DRIVE_SPEC.md` section 18) over the shared global
+   * token manager, so the panel never composes upload intent or sees the SDK
+   * client. A host that is not configured with a gateway origin returns
+   * undefined and the field states that uploads are unavailable.
+   * @returns the Drive logo upload service, or undefined while unconfigured.
+   */
+  readLogoUploadService(): DriveUploadImageService | undefined {
+    if (this.disposed) return undefined
+    const baseUrl = this.readBaseUrl()
+    if (baseUrl === '') return undefined
+    this.syncTokens()
+    if (this.logoUploadService === undefined || this.logoUploadBaseUrl !== baseUrl) {
+      const driveClient = createDriveAppClient({
+        authMode: 'dual-token',
+        baseUrl,
+        platform: 'pc',
+        tokenManager: this.tokenManager,
+      })
+      this.logoUploadBaseUrl = baseUrl
+      this.logoUploadService = createDriveUploadImageService({
+        uploader: driveClient.uploader,
+        declaration: OFFICIAL_ACCOUNT_LOGO_UPLOAD,
+        previewReader: createDriveNodesImagePreviewReader(driveClient.drive.nodes),
+      })
+    }
+    return this.logoUploadService
   }
 
   /** Re-publish credentials and readiness after an environment or session change. */
   refresh(): void {
     if (this.disposed) return
     if (this.readBaseUrl() !== '') this.syncTokens()
+    // A different signed-in account must not keep rendering the previous
+    // account's channel list: the controller caches that list, so drop it and
+    // let the next read build one for the new identity. The Drive preview cache
+    // is per-account state too, so the logo service is rebuilt with it.
+    const identityKey = this.readIdentityKey()
+    if (this.identityKey !== undefined && this.identityKey !== identityKey) {
+      this.client = undefined
+      this.controller = undefined
+      this.clientBaseUrl = undefined
+      this.logoUploadService = undefined
+      this.logoUploadBaseUrl = undefined
+    }
+    this.identityKey = identityKey
     this.publish()
   }
 

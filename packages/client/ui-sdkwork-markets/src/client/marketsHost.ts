@@ -94,6 +94,22 @@ export interface MarketsHostSession {
   refreshToken?: string
   sessionId?: string
   user?: unknown
+  /** Signed-in identity context the host derives the remount key from. */
+  context?: {
+    tenantId?: string
+    userId?: string
+    organizationId?: string | null
+    sessionId?: string
+    appId?: string
+    environment?: string
+    deploymentMode?: string
+    authLevel?: string
+    dataScope?: string[]
+    permissionScope?: string[]
+    actorId?: string
+    actorKind?: string
+    deviceId?: string
+  }
 }
 
 /** Dependencies used to configure the SDKWork surface. */
@@ -127,9 +143,22 @@ function hostSessionsEqual(
     && stableJson(left.user) === stableJson(right.user)
 }
 
+/**
+ * @param session - current host IAM session, or null when signed out.
+ * @returns the signed-in identity (`tenant:user`), or an empty string when the
+ * session names neither a tenant nor a user.
+ */
+function hostIdentityKey(session: MarketsHostSession | null | undefined): string {
+  const tenantId = session?.context?.tenantId?.trim() ?? ''
+  const userId = (session?.context?.userId ?? readHostUserId(session) ?? '').trim()
+  return tenantId === '' || userId === '' ? '' : `${tenantId}:${userId}`
+}
+
 /** Snapshot consumed by the embedded market page renderer. */
 export interface MarketsHostRenderSnapshot {
   environmentRevision: number
+  /** Signed-in identity the surface was mounted for; an account switch remounts it. */
+  identityKey: string
   apiBaseUrl: string
   accessToken: string
   locale: string
@@ -193,6 +222,12 @@ export interface MarketsHostRuntime extends MarketsHostAdapter {
   subscribe(listener: () => void): () => void
   /** @returns the revision used to remount after an environment switch. */
   getEnvironmentRevision(): number
+  /**
+   * @returns the signed-in identity (`tenant:user`) used to remount the surface
+   * after an account switch, so the previous account's catalog and drafts are
+   * not kept on screen.
+   */
+  getIdentityKey(): string
   /** @returns the current host session for the SDKWork session store. */
   readHostSession(): MarketsHostSessionSnapshot | null
   /** @returns the active SDKWork locale tag. */
@@ -237,6 +272,11 @@ class MarketsHostRuntimeImpl implements MarketsHostRuntime {
     return this.environmentRevision
   }
 
+  /** @returns `tenant:user` of the signed-in host session, or an empty string. */
+  getIdentityKey(): string {
+    return hostIdentityKey(this.options.iam.controller.getState().session)
+  }
+
   /** @returns the current host session for the SDKWork session store. */
   readHostSession(): MarketsHostSessionSnapshot | null {
     return toMarketsSession(
@@ -258,10 +298,12 @@ class MarketsHostRuntimeImpl implements MarketsHostRuntime {
     const session = this.readHostSession()
     const accessToken = iamSession?.accessToken?.trim() ? '' : staticAccessToken
     const locale = this.resolveHostLanguage()
+    const identityKey = this.getIdentityKey()
     const cached = this.cachedSnapshot
     if (
       cached !== undefined
       && cached.environmentRevision === this.environmentRevision
+      && cached.identityKey === identityKey
       && cached.apiBaseUrl === apiBaseUrl
       && cached.accessToken === accessToken
       && cached.locale === locale
@@ -271,6 +313,7 @@ class MarketsHostRuntimeImpl implements MarketsHostRuntime {
     }
     this.cachedSnapshot = {
       environmentRevision: this.environmentRevision,
+      identityKey,
       apiBaseUrl,
       accessToken,
       locale,
@@ -345,8 +388,33 @@ export interface MarketsAppProps {
    * storefront page renders no local search input of its own.
    */
   searchQuery?: string
+  /**
+   * Install one cloud-catalog plugin from the source the catalog publishes.
+   * The plugins page hands its cards' install action to this port; a catalog
+   * entry without a source (or a deployment without a plugin manager) keeps
+   * the storefront's own enable state instead.
+   */
+  onInstallPlugin?: (plugin: CloudPluginEntry) => void | Promise<void>
   /** Markets namespace translate seat for the no-data surface. */
   t: TranslateNS<'markets'>
+}
+
+/**
+ * The fields this application reads from one cloud-catalog plugin entry. The
+ * embedded catalog's own record carries more display data; the install flow
+ * needs the entry's identity and the source standard's three forms.
+ */
+export interface CloudPluginEntry {
+  readonly id: string
+  readonly name: string
+  readonly source?: {
+    readonly type: 'git' | 'archive' | 'drive'
+    readonly url: string
+    readonly ref?: string
+    readonly directory?: string
+    readonly sha256?: string
+    readonly nodeId?: string
+  }
 }
 
 /**
@@ -361,7 +429,7 @@ export interface MarketsAppProps {
  * @returns the market page element tree.
  */
 export function MarketsApp(props: MarketsAppProps): ReactNode {
-  const { page, searchQuery, t } = props
+  const { page, searchQuery, onInstallPlugin, t } = props
   const adapter = activeAdapter
   if (adapter === undefined) {
     throw new Error('ui-sdkwork-markets: SDKWork host runtime is not configured')
@@ -385,7 +453,9 @@ export function MarketsApp(props: MarketsAppProps): ReactNode {
     SdkworkHostThemeSurface,
     { theme: adapter.readThemeBridge(), surface: `markets-${page}` },
     createElement(AppstoreMarketsSurface as FC<AppstoreMarketsSurfaceProps>, {
-      key: snapshot.environmentRevision,
+      // Remount on identity changes too: a signed-in token swap must not keep
+      // the previous account's catalog, workspace, and drafts on screen.
+      key: `${snapshot.environmentRevision}:${snapshot.identityKey}`,
       page,
       ...(searchQuery === undefined ? {} : { searchQuery }),
       apiBaseUrl: snapshot.apiBaseUrl,
@@ -399,6 +469,10 @@ export function MarketsApp(props: MarketsAppProps): ReactNode {
       subscribeHostColorScheme: (listener: (scheme: 'light' | 'dark') => void) => {
         return adapter.readThemeBridge().subscribe(() => { listener(adapter.readThemeBridge().getColorScheme()) })
       },
+      // The catalog's install action becomes a real install when this
+      // deployment manages a profile; the cards fall back to the storefront's
+      // enable state otherwise.
+      ...(onInstallPlugin === undefined ? {} : { pluginsHost: { install: onInstallPlugin } }),
     }),
   )
 }

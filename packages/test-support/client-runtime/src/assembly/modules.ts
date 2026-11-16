@@ -179,7 +179,7 @@ export function createInProcessModules(
   }
   return target.create({
     boot: graph,
-    staticModules: {},
+    staticModules: [],
     loadBundle: url => Promise.reject(new Error(`client-test-runtime: in-process modules never load bundles (${url})`)),
   })
 }

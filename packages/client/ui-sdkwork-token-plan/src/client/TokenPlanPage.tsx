@@ -4,12 +4,15 @@ import { AlertCircle, CheckCircle2, X } from 'lucide-react'
 import { SdkworkThemeProvider } from '@sdkwork/ui-pc-react'
 import {
   SdkworkSubscriptionCatalogPage,
+  type SdkworkSubscriptionCatalogTeamProps,
 } from '@sdkwork/membership-pc-subscription/catalog'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { EnvServiceLike, IamServiceLike } from './token-plan-service.ts'
 import { TokenPlanService } from './token-plan-service.ts'
+import { createTokenPlanAccountStore, useTokenPlanAccount } from './token-plan-account.ts'
 import { createTokenPlanCommerceComponents } from './commerce-components.tsx'
+import type { TokenPlanKey } from './locales.ts'
 import css from './TokenPlanPage.module.css'
 import './tokenPlan.css'
 
@@ -62,12 +65,32 @@ export function TokenPlanPage({ mode, env, iam, theme, t }: TokenPlanPageProps) 
     () => new TokenPlanService(env, iam, () => copyRef.current('commerce.signInRequired')),
     [env, iam],
   )
+  // The Token Bank wallet is the points figure both dialogs and the catalog
+  // render. The store keeps one read for the whole page so a payment, a
+  // redemption, or a sign-in can settle every surface from one refresh.
+  const accountStore = useMemo(
+    () => createTokenPlanAccountStore({
+      read: () => service.readComputeAccount(),
+      signedIn: () => iam.controller.getState().session !== null,
+    }),
+    [iam, service],
+  )
+  const account = useTokenPlanAccount(accountStore)
   const [, forceUpdate] = useState(0)
-  const [reload, setReload] = useState(0)
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(() => theme.getColorScheme())
   const { NotifyOutlet, onNotify } = useTokenPlanNotify(t)
-  const onCompleted = useCallback(() => { setReload(value => value + 1) }, [])
-  useEffect(() => service.subscribe(() => { forceUpdate(value => value + 1) }), [service])
+  const onCompleted = useCallback(
+    async () => { await accountStore.refresh() },
+    [accountStore],
+  )
+  useEffect(() => { void accountStore.refresh() }, [accountStore])
+  useEffect(
+    () => service.subscribe(() => {
+      forceUpdate(value => value + 1)
+      void accountStore.refresh()
+    }),
+    [accountStore, service],
+  )
   useEffect(() => theme.subscribe(() => { setColorScheme(theme.getColorScheme()) }), [theme])
   useLayoutEffect(() => {
     const root = document.documentElement
@@ -85,6 +108,30 @@ export function TokenPlanPage({ mode, env, iam, theme, t }: TokenPlanPageProps) 
     }
   }, [colorScheme])
   const commerce = service.isConfigured() ? service.readCommerce() : undefined
+  // One port per gateway origin: the service caches it, so the shared team
+  // surface re-bootstraps only when the deployment itself changes, not on a
+  // locale or theme render.
+  const teamPort = service.isConfigured() ? service.readTeamSubscriptionPort() : undefined
+  // The shared team surface looks up `token_plan.*` keys; this host publishes the
+  // organization/seat copy under the same keys, so the unbound purchase and the
+  // organization bind step are localized instead of falling back to the shared
+  // Chinese defaults.
+  const teamTranslate = useCallback(
+    (key: string, defaultValue: string) => {
+      const translated = t(key as TokenPlanKey)
+      // The locale service echoes the key when the namespace has no entry; the
+      // shared surface's default copy is the correct fallback in that case.
+      return translated === key ? defaultValue : translated
+    },
+    [t],
+  )
+  const team = useMemo<SdkworkSubscriptionCatalogTeamProps | undefined>(
+    () => (teamPort === undefined ? undefined : { port: teamPort, translate: teamTranslate }),
+    [teamPort, teamTranslate],
+  )
+  // A guest has no Token Bank balance to show; a signed-in account forwards its
+  // settled figure (or a stale one while a refresh is failing) to the dialogs.
+  const currentPoints = account.status === 'signed-out' ? null : account.points
 
   return (
     <div className={css.page} data-mode={mode} data-mode-page={mode}>
@@ -105,12 +152,19 @@ export function TokenPlanPage({ mode, env, iam, theme, t }: TokenPlanPageProps) 
           <div className={clsx(css.catalog, 'mx-auto w-full max-w-7xl')} data-token-plan-catalog>
             {service.isConfigured() && commerce !== undefined ? (
               <SdkworkSubscriptionCatalogPage
-                key={reload}
                 checkoutPort={commerce.checkout}
-                components={createTokenPlanCommerceComponents({ commerce, onCompleted, t })}
+                components={createTokenPlanCommerceComponents({
+                  account: accountStore,
+                  commerce,
+                  onCompleted,
+                  openSignIn: () => { service.openSignIn() },
+                  t,
+                })}
+                currentPoints={currentPoints}
                 notifyOutlet={NotifyOutlet}
                 onLoginRequired={() => { service.openSignIn() }}
                 onNotify={onNotify}
+                team={team}
               />
             ) : (
               <div className="flex h-full items-center justify-center px-6 py-12 text-sm text-zinc-500 dark:text-zinc-400">

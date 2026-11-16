@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for 2026-11-12-app-template-center-scaffold-publish-install.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-12-app-template-center-scaffold-publish-install.md
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it:
+  en: 14ac49b1e8a3b9b9
+  zh: e132196035117687
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/problem:
+  en: 6a91853a6288b10e
+  zh: ee1e1f8dd6870df1
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/decision:
+  en: 55aa96b66a0efcac
+  zh: 1d2d36551b8fbfeb
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/decision/publish-discover-dedupe-pack-upload-version:
+  en: 8dc10e95ff552719
+  zh: bce6a2fc04b08d5d
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/decision/install-one-app-root-under-apps-never-the-project-root:
+  en: d83cad6b93be890f
+  zh: db0870cf9fae316b
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/decision/host-capability-and-product-surface:
+  en: 7e26436e47d150fc
+  zh: cb51f09d17f1c0f0
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/alternatives-considered:
+  en: 86691c8d10f08132
+  zh: 07e50346d9e772f5
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/consequences:
+  en: 80a266bae9d5cf41
+  zh: 630213ac8efcb6c7
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/verification:
+  en: d35ed5ef9490ad40
+  zh: 6c1c7bd2e96e763e
+/agent-note-the-app-template-center-scaffold-publish-from-apps-and-install-back-into-it/prior-art:
+  en: 4ddab6c86cde344a
+  zh: 5b439c1e8958fb30

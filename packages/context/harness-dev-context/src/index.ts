@@ -113,13 +113,34 @@ function foldLegacyPrompt(state: LegacyPrompt, event: SessionEvent): LegacyPromp
 
 const ADMITS_NOTHING: LegacyPrompt = { source: null, web: null }
 
+/** Deployment-varying registration choices. */
+export interface Config {
+  /**
+   * Register the URL-bearing web-surface section and its context line. The
+   * desktop composition turns this off: its shell has no server URL, and
+   * `app:desktop-surface` (order −98) replaces the web-surface orientation.
+   */
+  webSurface: boolean
+}
+
+export const Config: zod.ZodType<Config> = zod
+  .object({
+    webSurface: zod.boolean().default(true),
+  })
+  // Rows that declare no config validate against the defaults, so a
+  // composition mounting the plugin without a config block keeps the
+  // web-surface registration.
+  .default({ webSurface: true })
+
 /**
  * Register the two sections, their runtime-context values, and the
  * projection that keeps a Session's admitted paragraphs.
  * @param ctx - plugin context with every {@link inject} service.
+ * @param config - validated row config; `webSurface` gates the URL-bearing
+ *   web-surface section and its context line.
  * @returns after the projection reader and prompt registrations are ready.
  */
-export async function apply(ctx: Context): Promise<void> {
+export async function apply(ctx: Context, config: Config): Promise<void> {
   const legacyPromptProjectionHandle = await ctx.sessionProjections.register({
     key: LEGACY_PROMPT,
     stateVersion: 1,
@@ -143,6 +164,7 @@ export async function apply(ctx: Context): Promise<void> {
     interpolate: false,
     text: `Current DeepSeek Harness implementation checkout: ${JSON.stringify(SOURCE_ROOT)}.`,
   })
+  if (!config.webSurface) return
   ctx.systemPrompt.section({
     name: WEB_SURFACE,
     order: ctx.systemPrompt.getSectionOrder('WEB_SURFACE'),
