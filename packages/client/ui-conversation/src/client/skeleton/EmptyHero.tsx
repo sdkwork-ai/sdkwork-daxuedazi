@@ -66,6 +66,8 @@ export interface HeroShellProps {
   t: HeroTranslate
   /** Authorized renderer for the hero brand-mark slot. */
   renderSlot: ConversationContentProps['renderSlot']
+  /** Text shown instead of the default headline and preview badge. */
+  headline?: string | undefined
   /** Overlay content after the stack (modals). */
   children?: ReactNode
 }
@@ -86,7 +88,7 @@ function HeroBrandMark() {
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
-export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
+export function HeroShell({ t, renderSlot, headline, children }: HeroShellProps) {
   return (
     <div className={css.root}>
       <div className={css.stack}>
@@ -98,7 +100,7 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
             })}
           </span>
           {/* Own element keeps the headline text addressable next to the mark. */}
-          <span className={css.headlineText}>{t('hero.headline')}</span>
+          <span className={css.headlineText}>{headline ?? t('hero.headline')}</span>
         </div>
         {/* Scene switcher seat (occupied by the app-mode plugin's pill group);
             empty without a registrant, so the hero keeps the upstream shape. */}

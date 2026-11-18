@@ -4,7 +4,7 @@ import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_pr
 import { existsSync, globSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { parseArgs } from 'node:util'
 
@@ -18,9 +18,24 @@ const WORKSPACE_MANIFEST_GLOBS = [
   'packages/*/*/package.json',
   'sdks/*/*/package.json',
   'plugins/*/package.json',
+  // FORK DIVERGENCE (upstream's plugins are flat): the sdkwork-deepseekbot
+  // plugin (a git submodule mounted as workspace members) ships runtime
+  // packages under `plugins/*/packages/*`, and `@deepseek-ai/dsh-web-app`
+  // declares `workspace:*` dependencies on them in its published
+  // `dependencies` field. Missing these members leaves those ranges
+  // unrewritten and npm dies with `Unsupported URL Type "workspace:"`.
+  'plugins/*/packages/*/package.json',
   'vendor/*/package.json',
   'native/system/package.json',
   'native/system/packages/*/package.json',
+  // Remaining pnpm-workspace.yaml members. Their manifests rarely join the
+  // resolved graph, but any of them can be a `workspace:*` target, and a
+  // member missing from `workspaceVersions` lets an unrewritten protocol
+  // range escape into the synthetic registry.
+  'benchmarks/package.json',
+  'website/package.json',
+  'examples/package.json',
+  'python/sdk-runtime/package.json',
 ]
 
 /**
@@ -62,7 +77,7 @@ interface PackageManifest {
   readonly bin?: unknown
 }
 
-interface RegistryVersion extends PackageManifest {
+export interface RegistryVersion extends PackageManifest {
   readonly name: string
   readonly version: string
 }
@@ -311,6 +326,14 @@ function publishDependencyRange(
   return applyOverride(name, published, workspace.overrides)
 }
 
+// A registry packument cannot express a filesystem link, and npm aborts the
+// whole resolution with `Unsupported URL Type "link:"` when one escapes into a
+// served manifest. The sdkwork-deepseekbot plugin's private packages declare
+// `link:../sibling` dependencies on directories that are not workspace members
+// and never reach a registry, so the synthetic registry drops those edges
+// instead of serving them.
+const FILESYSTEM_RANGE = /^(?:link|file):/u
+
 function copyPublishedManifest(
   source: PackageManifest,
   workspaceVersions: ReadonlyMap<string, string>,
@@ -322,10 +345,12 @@ function copyPublishedManifest(
     const value = source[field]
     if (value === undefined) continue
     if (field === 'dependencies' || field === 'optionalDependencies' || field === 'peerDependencies') {
-      output[field] = Object.fromEntries(Object.entries(value as Record<string, string>).map(([name, range]) => [
-        name,
-        publishDependencyRange(name, range, workspaceVersions, workspace),
-      ]))
+      output[field] = Object.fromEntries(Object.entries(value as Record<string, string>)
+        .filter(([, range]) => !FILESYSTEM_RANGE.test(range))
+        .map(([name, range]) => [
+          name,
+          publishDependencyRange(name, range, workspaceVersions, workspace),
+        ]))
     } else {
       output[field] = structuredClone(value)
     }
@@ -429,8 +454,27 @@ function close(server: Server): Promise<void> {
   })
 }
 
-function npmExecutable(): string {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm'
+/**
+ * Spawn the npm CLI as a direct `node` child when its `npm-cli.js` can be
+ * located next to the running Node installation. Going through the platform
+ * shell (`npm.cmd` → cmd.exe → node) makes the hang guard's tree termination
+ * unreliable: killing the shell's process tree can leave the node grandchild
+ * orphaned and the guard fails with `timed-out process tree did not exit`.
+ * A direct child is one killable process. When `npm-cli.js` cannot be found,
+ * fall back to the platform wrapper.
+ * @returns Command and argument prefix that runs the npm CLI.
+ */
+function npmCommand(): { command: string; args: readonly string[]; shell: boolean } {
+  const cliCandidates = process.platform === 'win32'
+    ? [join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')]
+    : [
+      join(dirname(dirname(process.execPath)), 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+      join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    ]
+  for (const candidate of cliCandidates) {
+    if (existsSync(candidate)) return { command: process.execPath, args: [candidate], shell: false }
+  }
+  return { command: process.platform === 'win32' ? 'npm.cmd' : 'npm', args: [], shell: process.platform === 'win32' }
 }
 
 function delay(ms: number): Promise<void> {
@@ -474,14 +518,16 @@ export async function runCommandWithTimeout(
     readonly env: NodeJS.ProcessEnv
     readonly timeoutMs: number
     readonly terminationGraceMs?: number
+    readonly shell?: boolean
   },
 ): Promise<{ status: number | null; signal: NodeJS.Signals | null; durationMs: number; output: string; timedOut: boolean }> {
   const started = performance.now()
+  const useShell = options.shell ?? process.platform === 'win32'
   const child = spawn(command, [...args], {
     cwd: options.cwd,
     detached: process.platform !== 'win32',
     env: options.env,
-    shell: process.platform === 'win32',
+    shell: useShell,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let output = ''
@@ -543,7 +589,9 @@ async function runNpm(
   writeFileSync(globalNpmrc, '')
   const inheritedEnvironment = Object.fromEntries(Object.entries(process.env)
     .filter(([name]) => !name.toLowerCase().startsWith('npm_config_')))
-  const result = await runCommandWithTimeout(npmExecutable(), [
+  const npm = npmCommand()
+  const result = await runCommandWithTimeout(npm.command, [
+    ...npm.args,
     'install',
     '--package-lock-only',
     '--ignore-scripts',
@@ -564,6 +612,7 @@ async function runNpm(
       npm_config_update_notifier: 'false',
     },
     timeoutMs,
+    shell: npm.shell,
   })
   if (result.timedOut) return result
   if (result.status !== 0) {
@@ -677,7 +726,8 @@ async function main(): Promise<void> {
   const targetVersions = index.get(TARGET_PACKAGE)
   if (targetVersions === undefined) throw new Error(`local registry contains no ${TARGET_PACKAGE}`)
   const targetVersion = latestVersion(targetVersions)
-  const npmVersion = execFileSync(npmExecutable(), ['--version'], { encoding: 'utf8' }).trim()
+  const npm = npmCommand()
+  const npmVersion = execFileSync(npm.command, [...npm.args, '--version'], { encoding: 'utf8' }).trim()
   console.log(
     `benchmark-npm-resolution: npm ${npmVersion}, ${options.ref === undefined ? 'working tree' : options.ref}, `
     + `${String(index.size)} package name(s), setup ${(performance.now() - started).toFixed(0)} ms.`,

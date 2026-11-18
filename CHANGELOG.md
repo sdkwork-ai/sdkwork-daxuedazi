@@ -1,43 +1,79 @@
 # BirdCoder 更新日志
 
-本文件只记录**当前版本**——`##` 标题就是本次发布打的 tag，不累积历史版本条目；往期条目随各自版本的提交保留在 git 历史里（`git log -p CHANGELOG.md`）。「上游变更」按该 tag 区间内的实际提交归纳并注明来源；「BirdCoder 本地变更」记录 fork 在该版本上的自有变更（SDKWork 组件、品牌、依赖、打包与部署等），不受上游发布节奏影响。
+本文件只记录**当前版本**——`##` 标题就是本次发布打的 tag，不累积历史版本条目；往期条目随各自版本的提交保留在 git 历史里（`git log -p CHANGELOG.md`）。「上游变更」按该 tag 区间内的实际提交归纳并注明来源（上游尚未发布该版 Release notes 时如此处理）；「BirdCoder 本次更新」记录 fork 在该版本上的自有变更（SDKWork 组件、品牌、打包与部署等），不受上游发布节奏影响。
 
-## 0.2.2-rc.7（2026-11-18）
+## 0.2.2-rc.7（fork 同步 2026-11-19）
 
-本版本发布 fork 版本线 **0.2.2-rc.7**（tag `sdkwork-daxuedazi-v0.2.2-rc.7`），内容为 `deepseek-ai/deepseek-harness` **0.2.2-rc.4** 的完整合入（经上游 `sdkwork-birdcoder2` 合并基底 `68cd0b637e`），加上合并后的修复、依赖收敛与打包发布链路修复。上游版本线仍是 **0.2.2-rc.4**（tag `birdcoder-v0.2.2-rc.4`）；相对上一合并基底 `949381a6ba`（rc.3 合并点）本次上游新增 **818 个提交、3259 个文件变更**（+97938 / −34600），全部随真实双亲 merge commit 入树，未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留。
+本版本发布 fork 版本线 **0.2.2-rc.7**（tag `sdkwork-daxuedazi-v0.2.2-rc.7`），内容为 `deepseek-ai/deepseek-harness` **0.2.2-rc.5** 的完整合入（经上游 `sdkwork-birdcoder2` 合并指针 `7ebcb9add8`）。上游版本线是 **0.2.2-rc.5**（tag `dsh-v0.2.2-rc.5`）；相对上一合并基底 `68cd0b637e`（rc.4 合并点）本次上游新增 **249 个提交（其中 149 个非 merge 功能/修复提交）、1064 个文件变更**（+23051 / −10933）。全部随真实双亲 merge commit 入树，未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留。fork 侧本地 105 个提交（品牌、SDKWork 组件、依赖与打包修复）同时保留。
 
-### 上游变更（deepseek-harness 0.2.2-rc.4）
+### 上游变更（deepseek-harness 0.2.2-rc.5）
 
-* **会话与持久化**：Session 存储切到 **SQLite** 并在打开时导入旧 JSONL，frame size 变成插件设置；按配置选择 frame 压缩、并发解码、事件以压缩 frame 存储；修正会话缓冲窗口（先消费已到达的较旧页）、符号链接目录下的具名 Session、SQLite WAL 初始化争用重试；客户端重做会话保留策略（未渲染不折叠、保留最近访问、断连与缺口修复一致）；等父前缀持久化后创建共享 fork。
-* **账号、鉴权与凭据**：新增 DeepSeek 请求鉴权并随发行元数据进入 Python runtime 闭包；凭据层接管 API Key 合法性检查，account 包独立承载登录与仅限 Host 的请求凭据；移除路由失败时的 sdk-server 回退鉴权，mcp-client 在路由准入前应答 OAuth 回调。
-* **Forge、Worktree 与插件**：变更请求在 Session 面板以紧凑卡片呈现，可读取、审阅并绑定 GitLab merge request；`create_worktree` 合并进 `enter_worktree`；插件管理器以变更结果的 application 状态作为重启权威，`list_plugins` / `set_plugin` 支持原地重载提示；tool-cordis 向插件作者暴露运行中的 DSH 版本。
-* **Skills、Subagent、LLM 与工具**：新增 upstream-skills 连接插件（首次下载才加载 node-tar）；subagent 每次调用读取模型选择设置并隔离读取失败；llm-deepseek 新增 `safetyCheck` 开关、默认请求内容安全检查、拒答不走安全复核；新增 tool-session-list 与 action-cards 回答内卡片；CUA 增加 `toggleMouse` 与 Windows 初始支持；liveshare 在 Electron Node 模式启动 tunnel worker。
-* **UI、调度与桌面**：侧栏图标与间距统一、拖到边缘自动滚动、滚动条 500ms 淡出；模型选择前景色统一（fork 保留 BirdCoder 排首位的品牌排序）；每周回顾限定用户自己的日程并推荐任务，jobs 分组超五行折叠、活跃任务优先；插件设置进入 Plugins 页，客户端支持从上下文菜单添加文件引用；app-boot 修正 include 路径与配置快照隔离。
+上游尚未以 Release 正文形式发布该版说明，以下按 `git log 68cd0b637e..7ebcb9add8` 的实际提交主题归纳。
 
-### 合并后的修复（fork）
+#### 会话、SQLite 与持久化
 
-* **合并冲突**：404 个冲突文件按 fork-first 规则解决——387 个仅版本行的 `package.json` 保留 fork 版本，5 个复杂清单逐项三方合并；`ui-sdkwork-sidebar` 的 OEM 感知 `shippedHiddenEntryIds()`（应用商店 / 模板库 / 需求大厅三个入口）与 `cordis.patch.yml`、demand-hall / sidebar / template-library 的 README 与 i18n 配对保留 fork 侧。
-* **fork 组件完整性**：上游产品性删除的 `ui-sdkwork-template-library` 整包从 fork 侧恢复（26 个源码 / 配置 / 测试文件）；`BirdLogo` / `BirdWordmark` / `LoginPanel` / favicon / 安装包图标 / 标语、`ui-sdkwork-*` 组件、daxuedazi 安装身份与 IAM scheme 均保持当前仓库版本。
-* **工作区与构建修复**：恢复 `@deepseek-ai/dsh-client-config`、`@deepseek-ai/dsh-client-ui-session-panel` 的包名（rename 错配曾让 `SyncedConfigValues` 丢失），据此重建 `pnpm-lock.yaml`；`ui-workspace` 去掉重复的 `cwd` 成员、补回 `ShortcutCatalogEntry` 类型、把 Workspace 重命名 / 删除动词改由新的 `requestWorkspaceAction` 注入面承载；`ui-settings-account` 的 AccountMenu 不再渲染 `settings.launcher.notifications`（该子槽由 `settings.notice` 声明，双亲声明会在注册期抛错）；`hmr` 恢复 `src/events.ts` 并声明 `eventsource-parser`；`tsdown.client.ts` 与 `webworker-runtime` 去除重复的 `INLINE_SAFE` 定义、`noExternal` 与重复的 `plugins` 键；根 `package.json` 去掉重复的 `@deepseek-ai/dsh-action-cards` 键；`ui-sdkwork-automation` 与测试聚合改为引用 `ui-workspace` 的项目 tsconfig。
-* **CHANGELOG**：按单版本策略重写，只保留当前版本条目。
+* 并发 SQLite 提交合并为单组事务（`perf(session): commit concurrent SQLite batches as one group`），每次提交后让出事件循环（`fix(session): yield the event loop after each SQLite commit`），并补齐分组提交与失败隔离的测试（`test(session): cover SQLite group commits and failure isolation`）。
+* Session 存储保持 SQLite 主线，连接恢复时序改为通过 synced Config 字段下发，页面注入路径随之调整（见「客户端与连接」）。
 
-### 依赖与供应链
+#### Forge、代码审阅与 Worktree
 
-* **依赖源**：本地开发按 `sdkwork-specs` 的约定用相对路径（`pnpm-workspace.yaml` 的 `../sdkwork-*` workspace 成员）解析 SDKWork sibling；发布/CI 由 `.github/actions/setup-sdkwork-siblings` 按 `scripts/sdkwork-sources.manifest.json` 从各仓库 git 克隆同一份代码。
-* **清单收敛到 main**：38 个 pnpm sibling 与 2 个 Cargo-only sibling 的 pin 全部推进到各自 `main` 头；唯一例外是 `sdkwork-appstore` 保持 `036dbd5a61`——其 `main` 已删除 `templates` 市场面（`chore(appstore): remove the retired template and plugin market surfaces`），而 fork 的模板库仍以该面为渲染入口，待上游提供替代面后再跟进。
-* **submodule**：`plugins/dsh-better-sidebar`、`plugins/dsh-mcp-connector` 推进到各自分支头；`dsh-im`、`dsh-skill-market`、`dsh-ui-usage-billing`、`sdkwork-deepseekbot`、`sdkwork-dsh-agents` 已在 `origin/main`。
-* **expert-market 覆盖**：`pnpm-workspace.yaml` 的 27 条 `@michengai/dsh-agency-agents>@deepseek-ai/dsh*` 覆盖同步到 `0.2.2-rc.7`，让 pnpm 链接 workspace 成员而不是拉取 registry tarball。
+* 新增**代码审阅页面**（`feat(forge): add the code review page`）：列出当前登录用户的 change request、读取描述、审阅列表支持搜索、状态以块（blocks）呈现、读取期间以骨架行占位（`feat(forge): draw the review lists as skeleton rows while they are read`、`show the review summary's status as blocks`、`search the review lists under the client search rule`）。页面客户端文件独立成目录（`refactor(forge): keep the code review page's client files in a folder of their own`）。配套文档、主题门禁修复、共享代码与测试落地。
+* 审阅列表以紧凑视图呈现，审阅评论可引用进聊天输入（`feat(forge): add a compact review list view and quote review comments into the chat`）；变更视图移除已保存的评论卡片（`fix(forge): remove saved comment cards from the changes view`），页面停止展示时释放审阅会话（`fix(forge): release the review conversation when the page stops showing it`）。
+* 仓库菜单始终列出全部仓库（`fix(forge): keep offering every repository in the review page's repository menu`），状态折叠箭头方向修正（`fix(forge): point the status fold's chevron up when it folds`），审阅 tab 顺序与事件图/插件清单随配置刷新（`fix(forge): name the review tab order outside the copy rule and regenerate event graphs and the plugin package list`）。
+* worktree 的 Git 目录不再被沙箱策略按布局推断，改由配置与 `registerWritableRoot` 授予（`refactor(sandbox-policy): read no Git layout; grants come from configuration and registerWritableRoot`）；worktree 维护以源 checkout 为界（`fix(sandbox-policy): bound worktree maintenance by the source checkout`），forge worktree 阻断项计入 sandbox grant（`fix(deliverables): … count sandbox grants in the forge worktree blocker`）。
 
-### 打包与发布
+#### 客户端、连接与会话面板
 
-* **产物矩阵**：桌面 6 个目标（`win-x64`、`win-arm64`、`mac-x64`、`mac-arm64`、`linux-x64`、`linux-arm64`，未签名安装包）、容器镜像 `amd64` / `arm64` 离线归档，以及 Compose / Kubernetes 部署包；tag 触发 `Release (dsh artifacts)` 一次性打包并在同一 GitHub Release 发布。
-* **Web 构建身份**：`apps/web/vite.config.ts` 拒绝提交在仓库里的 `__SDKWORK_DEPLOY_APPLICATION_ID__` 占位符，因此 `release.yml`、`container-release.yml`、`desktop-package-target.yml` 统一从仓库变量 `SDKWORK_DEPLOY_APPLICATION_ID` 注入安装的部署应用 ID（公开客户端身份，不落到 secret）。
-* **模板库重新入图**：`ui-sdkwork-template-library` 从 fork 侧恢复时漏了它在 `tsconfig.client.json` 里的 project reference，Client 编译器因此从不产出 `lib/types`，Client bundle 门禁在干净检出上以 `[UNRESOLVED_ENTRY] Cannot resolve entry module lib/types/index.js` 中止（6 个桌面目标与 2 个容器镜像同因失败）。补回引用后该包重新参与 Client 编译；顺带把同样以 Host 产物为 entry 的 `ptc-runtime-node` 改为仓库既有的 `hostOnlyTsdownConfig` 约定，Client pass 不再重复构建它的 Node bundle。
-* **本地验证**：Windows + Node 24.11.1 下 `pnpm run build:official` 12 个门禁全部通过（Host/Client 编译、bundle、Assistant 插件、Desktop bundle、Web build 等），产物记录 495 个 client artifact。
+* Host 配置改为通过 synced plugin Config 以 page-global 方式下发（`refactor(client): deliver page-global Host configuration through synced plugin Config`），Remote 链使用连接 synced Config（`fix(client): pass the connection synced Config in the built Remote chain …`）；等待注入的插件配置表达式在注入完成前不发布 synced 值（`fix(client-modules): publish no synced values while a pending plugin's config expression awaits an injection`）。账户联系人表单固定在本页全局（`fix(client): keep the account contact form on its page global …`）。
+* 每个内容实例独立处理 Workspace 选择（`refactor(ui-conversation): let each content occurrence handle a Workspace pick`），embedded Workspace pick 以单一受检步骤交接（`fix(conversation): hand an embedded Workspace pick over in one checked step`）。
+* 侧栏面板行新增行尾内容（trailing content）：按标题之后排布、悬停/聚焦时让位给取消固定操作、窄栏显示在图标右上、不可含交互元素（`feat(sidebar): show trailing content on panel rows`、`fix(ui-sidebar): rest panel trailing content at the row's end and swap it for the unpin action on hover`、`fix(sidebar): lay panel trailing content out after the title like a Session row`）。fork 的 IM 面板快捷入口过滤行为保留。
+* 新增 shared title marquee 与 embedded hero 选项（`feat(client): add panel row trailing content, embedded hero options, and a shared title marquee`）；HeroShell 新增 `headline` 覆盖文案（fork 侧仍渲染静态 BirdCoder 鸟标，见「BirdCoder 本次更新」）。
+* 连接恢复时序由页面注入改为 synced 字段声明：配置声明浏览器恢复时序、不再向页面注入（`test` 中明确 `injects nothing into served pages`），NaN 恢复系数的校验理由写入文档。fork 侧仍保留自身页面注入与 API 网关 fallback（见冲突处理）。
 
-### 安装期可配置项
+#### 交付物、工作区与沙箱
 
-* **端口与监听**：`DSH_WEB_PORT`（容器内监听端口，1–65535）、`DSH_PUBLISH_PORT` / `DSH_PUBLISH_HOST`（宿主机映射，默认仅绑 `127.0.0.1`）、`DSH_TRUSTED_HOSTS`（浏览器 Host 白名单）。
-* **数据与工作区**：`DSH_DATA_DIR`、`DSH_WORKSPACE_DIR` 可指向宿主持久化路径（留空则用命名卷）；`DSH_HOME` 内的 profile 决定存储后端（SQLite / JSONL）。
-* **上下游与模型**：`DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_SEARCH_BASE_URL` 直传；`SDKWORK_DEPLOYMENT_PROFILE` / `SDKWORK_ENVIRONMENT` 选择 `etc/topology/<profile>.<environment>.env`，网关与 CORS 域名在该文件里按部署改写。
-* **说明**：本产品不依赖外部 Redis 或独立数据库服务，会话状态落在 `DSH_HOME`（SQLite / JSONL），因此安装期没有 Redis / DB 连接串需要配置；如需共享后端，请通过 profile patch 挂载对应插件。
+* 变更文件路径改为相对该轮开始所在目录解析（`fix(deliverables): resolve changed-file paths against the turn's directory`）：summary 携带 `cwd`，客户端据此解析完整路径与 review tab 的 Sidebar 文件地址。
+* workspace-root 校验 LSP root、丢弃未读取的原目录并修复 CI 输入（`fix(workspace-root): validate the LSP root, drop the unread original directory, and repair CI inputs`）；workspace-write 边界指南与 Git 目录 grant 在 Windows 进程中的限制写入 upgrade guide。
+* ui-sidebar-files 对持有查询的窗格移动到新 checkout 的搜索修正（`fix(ui-sidebar-files): search the checkout a held query's pane moves to`）。
+
+#### 桌面、CUA 与安装器
+
+* 开发态 Harness 状态移出 `.desktop-build`，改到 `.desktop-dev`，启动时迁移缺失目录并在运行中的 Harness Dev 占用时拒绝迁移（`fix(desktop): keep development Harness state out of .desktop-build`、`refuse to move state that a running Harness Dev owns`）；操作历史按精确文件身份去重、保留被 predecessor 读取会丢弃的段并上报已读段（`deduplicate history segments by exact file identity`、`keep operation history the predecessor read would drop`、`report read segments …`）。
+* 安装完成提示在原生拖动/系统菜单期间延迟显示（`fix(desktop): show installer completion during native dragging`、`defer installer completion through system menus / until native move returns`）。追加的 predecessor 被跳过而非收集写入文档。
+* CUA：Windows 实现窗口级鼠标按键切换、macOS 支持已批准的鼠标按键按住与独立按键事件（`feat(cua-windows): implement window-level mouse button toggles`、`feat(cua-macos): support approved system mouse button holds / send individual mouse button events to a window`）；修复窗口几何校验与按键接收者检查顺序、光标采样时机、turn 结束鼠标清理等待原生完成与撤销场景（`fix(cua-macos): sample the cursor after validating window geometry`、`check the press recipient before reading AX geometry`、`fix(cua): wait for native cleanup before the next request`）。
+* Web：恢复持久化终端插件控制并注册快照（`feat(web): restore persistent terminal plugin controls`、`test(web): register the persistent terminal snapshot`）。
+
+#### MCP、连接器、LLM 与工具
+
+* `ctx.mcpManager` 重命名贯穿客户端/Host 与快照（`refactor: follow the ctx.mcpManager rename`），MCP client host 纳入快照组合，OAuth world 与 manager profile 由 `dsh-mcp-testkit` 提供。
+* Linear / Notion 连接器：将 `src/copy.ts` 重命名为 `src/locales.ts`，账号通过共享 connector account registry 展示并在 Host 注册（`refactor(linear/notion): rename …`、`show the account through the connector account registry`、`register the account on the Host`）；快照与版本随 master 提示/工具文本刷新。
+* Web 搜索默认模型切到 DeepSeek（`Merge PR #8707 … feat/web-search-deepseek-model-default`）。工具可达性与首次披露提议写入 agent-notes。
+* 重复提醒排除嵌套调用（`fix(guard): exclude nested calls from repeat reminders`）。
+
+#### 工程、版本与文档
+
+* 根版本与 master-only 包对齐到 `0.2.2-rc.5`（`chore(release): align master-only packages to 0.2.2-rc.5`），发布提交 `release(dsh): 0.2.2-rc.5`；bundle 的 English 标题改为句首大写、Plugins 页增加 feature preview。
+* 大量 snapshot/文档/upgrade guide 刷新（mcp-tool-loading、linear、notion、终端、liveshare 等），module graph 随 sandbox-policy 与 workspace-changes 边重生成，README 字数上限按栈同步后复位。
+
+### BirdCoder 本次更新
+
+#### 同步与冲突处理
+
+* 合并基底 `68cd0b637e` → `7ebcb9add8`（249 个上游提交、1064 个文件变更），以真实双亲 merge commit 合入，保留全部上游 commit message 与代码注释。**490 个文件**存在冲突，按 fork-first 规则逐项解决：
+  * **475 个 `package.json`**：仅版本行冲突（fork rc.7 / upstream rc.5 / base rc.4）。fork 的 `0.2.2-rc.7` 是已发布版本线（tag `sdkwork-daxuedazi-v0.2.2-rc.7`），领先于上游 rc.5，全部保留 fork 版本以避免倒退并满足家族版本门禁；非冲突区自动合入的上游依赖变更全部保留，475 个文件 JSON 校验全部合法。
+  * **15 个真实冲突**：`EmptyHero.tsx` 采纳上游 `headline` 覆盖文案，同时保留 fork 的静态 `BirdLogo` headlineText 结构（上游 fish hover-morph 死状态不引入）；`tsdown.client.ts` 取上游 `INLINE_SAFE` 超集（含 fork 的 `plugin-market-index/source` 与上游新增的 `dsh-api-session-controller/client/directories`）；`ui-workspace` 的 `slots.ts` 保留 fork 对 `requestWorkspaceAction` 的注释、`WorkspaceBrowser.tsx` 保留 fork 的 row-menu seam、`tree.ts` 保留 fork 精确的 session-scoped `cwd` 定义；4 个 deploy 测试保留 fork 的 `deployApplicationId: '1001'`；测试 mock 采纳上游更完整的 `requestWorkspaceAction` 行为。
+  * SDKWork 自有组件（`ui-sdkwork-*`、`sdkwork-*` Host/Bundle、`ui-sdkwork-iam` 登录步骤等）与品牌表面（`BirdLogo` / `BirdWordmark` / `LoginPanel` / favicon / 图标 / 标语）全部保留 fork 版本。
+  * 子模块 `dsh-better-sidebar` / `dsh-mcp-connector`：fork 指针是上游指针的后代（已含上游改动且更新），保留 fork 较新版本。
+* 合并后全仓扫描无冲突标记残留；品牌契约保持：`BirdLogo` / `BirdWordmark` / `LoginPanel`、favicon 与安装包图标、daxuedazi 安装身份与 IAM scheme 均为当前仓库版本。
+* **同步完整性复核**：`git merge-base` 为 `68cd0b637e`，upstream 指针 `7ebcb9add8`，249 个上游提交随真实双亲 merge commit 全部合入；所有改动均为上游自身演进，无 fork 自定文件误删。
+
+#### 版本与依赖
+
+* fork 版本线维持 **0.2.2-rc.7**（上游版本线 rc.5，tag `dsh-v0.2.2-rc.5`）。
+* `pnpm-workspace.yaml` 的 27 条 `@michengai/dsh-agency-agents>@deepseek-ai/dsh*` 覆盖行保留 fork 的 rc.7 pin；`pnpm-lock.yaml` 保留 fork 的 workspace 链接与 SDKWork sibling importer 块（本地开发走 `pnpm-workspace.yaml` 的 `../sdkwork-*` 相对路径 + `workspace:*`，CI/release 走 `scripts/sdkwork-sources.manifest.json` pin 的 git 仓库 checkout，两者同源）。
+
+#### 子模块本地改动（随本次一并提交）
+
+* `plugins/sdkwork-deepseekbot` 推进到 `05d0e36b5`：采纳 ADR-0310，新 profile 的 Simple Messages 默认打开 Subpanel 列（Sessions 展开），一次性存储标记迁移旧记录且不覆盖用户主动关闭；同步 bot-mode-dock 验证技能与布局测试。
+
+本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。
