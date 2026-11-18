@@ -3,17 +3,17 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/sdkwork-template-install/README.md
 /:
-  en: 460ae17a6ad4f3c1
-  zh: 8510de15071539d4
+  en: c5af52296bd43b58
+  zh: 91c87b067abc9cc2
 /deepseek-ai-dsh-sdkwork-template-install:
   en: 45ae5eb2cd068688
   zh: cfa63206a8f18f17
 /deepseek-ai-dsh-sdkwork-template-install/summary:
-  en: 30259f1aa4bd960f
-  zh: 98b281a0757ca9cc
+  en: d5c696d17028827a
+  zh: 72b3b1e332f76c91
 /deepseek-ai-dsh-sdkwork-template-install/model-experience:
-  en: 4f87247e41a182bd
+  en: 9fc939de3dc27073
   zh: 9f9bb6e537ff73d3
 /deepseek-ai-dsh-sdkwork-template-install/known-limitations-and-deferred-work:
-  en: af26b920032e493d
-  zh: 16b555bcbbda1b5f
+  en: 9f048774c12c6b3c
+  zh: 4e5345f3de094f41

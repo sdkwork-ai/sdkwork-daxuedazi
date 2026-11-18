@@ -3,8 +3,15 @@ import { createElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 
+// The embed double records the props this adapter hands the catalog, so a case
+// can drive the install port the plugins page receives.
+const embed = vi.hoisted(() => ({ props: undefined as unknown }))
+
 vi.mock('@sdkwork/appstore-pc-embed', () => ({
-  AppstoreMarketsSurface: () => null,
+  AppstoreMarketsSurface: (props: unknown) => {
+    embed.props = props
+    return null
+  },
 }))
 
 import {
@@ -184,6 +191,35 @@ describe('MarketsHostRuntime', () => {
     runtime.requestSignIn()
     expect(h.openSignIn).toHaveBeenCalledOnce()
   })
+
+  it('keys the catalog by the signed-in identity so an account switch remounts it', () => {
+    const h = harness({
+      baseUrl: 'https://gw.example',
+      session: { accessToken: 'token-a', context: { tenantId: 'tenant', userId: 'user-a' } },
+    })
+    const runtime = createMarketsHostRuntime(h)
+    runtime.start()
+    expect(runtime.getIdentityKey()).toBe('tenant:user-a')
+    expect(runtime.getHostSnapshot().identityKey).toBe('tenant:user-a')
+
+    h.iam.controller.getState = () => ({
+      session: { accessToken: 'token-b', context: { tenantId: 'tenant', userId: 'user-b' } },
+    })
+    h.fireIam()
+    expect(runtime.getIdentityKey()).toBe('tenant:user-b')
+    expect(runtime.getHostSnapshot().identityKey).toBe('tenant:user-b')
+    expect(runtime.getEnvironmentRevision()).toBe(0)
+    runtime.dispose()
+  })
+
+  it('falls back to the profile id and reads an anonymous session as no identity', () => {
+    const signedIn = createMarketsHostRuntime(harness({
+      baseUrl: 'https://gw.example',
+      session: { accessToken: 'token', user: { id: 'user-a' }, context: { tenantId: 'tenant' } },
+    }))
+    expect(signedIn.getIdentityKey()).toBe('tenant:user-a')
+    expect(createMarketsHostRuntime(harness({ baseUrl: 'https://gw.example' })).getIdentityKey()).toBe('')
+  })
 })
 
 describe('MarketsApp', () => {
@@ -215,6 +251,23 @@ describe('MarketsApp', () => {
     const view = render(createElement(MarketsApp, { page: 'plugins', t }))
     expect(view.container.querySelector('[data-markets-empty="unconfigured"]')).not.toBeNull()
     expect(view.container.querySelector('[data-markets-auth-required]')).toBeNull()
+    adapter.dispose()
+  })
+
+  it('hands the plugins catalog an install port only when the host offers one', () => {
+    const h = harness({ baseUrl: 'https://gw.example', session: { accessToken: 'iam-token' } })
+    const adapter = configureMarketsHost(h)
+    const install = vi.fn()
+    render(createElement(MarketsApp, { page: 'plugins', t, onInstallPlugin: install }))
+    const props = embed.props as { pluginsHost?: { install: (plugin: unknown) => void } } | undefined
+    const plugin = { id: 'cloud-1', name: 'Cloud plugin' }
+    props?.pluginsHost?.install(plugin)
+    expect(install).toHaveBeenCalledWith(plugin)
+
+    // A catalog page without a handler keeps the storefront's own action.
+    embed.props = undefined
+    render(createElement(MarketsApp, { page: 'plugins', t }))
+    expect((embed.props as { pluginsHost?: unknown }).pluginsHost).toBeUndefined()
     adapter.dispose()
   })
 })

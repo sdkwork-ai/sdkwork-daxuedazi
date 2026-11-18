@@ -32,9 +32,11 @@ import { bundleManifest, readProfileRegistry, registryArguments, runProfilePnpm,
 import { classifyInstallFailure } from './install-failure.ts'
 import { officialBundleInstallTarget } from './official-install-target.ts'
 import { dependencySpec, InvalidInstallSpecError, parseInstallSpec, pinnedGitOrigin, type ParsedInstallSpec } from './install-spec.ts'
+import { materializePluginSource, type MaterializedSource } from './archive.ts'
 import { attributeFailure, normalizeRegistry, NPMMIRROR_REGISTRY, registryPlan } from './registry.ts'
 import { flatten, writePluginEnabled } from './patch.ts'
 import { incompatiblePlugin, ManagementFailure } from './failure.ts'
+import { PluginManagerError, readProfileState } from './error.ts'
 import { approveBuilds, recordPendingBuilds } from './build-approval.ts'
 import { checkGitConnection, checkGithubConnection, type GithubConnectionFailure } from './github-connection.ts'
 import { chooseGitTransport, sshGitSpec } from './git-transport.ts'
@@ -48,7 +50,21 @@ import type {
 } from './types.ts'
 export type * from './types.ts'
 export { classifyInstallFailure, type InstallFailureFacts } from './install-failure.ts'
-export { InvalidInstallSpecError, parseInstallSpec, pinnedGitOrigin, type ParsedInstallSpec } from './install-spec.ts'
+export { PluginManagerError, type PluginManagerErrorCode } from './error.ts'
+export {
+  InvalidInstallSpecError, parseInstallSpec, pinnedGitOrigin,
+  type ParsedArchiveInstallSpec, type ParsedInstallSpec,
+} from './install-spec.ts'
+export {
+  ArchiveSourceError, materializePluginSource, readArchive, sourceCacheDir,
+  type ArchiveProblem, type MaterializedSource,
+} from './archive.ts'
+export {
+  InvalidPluginSourceError, isArchiveUrl, normalizeGitUrl, normalizeSourceDirectory, normalizeSourceUrl,
+  parsePluginSource, parsePluginSourceSpec, pluginSourceSpec, readSourceSpecParameters,
+  type ArchivePluginSource, type DrivePluginSource, type GitPluginSource, type PluginSource,
+  type PluginSourceBase, type PluginSourceInput, type PluginSourceKind,
+} from './source.ts'
 
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
 export interface Config {
@@ -471,10 +487,12 @@ export class PluginManager extends TypertRemoteService {
 
   /** Read current plugins, including why a row cannot be changed through the profile patch.
    * @returns Current runtime entries with persistent patch targets.
+   * @throws {PluginManagerError} `PLUGIN_MANAGER_PROFILE_READ_FAILED` to in-process callers when the profile patches
+   *   cannot be read; Remote callers receive `gateway/internal`.
    */
   @Remote
   async listPlugins(): Promise<PluginInfo[]> {
-    const rows = flatten(composeEntries([readProfilePatches('dsh', this.profile)]))
+    const rows = readProfileState(() => flatten(composeEntries([readProfilePatches('dsh', this.profile)])))
     const snapshot = await readPluginInventory(this.ctx)
     return snapshot.entries.map((entry) => {
       const actual = [...this.ctx.loader.entries()].find(row => row.id === entry.entryId)
@@ -495,6 +513,8 @@ export class PluginManager extends TypertRemoteService {
    * A dependency without a bundle patch is listed, as a `not-bundle` problem, only while it is selected.
    * @returns Package versions, manifest descriptions, the installable spec of profile dependencies, rows, optional
    * display metadata, activation selections, whether the installation offers the bundle, and removal availability.
+   * @throws {PluginManagerError} `PLUGIN_MANAGER_PROFILE_READ_FAILED` to in-process callers when a profile or
+   *   installation manifest cannot be read; Remote callers receive `gateway/internal`.
    */
   @Remote
   listBundles(): Promise<BundleInfo[]> {
@@ -506,12 +526,14 @@ export class PluginManager extends TypertRemoteService {
 
   /** The bundle inventory before update eligibility, which is derived from each listed bundle. */
   private readBundles(): Omit<BundleInfo, 'update'>[] {
-    const manifest = readProfileManifest('dsh', this.profile.dir)
-    const exemptions = readProfileVersionExemptions(this.profile.dir)
+    const { manifest, exemptions, installation } = readProfileState(() => ({
+      manifest: readProfileManifest('dsh', this.profile.dir),
+      exemptions: readProfileVersionExemptions(this.profile.dir),
+      installation: JSON.parse(readFileSync(this.profile.installAnchor, 'utf8')) as InstallationManifest,
+    }))
     const selected = bundleSelection(manifest)
     const recorded = manifest.dependencies ?? {}
     const dependencies = Object.keys(recorded)
-    const installation = JSON.parse(readFileSync(this.profile.installAnchor, 'utf8')) as InstallationManifest
     const catalog = new Map(OFFICIAL_ON_DEMAND_CATALOG.map(entry => [entry.packageName, entry]))
     const names = [...new Set([...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {}), ...catalog.keys()])]
     const bundles: Omit<BundleInfo, 'update'>[] = []
@@ -635,6 +657,10 @@ export class PluginManager extends TypertRemoteService {
     const registry = plan[0] as Registry
     switch (parsed.kind) {
       case 'git': return { status: 'accepted', kind: 'git', bundle: null, registry, host: parsed.host }
+      // An archive or Drive source is fetched and unpacked only during the
+      // installation itself, so the inspection answers its form and host.
+      case 'archive':
+      case 'drive': return { status: 'accepted', kind: parsed.kind, bundle: null, registry, host: parsed.host }
       case 'tarball':
         if (parsed.path !== undefined && !existsSync(parsed.path)) return refused('not-a-package', 'the tarball does not exist')
         return { status: 'accepted', kind: 'tarball', bundle: null, registry, ...parsed.host === undefined ? {} : { host: parsed.host } }
@@ -960,7 +986,8 @@ export class PluginManager extends TypertRemoteService {
    * find that only SSH can read it. A run
    * that fails, is cancelled, or adds a package without a bundle patch restores
    * `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.
-   * @param spec One package spec, including local paths relative to the invocation directory.
+   * @param spec One package spec, including local paths and the archive or
+   * Drive forms the manager downloads and unpacks itself.
    * @param options Whether to activate the installed bundle (defaults to true), the request id a cancellation names,
    * the pending build scripts to allow, whether to save an exact dependency, and the registry asked first.
    * @returns Package-manager diagnostics, the registries asked, and the observed activation outcome.
@@ -992,8 +1019,24 @@ export class PluginManager extends TypertRemoteService {
       let version: string | undefined
       try {
         result.registries = []
-        const parsed = parsedForRegistry(spec)
+        let parsed = parsedForRegistry(spec)
         const signal = AbortSignal.any([this.abort.signal, control.abort.signal])
+        // An archive or Drive source is downloaded and unpacked inside the
+        // profile first; from then on it is an ordinary local-directory
+        // installation, so pnpm, bundle validation, activation and rollback
+        // all stay the one pipeline every other install uses.
+        let installSpec = spec
+        if (parsed.kind === 'archive' || parsed.kind === 'drive') {
+          const unpacked: MaterializedSource = await materializePluginSource({
+            source: parsed, profileDir: this.profile.dir, signal,
+          })
+          if (stopped()) throw new InstallCancelledError()
+          if (this.ownerContext.get('hmr') !== undefined && Object.hasOwn(before, unpacked.name)) {
+            throw new ManagementFailure('already-installed')
+          }
+          installSpec = `file:${unpacked.dir}`
+          parsed = parsedForRegistry(installSpec)
+        }
         const env = this.profile.packageManager?.env === undefined ? {} : { env: this.profile.packageManager.env }
         const connection = checkGithubConnection(parsed, this.profile.dir, {
           timeoutMs: this.githubConnectionTimeoutMs, outputBytes: this.outputBytes, signal, ...env,
@@ -1020,7 +1063,6 @@ export class PluginManager extends TypertRemoteService {
         }
         const transport = chooseGitTransport(parsed, this.profile.dir, { timeoutMs: this.gitTransportTimeoutMs, signal, ...env })
         this.packageOperations.add(transport)
-        let installSpec: string
         try { installSpec = await transport }
         finally { this.packageOperations.delete(transport) }
         if (stopped()) throw new InstallCancelledError()
@@ -1375,7 +1417,9 @@ export class PluginManager extends TypertRemoteService {
     let settled: ChangeResult
     try {
       settled = await withFileLock(join(this.profile.dir, 'package.json'), async () => {
-        this.abort.signal.throwIfAborted()
+        if (this.abort.signal.aborted) {
+          throw new PluginManagerError('plugin-manager: the manager is disposed; retry after the Host reloads it', 'PLUGIN_MANAGER_UNAVAILABLE')
+        }
         const before = this.diskState()
         const result: ChangeResult = { ...request, changed: false,
           ...this.ownerContext.get('hmr') !== undefined ? { application: 'applied' } : { application: 'restart-required', restartReason: 'no-hmr' } }

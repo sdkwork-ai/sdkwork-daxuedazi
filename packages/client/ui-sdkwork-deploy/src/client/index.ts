@@ -12,10 +12,11 @@
  * ui-sdkwork-iam services (via the global token manager), so the dialogs stay
  * host-agnostic and reusable.
  *
- * The settings menu's "我的应用部署" row opens {@link DeployedAppsDialog}
+ * The settings menu's "我的应用" row opens {@link DeployedAppsDialog}
  * through the `settings.myDeployments` seat: the caller's own `deploy_app`
- * rows, narrowed by application kind. That surface reads the same clients and
- * is read-only; publishing stays on the header and row-menu flows.
+ * rows and app-template listings, each narrowed by its own facet. Both tabs
+ * read the same clients and are read-only; publishing stays on the header and
+ * row-menu flows.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
@@ -35,11 +36,9 @@ import { DeployedAppsDialog, type DeployedAppsDialogInjected } from './DeployedA
    the host to style it. */
 import './deployDialogHost.css'
 import type { DeployLocaleFace, DeployPublishThemePort } from './deployPorts.ts'
-import {
-  DeployProjectAppFlow,
-  type DeployProjectAppFlowProps,
-} from './DeployProjectAppFlow.tsx'
+import { DeployPublishEntry, type DeployPublishEntryProps } from './DeployPublishEntry.tsx'
 import { PublishTemplateFlow, type PublishTemplateFlowProps } from './PublishTemplateFlow.tsx'
+import { InstallTemplateFlow, type InstallTemplateFlowProps } from './InstallTemplateFlow.tsx'
 import { createElement, type ReactElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import {
@@ -69,6 +68,7 @@ export type { DeployAppSourceDialogProps } from './DeployAppSourceDialog.tsx'
 export { DeployAppSourceDialog } from './DeployAppSourceDialog.tsx'
 export type { DeployLocaleFace, DeployPublishThemePort } from './deployPorts.ts'
 export type { PublishTemplateFlowProps } from './PublishTemplateFlow.tsx'
+export type { InstallTemplateFlowProps } from './InstallTemplateFlow.tsx'
 export type {
   InstallTemplateVersionDeps,
   TemplateInstallOutcome,
@@ -100,8 +100,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
  * workspace/session row menus) to run the shared project publish flow and the
  * shared publish-as-template flow with a default source directory. Exposes the
  * host adapter plus the reactive theme/locale ports the dialogs consume;
- * `open`/`openUpload`/`openTemplate` mount into the body so callers stay
- * decoupled from the @sdkwork component tree.
+ * `open`/`openPublishTemplate`/`openInstallTemplate` mount into the body so
+ * callers stay decoupled from the @sdkwork component tree. Publish and install
+ * are separate surfaces with separate state.
  */
 export interface DeployPublishService {
   /** Host adapter producing the deploy/drive clients and build/workspace ports. */
@@ -119,13 +120,17 @@ export interface DeployPublishService {
    */
   open(options?: { defaultDirectory?: string | undefined }): void
   /**
-   * Open the publish-as-template flow with an optional default source
-   * directory — the same resolution, picker fallback, and persistence chain
-   * the session header's 发布为模板 row runs.
-   * @param options - `{ defaultDirectory }` names the project whose manifest
-   *   resolves the linked app and records the template; omit for the session cwd.
+   * Open the publish-as-template dialog for one project directory.
+   * @param options - `{ defaultDirectory }` names the project whose `apps/`
+   *   tree is read; omit for the session cwd.
    */
-  openTemplate(options?: { defaultDirectory?: string | undefined }): void
+  openPublishTemplate(options?: { defaultDirectory?: string | undefined }): void
+  /**
+   * Open the install-from-template dialog for one project directory.
+   * @param options - `{ defaultDirectory }` names the project whose `apps/`
+   *   tree receives the default install; omit for the session cwd.
+   */
+  openInstallTemplate(options?: { defaultDirectory?: string | undefined }): void
   /**
    * Install one published template's latest artifact version into a picked
    * directory: download through the Drive content API, screen, and write the
@@ -222,6 +227,7 @@ export function sessionCwdOf(
 interface DeployHostUiWorkspace {
   pickDirectory(): Promise<string | null | undefined>
   listDirectory(path?: string): Promise<DeployWorkspaceListing>
+  createDirectory?(path: string, name: string): Promise<string>
   readTextFile(path: string, signal?: AbortSignal): Promise<string>
   writeTextFile(path: string, content: string): Promise<string>
 }
@@ -253,6 +259,16 @@ export function apply(ctx: ClientContext): void {
         pickDirectory: () => uiWorkspace.pickDirectory(),
         listDirectory: path => uiWorkspace.listDirectory(path),
         currentDirectory: () => sessionCwdOf(sessions?.list.getSnapshot() as DeploySessionsSnapshot | undefined),
+        ...(typeof uiWorkspace.createDirectory === 'function'
+          ? {
+            createDirectory: async (parent: string, name: string): Promise<string> => {
+              if (uiWorkspace.createDirectory === undefined) {
+                throw new Error('ui-workspace: createDirectory is unavailable')
+              }
+              return uiWorkspace.createDirectory(parent, name)
+            },
+          }
+          : {}),
         readTextFile: (path, signal) => uiWorkspace.readTextFile(path, signal),
         writeTextFile: (path, content) => uiWorkspace.writeTextFile(path, content),
         ...(templateInstallRemote === undefined
@@ -264,6 +280,20 @@ export function apply(ctx: ClientContext): void {
                 throw new Error(`sdkworkTemplateInstall.writeFile failed: ${result.error.code}: ${result.error.message}`)
               }
               return result.value
+            },
+            listTemplateFiles: async (directory) => {
+              const result = await templateInstallRemote.listFiles({ directory })
+              if (!result.ok) {
+                throw new Error(`sdkworkTemplateInstall.listFiles failed: ${result.error.code}: ${result.error.message}`)
+              }
+              return result.value
+            },
+            readTemplateFiles: async (directory, paths) => {
+              const result = await templateInstallRemote.readFiles({ directory, paths: [...paths] })
+              if (!result.ok) {
+                throw new Error(`sdkworkTemplateInstall.readFiles failed: ${result.error.code}: ${result.error.message}`)
+              }
+              return result.value.files
             },
           }),
       }
@@ -327,14 +357,14 @@ export function apply(ctx: ClientContext): void {
   const theme = deployPublishThemePort(ctx, themeRuntime)
   const locale = deployPublishLocalePort(ctx)
   // Expose the publish service so sibling surfaces (workspace/session row
-  // menus) can run the shared project publish flow and the shared
-  // publish-as-template flow with a default cwd. The flow resolves or creates
-  // the project's app from its manifest, then mounts the publish dialog;
-  // `openTemplate` mounts the template flow. Both mount into the body through
-  // an isolated React root so callers stay decoupled from the @sdkwork
-  // component tree and the slot renderer; `close` tears it down. A single root
-  // is reused across opens (the surfaces are modal and never on screen
-  // together, so a re-render swaps the content).
+  // menus) can run the shared project publish flow and the two template
+  // surfaces with a default cwd. The project flow resolves or creates the
+  // project's app from its manifest, then mounts the publish dialog;
+  // `openPublishTemplate` and `openInstallTemplate` mount independent dialogs.
+  // Each mounts into the body through an isolated React root so callers stay
+  // decoupled from the @sdkwork component tree and the slot renderer; `close`
+  // tears it down. A single root is reused across opens (the surfaces are
+  // modal and never on screen together, so a re-render swaps the content).
   let publishRoot: Root | undefined
   let publishContainer: HTMLDivElement | undefined
   const renderPublishSurface = (element: ReactElement): void => {
@@ -355,7 +385,7 @@ export function apply(ctx: ClientContext): void {
     publishContainer = undefined
   }
   const renderPublish = (defaultDirectory: string | undefined): void => {
-    renderPublishSurface(createElement(DeployProjectAppFlow, {
+    renderPublishSurface(createElement(DeployPublishEntry, {
       host,
       theme,
       locale,
@@ -366,19 +396,33 @@ export function apply(ctx: ClientContext): void {
       // notifications so an open app library re-scans without closing.
       onDone: () => { host.notifyChange() },
       onClose: closePublish,
-    } satisfies DeployProjectAppFlowProps))
+    } satisfies DeployPublishEntryProps))
   }
   const renderPublishTemplate = (defaultDirectory: string | undefined): void => {
     renderPublishSurface(createElement(PublishTemplateFlow, {
-      host, theme, locale, t: ctx.locale.bind(NS), directory: defaultDirectory,
+      host,
+      theme,
+      t: ctx.locale.bind(NS),
+      directory: defaultDirectory,
+      startSignIn: () => { iam.startSignIn?.() },
       onClose: closePublish,
-      onPublished: () => { closePublish() },
     } satisfies PublishTemplateFlowProps))
+  }
+  const renderInstallTemplate = (defaultDirectory: string | undefined): void => {
+    renderPublishSurface(createElement(InstallTemplateFlow, {
+      host,
+      theme,
+      t: ctx.locale.bind(NS),
+      directory: defaultDirectory,
+      startSignIn: () => { iam.startSignIn?.() },
+      onClose: closePublish,
+    } satisfies InstallTemplateFlowProps))
   }
   ctx.provide('deployPublish', {
     host, theme, locale,
     open: (options) => { renderPublish(options?.defaultDirectory) },
-    openTemplate: (options) => { renderPublishTemplate(options?.defaultDirectory) },
+    openPublishTemplate: (options) => { renderPublishTemplate(options?.defaultDirectory) },
+    openInstallTemplate: (options) => { renderInstallTemplate(options?.defaultDirectory) },
     installTemplate: async (options) => {
       // Login gate: the API answers a tokenless call with a raw 401; saying so
       // up front names the fix instead.
@@ -429,9 +473,9 @@ export function apply(ctx: ClientContext): void {
     }, DeployPublishAction),
   )
 
-  // The settings-menu popover's "我的应用部署" row: the shell owns the row and
-  // the drawer's visibility, this plugin owns the ledger behind it. The seat is
-  // declared by ui-sdkwork-settings-menu, so `slots.inject` waits for that
+  // The settings-menu popover's "我的应用" row: the shell owns the row and the
+  // drawer's visibility, this plugin owns the two ledgers behind it. The seat
+  // is declared by ui-sdkwork-settings-menu, so `slots.inject` waits for that
   // declaration rather than assuming an activation order.
   ctx.slots.inject('settings.myDeployments', () => ctx.slots.register({
     name: 'settings.myDeployments',

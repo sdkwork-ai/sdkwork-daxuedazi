@@ -22,10 +22,6 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
-    "./brand": {
-      "types": "./lib/types/brand.d.ts",
-      "default": "./lib/types/brand.js"
-    },
     "./message": {
       "types": "./lib/types/message.d.ts",
       "default": "./lib/types/message.js"
@@ -33,6 +29,10 @@
     "./assistant-stream": {
       "types": "./lib/types/assistant-stream.d.ts",
       "default": "./lib/types/assistant-stream.js"
+    },
+    "./model-catalog": {
+      "types": "./lib/types/model-catalog/index.d.ts",
+      "default": "./lib/types/model-catalog/index.js"
     },
     "./typert": {
       "types": "./lib/typert.host.d.ts",
