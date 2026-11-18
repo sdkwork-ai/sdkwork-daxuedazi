@@ -10,7 +10,7 @@ import { cosOperation } from './cos-operation.ts'
 import type { DesktopObjectDigest, DesktopPublishTransport } from './desktop-publish.ts'
 import { DesktopCosOperationError } from './desktop-publication-failure.ts'
 import type { DesktopSingleUploadPlan } from './desktop-upload-types.ts'
-import { resolveBrand } from './brand-manifest.mjs'
+import { resolveBrand } from '../scripts/brand-manifest.mjs'
 
 /** Verified file and destination; the caller closes the handle after publication. */
 export interface DesktopWebsiteInstaller {
