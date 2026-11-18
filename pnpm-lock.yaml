@@ -3156,6 +3156,15 @@ importers:
         specifier: ^0.11.0
         version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
+  ../sdkwork-inventory/sdks/sdkwork-inventory-backend-sdk/sdkwork-inventory-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: ^1.0.8
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: ^0.11.0
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
   ../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-admin-core:
     dependencies:
       '@sdkwork/knowledgebase-backend-sdk':
@@ -3929,6 +3938,15 @@ importers:
       '@sdkwork/sdk-common':
         specifier: ^1.0.8
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+
+  ../sdkwork-shop/sdks/sdkwork-shop-backend-sdk/sdkwork-shop-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: ^1.0.8
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: ^0.11.0
+        version: link:../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript:
     dependencies:

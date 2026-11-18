@@ -193,6 +193,16 @@
       "name": "sdkwork-search",
       "url": "https://github.com/sdkwork-ai/sdkwork-search.git",
       "commit": "8fa13266192289d4d64ccb57a48e17a8f3843a26"
+    },
+    {
+      "name": "sdkwork-inventory",
+      "url": "https://github.com/sdkwork-ai/sdkwork-inventory.git",
+      "commit": "f24caf829767fa9fa816d3043ee57abee87befeb"
+    },
+    {
+      "name": "sdkwork-shop",
+      "url": "https://github.com/sdkwork-ai/sdkwork-shop.git",
+      "commit": "a4a2e6864c12afd266705004917c17d4f9c42aa5"
     }
   ],
   "rustRepositories": [

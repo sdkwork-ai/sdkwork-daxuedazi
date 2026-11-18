@@ -543,12 +543,6 @@
       "@sdkwork/agents-backend-sdk": ["../sdkwork-agents/sdks/sdkwork-agents-backend-sdk/sdkwork-agents-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/agents-pc-agents/*": ["../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/*"],
       "@sdkwork/agents-pc-agents/components/CreateAgentModal": ["../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/components/CreateAgentModal.tsx"],
-      // FORK DIVERGENCE: the sibling checkout the release lane clones carries
-      // no `src/create.ts` — the curated entry exists only as an untracked
-      // file in a local workspace, so the alias must land on the fork's own
-      // restatement of that surface (see agentsCreateSurface.ts). The exact
-      // key wins over `@sdkwork/agents-pc-agents/*` in TypeScript, and
-      // tsdown.client.ts skips wildcard keys, so the divergence stays in force.
       "@sdkwork/agents-pc-agents/create": ["./packages/client/ui-sdkwork-markets/src/client/agentsCreateSurface.ts"],
       "@sdkwork/agents-pc-agents/pages/CreateAgentView": ["../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/pages/CreateAgentView.tsx"],
       "@sdkwork/agents-pc-agents/services/createKnowledgebaseSelectionAdapter": ["../sdkwork-agents/apps/sdkwork-agents-pc/packages/sdkwork-agents-pc-agents/src/services/createKnowledgebaseSelectionAdapter.ts"],
@@ -640,6 +634,7 @@
       "@sdkwork/course-app-sdk": ["../sdkwork-course/sdks/sdkwork-course-app-sdk/sdkwork-course-app-sdk-typescript/src/index.ts"],
       "@sdkwork/course-backend-sdk": ["../sdkwork-course/sdks/sdkwork-course-backend-sdk/sdkwork-course-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/deployments-app-sdk": ["../sdkwork-deployments/sdks/sdkwork-deployments-app-sdk/sdkwork-deployments-app-sdk-typescript/src/index.ts"],
+      "@sdkwork/deployments-backend-sdk": ["../sdkwork-deployments/sdks/sdkwork-deployments-backend-sdk/sdkwork-deployments-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/deployments-pc-commons": ["../sdkwork-deployments/apps/sdkwork-deployments-pc/packages/sdkwork-deployments-pc-commons/src/index.ts"],
       "@sdkwork/deployments-pc-console-core/*": ["../sdkwork-deployments/apps/sdkwork-deployments-pc/packages/sdkwork-deployments-pc-console-core/src/*"],
       "@sdkwork/deployments-pc-console-publishing": ["../sdkwork-deployments/apps/sdkwork-deployments-pc/packages/sdkwork-deployments-pc-console-publishing/src/index.ts"],
@@ -670,6 +665,7 @@
       "@sdkwork/iam-sdk-adapter": ["../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter/src/index.ts"],
       "@sdkwork/iam-sdk-ports": ["../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts"],
       "@sdkwork/iam-service": ["../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts"],
+      "@sdkwork/inventory-backend-sdk": ["../sdkwork-inventory/sdks/sdkwork-inventory-backend-sdk/sdkwork-inventory-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/knowledgebase-app-sdk": ["../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-app-sdk/sdkwork-knowledgebase-app-sdk-typescript/src/index.ts"],
       "@sdkwork/knowledgebase-backend-sdk": ["../sdkwork-knowledgebase/sdks/sdkwork-knowledgebase-backend-sdk/sdkwork-knowledgebase-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/knowledgebase-pc-knowledge": ["../sdkwork-knowledgebase/apps/sdkwork-knowledgebase-pc/packages/sdkwork-knowledgebase-pc-knowledge/src/index.ts"],
@@ -730,6 +726,7 @@
       "@sdkwork/search-app-sdk": ["../sdkwork-search/sdks/sdkwork-search-app-sdk/sdkwork-search-app-sdk-typescript/src/index.ts"],
       "@sdkwork/search-contracts": ["../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts/src/index.ts"],
       "@sdkwork/search-service": ["../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-service/src/index.ts"],
+      "@sdkwork/shop-backend-sdk": ["../sdkwork-shop/sdks/sdkwork-shop-backend-sdk/sdkwork-shop-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/skills-app-sdk": ["../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript/src/index.ts"],
       "@sdkwork/skills-backend-sdk": ["../sdkwork-skills/sdks/sdkwork-skills-backend-sdk/sdkwork-skills-backend-sdk-typescript/src/index.ts"],
       "@sdkwork/ui-pc-react": ["../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"],

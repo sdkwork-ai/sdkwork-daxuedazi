@@ -48,6 +48,11 @@ packages:
   - "../sdkwork-payment/sdks/sdkwork-payment-backend-sdk/sdkwork-payment-backend-sdk-typescript"
   - "../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript"
   - "../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript"
+  # `sdkwork-cloudrouter-pc`'s admin products import these two backend SDKs, so
+  # the release closure carries them as source members like every other sibling
+  # SDK it inlines.
+  - "../sdkwork-inventory/sdks/sdkwork-inventory-backend-sdk/sdkwork-inventory-backend-sdk-typescript"
+  - "../sdkwork-shop/sdks/sdkwork-shop-backend-sdk/sdkwork-shop-backend-sdk-typescript"
   - "../sdkwork-documents/apps/sdkwork-documents-pc/packages/sdkwork-documents-pc-commons"
   # `sdkwork-appstore-pc-developer-market` (the appstore family glob below)
   # declares these three documents PC packages as `workspace:*` dependencies;
