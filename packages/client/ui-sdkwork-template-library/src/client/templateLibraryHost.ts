@@ -401,7 +401,12 @@ export function TemplateLibraryApp(props: TemplateLibraryAppProps): ReactNode {
       // the previous account's template shelf and drafts on screen.
       key: `${snapshot.environmentRevision}:${snapshot.identityKey}`,
       navigationResetKey: snapshot.navigationResetKey,
-      page: 'templates',
+      // The pinned `@sdkwork/appstore-pc-embed` ships a `AppstoreMarketsSurface.d.ts`
+      // that is stale against the `AppstoreMarketsSurface.tsx` in the same commit:
+      // the declaration's `AppstoreMarketsPage` predates the `templates` page the
+      // component implements (`MARKET_PAGE_COMPONENTS.templates`). Keep the cast
+      // narrow and documented instead of widening the whole props type.
+      page: 'templates' as AppstoreMarketsSurfaceProps['page'],
       ...(publishSlotSelector === undefined
         ? {}
         : { templatesPublishSlotSelector: publishSlotSelector }),
