@@ -1022,7 +1022,7 @@
       "@botharness/core": ["./plugins/sdkwork-deepseekbot/packages/core/src"],
       "@botharness/ui": ["./plugins/sdkwork-deepseekbot/packages/client/src"],
       "@botharness/ui/client": ["./plugins/sdkwork-deepseekbot/packages/client/lib/client.js"],
-      "@botharness/ui/panels": ["./plugins/sdkwork-deepseekbot/packages/client/src/panel-api.ts"],
+      "@botharness/ui/panels": ["./plugins/sdkwork-deepseekbot/packages/client/src/panel-api.ts"]
       // END generated package aliases
     }
   }
