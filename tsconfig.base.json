@@ -400,6 +400,8 @@
       "@deepseek-ai/dsh-client-ui-sdkwork-drive/client": ["./packages/client/ui-sdkwork-drive/src/client"],
       "@deepseek-ai/dsh-client-ui-sdkwork-markets": ["./packages/client/ui-sdkwork-markets/src"],
       "@deepseek-ai/dsh-client-ui-sdkwork-markets/client": ["./packages/client/ui-sdkwork-markets/src/client"],
+      "@deepseek-ai/dsh-client-ui-sdkwork-template-library": ["./packages/client/ui-sdkwork-template-library/src"],
+      "@deepseek-ai/dsh-client-ui-sdkwork-template-library/client": ["./packages/client/ui-sdkwork-template-library/src/client"],
       "@deepseek-ai/dsh-client-ui-sdkwork-demand-hall": ["./packages/client/ui-sdkwork-demand-hall/src"],
       "@deepseek-ai/dsh-client-ui-sdkwork-demand-hall/client": ["./packages/client/ui-sdkwork-demand-hall/src/client"],
       "@deepseek-ai/dsh-client-ui-sdkwork-im-connector": ["./packages/client/ui-sdkwork-im-connector/src"],
@@ -516,7 +518,6 @@
       "@deepseek-ai/dsh-client-ui-sdkwork-settings-menu/sdkwork-icons": ["./packages/client/ui-sdkwork-settings-menu/src/client/sdkwork-icons.tsx"],
       "@deepseek-ai/dsh-client-ui-plugin-manager": ["./packages/client/ui-plugin-manager/src"],
       "@deepseek-ai/dsh-client-ui-plugin-market": ["./packages/client/ui-plugin-market/src"],
-      "@deepseek-ai/dsh-client-ui-settings-plugin-inventory": ["./packages/client/ui-settings-plugin-inventory/src"],
       "@deepseek-ai/dsh-client-ui-sdkwork-updater": ["./packages/client/ui-sdkwork-updater/src"],
       "@deepseek-ai/dsh-client-locale": ["./packages/client/locale/src"],
       "@deepseek-ai/dsh-client-web/injections": ["./packages/client/web/src/apply-injections.ts"],
@@ -814,6 +815,15 @@
       "@deepseek-ai/dsh-ptc-runtime-node/configuration": ["./packages/ptc-runtime/ptc-runtime-node/src/configuration.ts"],
       "@deepseek-ai/dsh-message-feedback/types": ["./packages/feedback/message-feedback/src/types.ts"],
       "@deepseek-ai/dsh-webhook/types": ["./packages/experimental/webhook/src/types.ts"],
+      // FORK DIVERGENCE: the SDKWork assistant submodule and brand subpaths have no upstream counterpart.
+      "@deepseek-ai/dsh-browser-use/brand": ["./packages/browser-use/browser-use/src/brand.ts"],
+      "@deepseek-ai/dsh-computer-use/brand": ["./packages/computer-use/computer-use/src/brand.ts"],
+      "@deepseek-ai/dsh-commands/brand": ["./packages/interaction/commands/src/brand.ts"],
+      "deepseekbot": ["./plugins/sdkwork-deepseekbot/packages/deepseekbot/src"],
+      "@botharness/core": ["./plugins/sdkwork-deepseekbot/packages/core/src"],
+      "@botharness/ui": ["./plugins/sdkwork-deepseekbot/packages/client/src"],
+      "@botharness/ui/client": ["./plugins/sdkwork-deepseekbot/packages/client/lib/client.js"],
+      "@botharness/ui/panels": ["./plugins/sdkwork-deepseekbot/packages/client/src/panel-api.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
@@ -1030,16 +1040,7 @@
       "@deepseek-ai/dsh-workflow-ptc": ["./packages/workflow/workflow-ptc/src"],
       "@deepseek-ai/dsh-working-directory": ["./packages/session/working-directory/src"],
       "@deepseek-ai/dsh-workspace": ["./packages/workspace/workspace/src"],
-      "@deepseek-ai/dsh-workspace-changes": ["./packages/deliverables/workspace-changes/src"],
-      // FORK DIVERGENCE: the SDKWork assistant submodule and brand subpaths have no upstream counterpart.
-      "@deepseek-ai/dsh-browser-use/brand": ["./packages/browser-use/browser-use/src/brand.ts"],
-      "@deepseek-ai/dsh-computer-use/brand": ["./packages/computer-use/computer-use/src/brand.ts"],
-      "@deepseek-ai/dsh-commands/brand": ["./packages/interaction/commands/src/brand.ts"],
-      "deepseekbot": ["./plugins/sdkwork-deepseekbot/packages/deepseekbot/src"],
-      "@botharness/core": ["./plugins/sdkwork-deepseekbot/packages/core/src"],
-      "@botharness/ui": ["./plugins/sdkwork-deepseekbot/packages/client/src"],
-      "@botharness/ui/client": ["./plugins/sdkwork-deepseekbot/packages/client/lib/client.js"],
-      "@botharness/ui/panels": ["./plugins/sdkwork-deepseekbot/packages/client/src/panel-api.ts"]
+      "@deepseek-ai/dsh-workspace-changes": ["./packages/deliverables/workspace-changes/src"]
       // END generated package aliases
     }
   }
