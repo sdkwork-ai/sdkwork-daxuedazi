@@ -91,7 +91,9 @@ function entryPaths(manifest: Record<string, unknown>): { index: string; client:
  * @returns the bound identifier, or undefined when no such binding exists.
  */
 function panelBinding(source: string): string | undefined {
-  return /(?:let|const|var)\s+([A-Za-z_$][\w$]*)\s*=\s*`agency-agents`/u.exec(source)?.[1]
+  // The minifier may fold this declaration into a preceding `var a=…,b=…` chain,
+  // so a leading `,` is as much a binding as the statement keyword.
+  return /(?:let|const|var|,)\s*([A-Za-z_$][\w$]*)\s*=\s*`agency-agents`/u.exec(source)?.[1]
 }
 
 /**

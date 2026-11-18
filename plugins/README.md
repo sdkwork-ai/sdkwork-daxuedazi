@@ -45,12 +45,11 @@ layer (`dsh-sdkwork-desktop-app`) inherits the disabled row, so no shipped build
 — Web or desktop, cloud or standalone — offers the surface or starts a channel
 connection.
 
-**Pin.** The gitlink is `c826bfa4`, the `v5.10.0` release commit. A pin has to
-be a revision where upstream's committed `lib/index.js` and `lib/client.js`
-and their sources agree, which matters because this repository runs those
-artifacts as shipped rather than rebuilding them. A release commit is the
-usual such point; `origin/main` currently carries eleven unreleased commits
-past this tag (with rebuilt `lib/` files), which this fork does not ship.
+**Pin.** The gitlink is `fc2ceab2`, upstream `main`'s tip: `v5.10.0` plus 41
+commits, each of which rebuilt the committed `lib/`. A pin has to be a revision
+where upstream's committed `lib/index.js` and `lib/client.js` and their sources
+agree, which matters because this repository runs those artifacts as shipped
+rather than rebuilding them.
 
 **Update.**
 
@@ -152,10 +151,10 @@ other's rows rather than editing either package.
 patch. Every page, route and service it owns goes with it; the left column's
 `ctx.sdkworkSidebar` registry is independent and keeps working.
 
-**Pin.** The gitlink is `b0e0fab`, the `v0.28.2` release commit (`dev` merged for
-the cold-cwd read fix). Unlike `dsh-im`, upstream does not commit `lib/`, so the
-pin must be a revision whose tagged source this repository's install builds
-successfully — prefer a release tag over a `dev` tip.
+**Pin.** The gitlink is `09b01dd6`, upstream `dev`'s tip (`v0.32.1` plus 47
+commits). Unlike `dsh-im`, upstream does not commit `lib/`, so the pin must be a
+revision whose source this repository's install builds successfully — prefer a
+release tag over a `dev` tip.
 
 **Update.**
 
@@ -221,7 +220,7 @@ the market panel's own switch keeps owning the directory. The two switches are
 not mirrored; the README of `packages/client/ui-sdkwork-skills` records that
 split under its known limitations.
 
-**Pin.** The gitlink is `4cda930`, the `v2.0.7` release commit (also upstream
+**Pin.** The gitlink is `6901769`, the `v2.1.0` release commit (also upstream
 `main`'s tip at pin time). Like `dsh-im`, upstream commits `lib/`, so this
 repository runs the shipped artifacts rather than rebuilding them, and the pin
 must be a revision where `lib/` and the sources agree — a release tag is that
@@ -302,11 +301,12 @@ entry. The strings the two packages share (the `mcp-connector` panel key, the
 `packages/bundle/web-app/tests/built-in-mcp-connector.spec.ts` fails if the
 shipped artifacts stop declaring any of them.
 
-**Pin.** The gitlink is `2057af5`, the `v0.2.94` release commit (also upstream
-`main`'s tip at pin time). Like `dsh-im` and `dsh-skill-market`, upstream commits
-`lib/`, so this repository runs the shipped artifacts rather than rebuilding
-them, and the pin must be a revision where `lib/`, `ui/` and the sources agree —
-a release tag is that point. Prefer a tag over a later `main` tip for exactly
+**Pin.** The gitlink is `11af59a`, the `v0.2.113` release commit (upstream `main`
+carries one registry-count sync past it, which ships no plugin change). Like
+`dsh-im` and `dsh-skill-market`, upstream commits `lib/`, so this repository runs
+the shipped artifacts rather than rebuilding them, and the pin must be a
+revision where `lib/`, `ui/` and the sources agree — a release tag is that point.
+Prefer a tag over a later `main` tip for exactly
 that reason.
 
 **Dependencies.** `pnpm install` links the workspace's own
@@ -401,11 +401,11 @@ off — or a person switches the plugin's own entry to settings-only — the chi
 states that the market is unavailable instead of framing a panel nobody
 registers.
 
-**Pin.** The gitlink is `3612123`, the SDKWork mirror's `main` tip at pin time
-(plugin version 1.2.26), whose committed `lib/` artifacts — `lib/index.js`,
-`lib/client.js`, `lib/remote.js` and the shared `lib/src-*.js` chunk — this
-repository runs as shipped rather than rebuilding them. The pin must be a
-revision where the committed build and the sources agree.
+**Pin.** The gitlink is `a2911f0`, the SDKWork mirror's `main` after merging
+MichengAI's `1.2.34` release (plugin version 1.2.34, rebuilt `lib/` from the
+merged sources) — `lib/index.js`, `lib/client.js`, `lib/remote.js` and the shared
+`lib/src-*.js` chunk, which this repository runs as shipped rather than rebuilding
+them. The pin must be a revision where the committed build and the sources agree.
 
 **Dependencies.** `pnpm install` links the plugin's peer closure to this
 workspace's own packages (its devDependencies name every `@deepseek-ai/dsh-*`
@@ -437,11 +437,11 @@ pnpm install
 pnpm exec vitest run packages/bundle/web-app/tests/built-in-expert-market.spec.ts
 ```
 
-The plugin's own online updater (插件 → `@michengai/dsh-agency-agents` → 在线更新)
-refreshes the roster inside a running install; the gitlink is what a *build*
-ships. Re-check the mirror for a new release before each release of this fork —
-nothing here notices one, so an unreviewed pin silently ships the previous
-roster.
+Upstream purged this plugin's own online updater in the 1.2.27 range — its routes,
+its settings and its client UI — so this fork ships no in-app roster refresh: the
+gitlink is the only thing a *build* delivers. Re-check the mirror for a new
+release before each release of this fork — nothing here notices one, so an
+unreviewed pin silently ships the previous roster.
 
 **Verification.**
 `packages/bundle/web-app/tests/built-in-expert-market.spec.ts` asserts the two
@@ -528,14 +528,14 @@ A third-party bundle needing one more seed key fails that suite with the
 specifier named; the fix is to add the module there, never to inline a second
 copy in the plugin.
 
-**Pin.** The gitlink is `9cba33d`, the fork's `1.8.4-sdkwork.3` commit (the
-default-hidden card plus the settings-menu account card, built in the same
-commit). Unlike the upstream-owned entries above, the pinned repository is the
-fork's own: it commits `lib/` here too — `lib/index.js`, `lib/client.js`,
-`lib/invariant.js` and the `lib/types` declarations — and this repository runs
-those artifacts rather than rebuilding them, so the pin must be a revision where
-the committed build and the sources agree. The plugin's own `dsh.compatibility`
-declares every host release through `0.2.2-rc.1`, which is this fork's version.
+**Pin.** The gitlink is `fd0468c`, the fork's `1.8.8-sdkwork.1` commit (upstream
+`v1.8.8` merged over the fork's default-hidden card and settings-menu account
+card, rebuilt in that commit). Unlike the upstream-owned entries above, the
+pinned repository is the fork's own: it commits `lib/` here too — `lib/index.js`,
+`lib/client.js`, `lib/invariant.js` and the `lib/types` declarations — and this
+repository runs those artifacts rather than rebuilding them, so the pin must be a
+revision where the committed build and the sources agree. The plugin's own
+`dsh.compatibility` declares every host release through `0.2.2-rc.3`.
 
 **Dependencies.** `plugins/*` joins `pnpm-workspace.yaml`, so `pnpm install`
 links the host-half peers (the `@deepseek-ai/dsh-*` packages this repository

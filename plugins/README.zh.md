@@ -22,7 +22,7 @@
 
 [`dsh-im`](https://github.com/xmanrui/dsh-im) 把 IM 机器人（飞书、微信、企业微信、钉钉、QQ、Slack、Telegram、Discord、WhatsApp、iMessage、Matrix）接入 harness，并新增一个 `设置 → IM机器人` 设置页。它由 `packages/bundle/web-app/cordis.patch.yml` 以 `xmanrui-dsh-im` 行组合进插件树，但该行带 `disabled: true`：**学伴AI 默认不启用这个插件**。桌面层（`dsh-sdkwork-desktop-app`）继承这个被禁用的行，因此无论 Web / 桌面运行时、cloud / standalone 部署，出厂构建都不提供该表面，也不会启动任何渠道连接。
 
-**Pin。** gitlink 为 `d2f2703d`，是上游 `main` 顶端、`v5.9.1` 之后十二个提交的提交。pin 必须选在上游已提交的 `lib/index.js`、`lib/client.js` 与其源码一致的修订上，这一点很重要，因为本仓库直接按交付形态运行这些产物而不重新构建。发布提交通常是这类时点；该顶端符合条件，因为 `v5.9.1` 之后的每个提交都随源码变更重建了已提交的 `lib/` 文件。
+**Pin。** gitlink 为 `fc2ceab2`，即上游 `main` 的顶端：`v5.10.0` 之后 41 个提交，每个都重建了已提交的 `lib/`。pin 必须选在上游已提交的 `lib/index.js`、`lib/client.js` 与其源码一致的修订上，这一点很重要，因为本仓库直接按交付形态运行这些产物而不重新构建。
 
 **更新。**
 
@@ -64,7 +64,7 @@ fork 的左栏（`packages/client/ui-sdkwork-sidebar`）通过 `ctx.sdkworkSideb
 
 **关闭它。** 在更上层的 patch 中禁用该行（`- id: better-sidebar` 加 `disabled: true`），或从 web-app patch 中删除该行。它拥有的每个页面、路由与 service 都随之移除；左栏的 `ctx.sdkworkSidebar` 注册表独立存在，继续工作。
 
-**Pin。** gitlink 为 `b0e0fab`，即 `v0.28.2` 发布提交（合并了 `dev` 以获得 cold-cwd 读取修复）。与 `dsh-im` 不同，上游不提交 `lib/`，因此 pin 必须是其 tag 源码能被本仓库 install 成功构建的修订——优先选择发布 tag 而非 `dev` 顶端。
+**Pin。** gitlink 为 `09b01dd6`，即上游 `dev` 的顶端（`v0.32.1` 之后 47 个提交）。与 `dsh-im` 不同，上游不提交 `lib/`，因此 pin 必须是其源码能被本仓库 install 成功构建的修订——优先选择发布 tag 而非 `dev` 顶端。
 
 **更新。**
 
@@ -87,7 +87,7 @@ pnpm exec vitest run packages/client/ui-sdkwork-sidebar/tests packages/bundle/we
 
 **设置管理。** 已安装的技能由 fork 的 Settings → 技能 页以其自己的 `技能市场` 分组列出，来源显示为 `SkillHub 技能市场`。该行按提供方（`skill-market`）分类，因为 Host 按设计把市场自己的 `source` 字符串上报为 `unknown`；提供方同时也是胜出事实，因为运行时注册（rank 250）压过同一目录的用户级文件系统副本（400）。页面的启用开关写入持久的 `disabledSkills` 抑制项，它在 rank 0 赢得目录合并——因此 Settings 可以在不移动文件的情况下关掉一个市场技能，而市场面板自己的开关继续拥有目录。两个开关不互为镜像；`packages/client/ui-sdkwork-skills` 的 README 在其已知限制下记录了这一分工。
 
-**Pin。** gitlink 为 `4cda930`，即 `v2.0.7` 发布提交（pin 时也是上游 `main` 的顶端）。与 `dsh-im` 一样，上游提交 `lib/`，因此本仓库按交付形态运行产物而不重建，pin 必须选在 `lib/` 与源码一致的修订上——发布 tag 就是这一时点。出于同样原因，优先选择 tag 而不是更新的 `main` 顶端。
+**Pin。** gitlink 为 `6901769`，即 `v2.1.0` 发布提交（pin 时也是上游 `main` 的顶端）。与 `dsh-im` 一样，上游提交 `lib/`，因此本仓库按交付形态运行产物而不重建，pin 必须选在 `lib/` 与源码一致的修订上——发布 tag 就是这一时点。出于同样原因，优先选择 tag 而不是更新的 `main` 顶端。
 
 **依赖。** 该包自身声明无运行时依赖；两半都是自包含 ESM，浏览器半只需要基线的 `react` / `@deepseek-ai/dsh-client-ui-primitives` 模块。宿主侧需要 Node >= 20、`ctx.webServer` 以及可选的 `ctx.skills` service（没有技能注册表的 profile 仍能提供市场数据并安装到磁盘，只是没有目录可发布）。浏览与安装需要到 `api.skillhub.cn` 的网络访问；启用、禁用与卸载不需要。
 
@@ -115,7 +115,7 @@ pnpm exec vitest run packages/client/ui-sdkwork-markets/tests
 
 **Connectors 标签页集成。** fork 的市场页（`packages/client/ui-sdkwork-markets`）把连接器嵌入为它的 Connectors 标签：该标签框入插件的面板页，并应答该页面向其宿主帧请求的两类消息——新连接默认落入的 Workspace 范围，以及示例 Prompt 打开的会话（经 Workspace 表面自己的 `uiWorkspace.startSession`）——并声明经 `ctx.sdkworkSidebar` 嵌入的插件侧栏行，连接器因此保持一个导航入口。两个包共享的字符串（`mcp-connector` 面板键、`/mcp-connector/ui/` 页面路径与帧消息名）位于 `packages/client/ui-sdkwork-markets/src/client/mcpConnectorPanel.ts`；出厂产物不再声明其中任何一个时 `packages/bundle/web-app/tests/built-in-mcp-connector.spec.ts` 会失败。
 
-**Pin。** gitlink 为 `2057af5`，即 `v0.2.94` 发布提交（pin 时也是上游 `main` 的顶端）。与 `dsh-im`、`dsh-skill-market` 一样，上游提交 `lib/`，因此本仓库按交付形态运行产物而不重建，pin 必须选在 `lib/`、`ui/` 与源码一致的修订上——发布 tag 就是这一时点。出于同样原因，优先选择 tag 而不是更新的 `main` 顶端。
+**Pin。** gitlink 为 `11af59a`，即 `v0.2.113` 发布提交（上游 `main` 之后多一个注册表计数同步提交，不含插件变更）。与 `dsh-im`、`dsh-skill-market` 一样，上游提交 `lib/`，因此本仓库按交付形态运行产物而不重建，pin 必须选在 `lib/`、`ui/` 与源码一致的修订上——发布 tag 就是这一时点。出于同样原因，优先选择 tag 而不是更新的 `main` 顶端。
 
 **依赖。** `pnpm install` 把 workspace 自己的 `@deepseek-ai/dsh-mcp-client`、`@deepseek-ai/dsh-storage-domain`、`@deepseek-ai/schemastery` 与 `@deepseek-ai/cordis` 链接进 `plugins/dsh-mcp-connector/node_modules`，并安装其三个运行时依赖（`cross-spawn`、`undici`、`zod`）。浏览目录需要访问该行 `catalogUrl` 指向的注册表；只要 bundled 卡片的部署把 `catalogUrl` 设为 `''`。连接需要所选提供方要求的一切，其凭据绝不离开本机。该行只在提供 `tools`、`storageDomain`、`loader` 与 `workspaceRegistry` 的 profile 中激活；面板页只在 Host 同时服务 `ctx.webServer` 的地方存在，因此纯对话部署保留工具但没有页面可框入。
 
@@ -144,7 +144,7 @@ pnpm exec vitest run packages/test-support/client-runtime/tests/assembly-bundle-
 
 **专家标签页集成。** fork 的市场页（`packages/client/ui-sdkwork-markets`）把专家标签作为双 chip 子根承载：云端目录在前，专家市场紧随其后。该 chip 就地绘制插件注册的 `main` 面板——本页渲染的是另一个包的组件，不重新实现名录——并声明经 `ctx.sdkworkSidebar` 嵌入的插件侧栏行，市场因此只有一个导航入口。面板用其注册注入的 props 绘制——插件的翻译器、其 `remote.agencyAgents` 客户端与团队选择回调——因为该注册目标为 `main` 席位，裸渲染会抛错；`mainPanelWatch` 每次注册只解析一次该面，由标签页传入。面板键（`agency-agents`）是两个包之间唯一的软契约：`packages/client/ui-sdkwork-markets/src/client/expertMarketPanel.ts` 中的 `EXPERT_MARKET_PANEL_ID`，由 `packages/bundle/web-app/tests/built-in-expert-market.spec.ts` 对出厂 `lib/client.js` 锁定。该行关闭时——或有人把插件自己的条目切为仅设置页——chip 会说明市场不可用，而不是框入一个无人注册的面板。
 
-**Pin。** gitlink 为 `3612123`，即 pin 时 SDKWork 镜像 `main` 的顶端（插件版本 1.2.26），其已提交的 `lib/` 产物——`lib/index.js`、`lib/client.js`、`lib/remote.js` 与共享的 `lib/src-*.js` chunk——由本仓库按交付形态运行而不重建。pin 必须选在已提交构建与源码一致的修订上。
+**Pin。** gitlink 为 `a2911f0`，即 SDKWork 镜像 `main` 合入 MichengAI `1.2.34` 发布后的提交（插件版本 1.2.34，`lib/` 由合并后的源码重建）——`lib/index.js`、`lib/client.js`、`lib/remote.js` 与共享的 `lib/src-*.js` chunk 由本仓库按交付形态运行而不重建。pin 必须选在已提交构建与源码一致的修订上。
 
 **依赖。** `pnpm install` 把插件的 peer 闭包链接到本 workspace 自己的包（其 devDependencies 按本仓库版本列出每个 `@deepseek-ai/dsh-*` 包，`linkWorkspacePackages` 把它们解析为成员），并安装其唯一运行时依赖 `zod`。其可选的 `@deepseek-ai/dsh` peer 否则会自动安装已发布线，并把第二套完整 harness 闭包拉进锁文件；`pnpm-workspace.yaml` 中的 `@michengai/dsh-agency-agents>@deepseek-ai/dsh` override 把这条边指向 `apps/cli`。该插件作为 workspace 成员只为依赖安装与加载而存在：`plugins/*` 仍在 tsdown 的构建 glob 之外，其 `lib/` 由它自己的仓库交付。
 
@@ -163,7 +163,7 @@ pnpm install
 pnpm exec vitest run packages/bundle/web-app/tests/built-in-expert-market.spec.ts
 ```
 
-插件自己的在线更新（插件 → `@michengai/dsh-agency-agents` → 在线更新）会在运行中的安装里刷新名录；gitlink 才是*构建*交付的东西。本 fork 每次发布前都要到镜像检查新发布——这里没有任何机制会自动感知，未审查的 pin 会静默交付旧名录。
+上游已在 1.2.27 一带移除这个插件自带的在线更新（路由、设置与客户端界面一起下线），因此本 fork 不再提供安装内刷新名录的入口：gitlink 才是*构建*交付的东西。本 fork 每次发布前都要到镜像检查新发布——这里没有任何机制会自动感知，未审查的 pin 会静默交付旧名录。
 
 **校验。** `packages/bundle/web-app/tests/built-in-expert-market.spec.ts` 断言组合后的两行、固定的条目位置、链接清单中的 `dsh.client` web 声明与 `dsh.bundle.patch`、全部三个交付入口产物、客户端的 `agency-agents` 主面板与侧栏行，并证明该检查会拒绝每种不完整形态。真实 web 名录经 `packages/test-support/client-runtime/tests/assembly-bundle-roster.client.spec.ts` 保持该行，`packages/client/ui-sdkwork-markets/tests` 覆盖专家标签页的两个 chip 与实时面板来源。
 
@@ -181,7 +181,7 @@ pnpm exec vitest run packages/bundle/web-app/tests/built-in-expert-market.spec.t
 
 **模块表。** 浏览器半把平台种子外部化——`react`、`react-dom`、`react/jsx-runtime`、`@deepseek-ai/dsh-client-ui-primitives` 与 `@deepseek-ai/dsh-client-store`——其余全部内联。前四个已在进程内 assembly 的 require 表中；`@deepseek-ai/dsh-client-store` 不在，因此 `packages/test-support/client-runtime/src/assembly/modules.ts` 现在列出它。需要再多一个种子键的第三方 bundle 会让该套件失败并点名该 specifier；修复方式是在那里添加模块，绝不是在插件里内联第二份副本。
 
-**Pin。** gitlink 为 `9cba33d`，即 fork 的 `1.8.4-sdkwork.3` 提交（默认隐藏的卡加设置菜单账号卡，在同一提交中构建）。与上文上游自有条目不同，被 pin 的仓库是 fork 自己的：它同样提交 `lib/`——`lib/index.js`、`lib/client.js`、`lib/invariant.js` 与 `lib/types` 声明——本仓库运行这些产物而不重建，因此 pin 必须选在已提交构建与源码一致的修订上。插件自己的 `dsh.compatibility` 声明支持到 `0.2.2-rc.1` 的每个宿主发布，也就是本 fork 的版本。
+**Pin。** gitlink 为 `fd0468c`，即 fork 的 `1.8.8-sdkwork.1` 提交（上游 `v1.8.8` 合并到 fork 的默认隐藏卡与设置菜单账号卡之上，在同一提交中重建）。与上文上游自有条目不同，被 pin 的仓库是 fork 自己的：它同样提交 `lib/`——`lib/index.js`、`lib/client.js`、`lib/invariant.js` 与 `lib/types` 声明——本仓库运行这些产物而不重建，因此 pin 必须选在已提交构建与源码一致的修订上。插件自己的 `dsh.compatibility` 声明支持到 `0.2.2-rc.3` 的每个宿主发布。
 
 **依赖。** `plugins/*` 加入 `pnpm-workspace.yaml`，因此 `pnpm install` 把宿主半的 peer（本仓库已构建的 `@deepseek-ai/dsh-*` 包）链接进 `plugins/dsh-ui-usage-billing/node_modules`，并安装其唯一运行时依赖 `clsx`；浏览器 bundle 内联 `clsx`，因此交付的页面不需要该目录里的任何东西。该包还声明自己的开发者闭包（`tsdown`、`vitest`、`@playwright/test`、`shiki`、`katex` 等），workspace 安装也会把它落地——这是把它作为成员而非从源码重建插件交付的代价，也是 pin 移动时锁文件变化的原因。浏览看板除宿主本身外无需网络；实时定价、余额与配额从**宿主**到达提供方的公开端点，抓取失败会回退到内置目录而不是显示零。
 
