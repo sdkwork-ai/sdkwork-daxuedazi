@@ -70,6 +70,9 @@ permissions:
 
 env:
   NODE_VERSION: '24'
+  # The Web build refuses the committed deploy-id placeholder; see release.yml
+  # for the variable contract.
+  SDKWORK_DEPLOY_APPLICATION_ID: ${{ vars.SDKWORK_DEPLOY_APPLICATION_ID }}
   # The installed application identity is the selected brand's `desktop.appId`
   # from `brands/<key>.json`; this lane packages the shipped brand (daxuedazi)
   # because it sets no DSH_BRAND. Do not pin DSH_DESKTOP_APP_ID here: a lane

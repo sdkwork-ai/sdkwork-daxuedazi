@@ -64,8 +64,6 @@ export interface SessionNode {
   /** In the registry-global archive set: shown grayed in place and not openable. */
   archived: boolean
   updatedAt: number
-  /** Session working directory; absent when the Host reports none or an empty path. */
-  cwd?: string
 }
 
 /** Session order selected by the Workspace browser. */

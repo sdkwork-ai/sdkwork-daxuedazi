@@ -24,6 +24,9 @@ concurrency:
 
 env:
   NODE_VERSION: '24'
+  # The Web build refuses the committed deploy-id placeholder; see release.yml
+  # for the variable contract.
+  SDKWORK_DEPLOY_APPLICATION_ID: ${{ vars.SDKWORK_DEPLOY_APPLICATION_ID }}
 
 jobs:
   resolve:

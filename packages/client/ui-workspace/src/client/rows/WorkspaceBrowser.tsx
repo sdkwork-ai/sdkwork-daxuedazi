@@ -258,7 +258,7 @@ type SessionTreeProps = Pick<
   'useSessionStatus' | 'startSession' | 'open' | 'forkSession' | 'pinSession' | 'unpinSession'
   | 'renderFactorySlot' | 'useContextMenuTarget' | 'useContextMenu'
   | 'insertWorkspaceBefore' | 't' | 'usePanelInfo'
-  | 'useSessionAccess' | 'useWorkspaceAccess'
+  | 'useSessionAccess' | 'useWorkspaceAccess' | 'requestWorkspaceAction'
 > & PropsRenderSlots<
   | 'sidebar.workspaces.session.row.action'
   | 'sidebar.session.row.trailing'
@@ -330,7 +330,7 @@ function SessionTree({
   list, useSessionStatus, startSession, open, forkSession, pinSession, unpinSession, workspaces, ungroupedSessionIds,
   rowState,
   workspaceReady, animationResetKey, usePanelInfo, useSessionAccess, useWorkspaceAccess,
-  onRenameRequest, onDeleteRequest, onSessionRenameRequest, onSessionArchive,
+  onSessionRenameRequest, requestWorkspaceAction, onSessionArchive,
   renderSlot, renderFactorySlot, useContextMenuTarget, useContextMenu,
   insertWorkspaceBefore,
   nestWorkspaces, groupExpansion, setGroupExpanded,
@@ -589,11 +589,11 @@ function SessionTree({
             : {
               rename: () => {
               /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                if (group.workspaceId !== undefined) onRenameRequest(group.workspaceId, group.label)
+                if (group.workspaceId !== undefined) requestWorkspaceAction(group.workspaceId, group.label, 'rename')
               },
               delete: () => {
               /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
-                if (group.workspaceId !== undefined) onDeleteRequest(group.workspaceId, group.label)
+                if (group.workspaceId !== undefined) requestWorkspaceAction(group.workspaceId, group.label, 'delete')
               },
             }}
         />
@@ -966,7 +966,7 @@ export function WorkspaceBrowser({
   open,
   requestSessionRename,
   notifyArchivedNotOpenable,
-  renameWorkspace, useWorkspaceActionRequest, settleWorkspaceAction,
+  renameWorkspace, useWorkspaceActionRequest, settleWorkspaceAction, requestWorkspaceAction,
   deleteWorkspace,
   insertWorkspaceBefore,
   forkSession,
@@ -1496,6 +1496,7 @@ export function WorkspaceBrowser({
                 useSessionStatus={useSessionStatus}
                 shortcuts={shortcuts}
                 onSessionRenameRequest={requestSessionRename}
+                requestWorkspaceAction={requestWorkspaceAction}
                 onSessionArchive={onSessionArchive}
                 forkSession={forkSession}
                 pinSession={pinSession}
