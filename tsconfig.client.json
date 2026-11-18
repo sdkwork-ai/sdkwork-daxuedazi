@@ -116,6 +116,12 @@
     { "path": "./packages/client/ui-sdkwork-git-pullrequest" },
     { "path": "./packages/client/ui-sdkwork-markets" },
     { "path": "./packages/client/ui-sdkwork-demand-hall" },
+    // FORK DIVERGENCE: upstream deleted this package, so the restore has to
+    // re-add its project here too. Without the reference the Client compiler
+    // never emits `lib/types`, and the Client tsdown pass then aborts with
+    // `[UNRESOLVED_ENTRY] Cannot resolve entry module lib/types/index.js` on
+    // every Desktop and container lane.
+    { "path": "./packages/client/ui-sdkwork-template-library" },
     { "path": "./packages/client/ui-sdkwork-im-connector" },
     { "path": "./packages/client/ui-sdkwork-assistant" },
     { "path": "./packages/client/ui-sdkwork-im/tsconfig.client.json" },

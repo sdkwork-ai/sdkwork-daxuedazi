@@ -32,7 +32,7 @@
 
 * **产物矩阵**：桌面 6 个目标（`win-x64`、`win-arm64`、`mac-x64`、`mac-arm64`、`linux-x64`、`linux-arm64`，未签名安装包）、容器镜像 `amd64` / `arm64` 离线归档，以及 Compose / Kubernetes 部署包；tag 触发 `Release (dsh artifacts)` 一次性打包并在同一 GitHub Release 发布。
 * **Web 构建身份**：`apps/web/vite.config.ts` 拒绝提交在仓库里的 `__SDKWORK_DEPLOY_APPLICATION_ID__` 占位符，因此 `release.yml`、`container-release.yml`、`desktop-package-target.yml` 统一从仓库变量 `SDKWORK_DEPLOY_APPLICATION_ID` 注入安装的部署应用 ID（公开客户端身份，不落到 secret）。
-* **host-only 包与 Client pass**：`ptc-runtime-node` 的 tsdown 配置以 Host 编译器产物（`lib/types/*.js`）为 entry，却同时参与 Client pass；一旦该目录在干净的 Linux 检出上不存在，Client bundle 门禁会以 `[UNRESOLVED_ENTRY] Cannot resolve entry module lib/types/index.js` 中止。现改用仓库既有的 `hostOnlyTsdownConfig` 约定，Client pass 跳过该包，Host pass 照旧发布四个 Node bundle。
+* **模板库重新入图**：`ui-sdkwork-template-library` 从 fork 侧恢复时漏了它在 `tsconfig.client.json` 里的 project reference，Client 编译器因此从不产出 `lib/types`，Client bundle 门禁在干净检出上以 `[UNRESOLVED_ENTRY] Cannot resolve entry module lib/types/index.js` 中止（6 个桌面目标与 2 个容器镜像同因失败）。补回引用后该包重新参与 Client 编译；顺带把同样以 Host 产物为 entry 的 `ptc-runtime-node` 改为仓库既有的 `hostOnlyTsdownConfig` 约定，Client pass 不再重复构建它的 Node bundle。
 * **本地验证**：Windows + Node 24.11.1 下 `pnpm run build:official` 12 个门禁全部通过（Host/Client 编译、bundle、Assistant 插件、Desktop bundle、Web build 等），产物记录 495 个 client artifact。
 
 ### 安装期可配置项
