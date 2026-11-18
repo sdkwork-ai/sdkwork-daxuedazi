@@ -1,3 +1,5 @@
+# Fleet-import placeholder (SDKWORK_WEBSERVER_SPEC.md §17 enabled=false):
+# upstream skeleton retained; servers are intentionally absent.
 profile = "standalone"
 
 [http]

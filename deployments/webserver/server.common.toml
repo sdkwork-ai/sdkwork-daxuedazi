@@ -2,6 +2,12 @@ specVersion = 1
 kind = "sdkwork.webserver.server"
 id = "birdcoder2"
 description = "sdkwork-birdcoder2 web server (application.public-ingress)"
+# Fleet-import opt-out (SDKWORK_WEBSERVER_SPEC.md §17 enabled=false placeholder):
+# this module's sidecar is an unmodified sdkwork-birdcoder2 clone — it redeclares
+# the same birdcoder2-dev.* domains and the same id, so importing it alongside
+# sdkwork-birdcoder2 fails merged-config validation on duplicate server_name
+# ownership. Re-enable only after the module owns its own domains and identity.
+enabled = false
 
 [nginx]
 enabled = true
