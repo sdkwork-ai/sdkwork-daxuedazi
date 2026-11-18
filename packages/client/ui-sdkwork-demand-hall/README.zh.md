@@ -1,5 +1,5 @@
 ---
-description: "SDKWork 需求大厅：位于模板库入口下方的侧栏快捷入口，以及经 @sdkwork/appstore-pc-embed 挂载应用商店需求大厅（发布与承接软件开发需求）的 keyed demand-hall 页面，并支持由需求创建并初始化项目。"
+description: "SDKWork 需求大厅：位于市场入口下方的侧栏快捷入口，以及经 @sdkwork/appstore-pc-embed 挂载应用商店需求大厅（发布与承接软件开发需求）的 keyed demand-hall 页面，并支持由需求创建并初始化项目。"
 kind: "package-reference"
 ---
 
@@ -10,7 +10,7 @@ kind: "package-reference"
 ## 摘要
 
 
-SDKWork 需求大厅。该浏览器插件在 `sidebar.actions` 槽位拥有 `demand-hall` 侧栏快捷入口（在新会话按钮区排在模板库入口之后，order 51 晚于 50），以及该入口打开的 keyed `mode.page` 贡献：以 code 表面内浮层的形式打开需求大厅，模式栏选择保持 `code`，需求大厅渲染在中栏，侧栏连同其工作区与会话列表保持挂载。页面经 `@sdkwork/appstore-pc-embed` 的单页表面（`page: 'demands'`）挂载 SDKWork 应用商店需求大厅，由共享的环境、IAM 与 locale 服务配置。
+SDKWork 需求大厅。该浏览器插件在 `sidebar.actions` 槽位拥有 `demand-hall` 侧栏快捷入口（在新会话按钮区排在市场入口之后，order 51 晚于 40），以及该入口打开的 keyed `mode.page` 贡献：以 code 表面内浮层的形式打开需求大厅，模式栏选择保持 `code`，需求大厅渲染在中栏，侧栏连同其工作区与会话列表保持挂载。页面经 `@sdkwork/appstore-pc-embed` 的单页表面（`page: 'demands'`）挂载 SDKWork 应用商店需求大厅，由共享的环境、IAM 与 locale 服务配置。
 
 该表面是一个出厂隐藏的侧栏行：入口、页面与设置 → 侧栏开关始终挂载。出厂隐藏偏好见[侧栏包](../ui-sdkwork-sidebar/README.zh.md)。
 
@@ -59,7 +59,7 @@ SDKWork 需求大厅。该浏览器插件在 `sidebar.actions` 槽位拥有 `dem
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>
 
-环境变化会重挂整个 SDKWork 运行时，而 IAM 与 locale 变化经宿主 props 传播 —— 改动适配器时保持这一分工。宿主适配器、主题外壳、tsdown CSS/别名机制与快捷入口行 CSS 都是与 `ui-sdkwork-markets`、`ui-sdkwork-template-library` 共享的、按包拷贝的既定模板（client-bundle 纯净性禁止跨插件值导入）；修改时须同步，四个侧栏入口才能保持同一套行几何、外边距与 hover 外观。本地构建从 `../sdkwork-appstore` 兄弟检出解析 `@sdkwork/appstore-pc-embed`，缺少该检出时本包无法构建。需求到项目的端口以窄结构面接收宿主服务，因此无需挂载运行时即可测试该流程。
+环境变化会重挂整个 SDKWork 运行时，而 IAM 与 locale 变化经宿主 props 传播 —— 改动适配器时保持这一分工。宿主适配器、主题外壳、tsdown CSS/别名机制与快捷入口行 CSS 都是与 `ui-sdkwork-markets` 共享的、按包拷贝的既定模板（client-bundle 纯净性禁止跨插件值导入）；修改时须同步，侧栏入口才能保持同一套行几何、外边距与 hover 外观。本地构建从 `../sdkwork-appstore` 兄弟检出解析 `@sdkwork/appstore-pc-embed`，缺少该检出时本包无法构建。需求到项目的端口以窄结构面接收宿主服务，因此无需挂载运行时即可测试该流程。
 
 </details>
 
