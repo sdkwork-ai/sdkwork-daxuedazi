@@ -7,6 +7,7 @@
  * composition lacks the deploy plugin or its install bridge.
  */
 import { useState, type ReactNode } from 'react'
+import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { DeploySearchIcon } from './icons.tsx'
 import css from './TemplateLibraryPage.module.css'
 
@@ -38,7 +39,7 @@ export interface DeployTemplatePort {
 }
 
 /** Translate seat of the plugin's namespace. */
-type Translate = (key: string, params?: Record<string, string>) => string
+type Translate = TranslateNS<'template-library'>
 
 /** One row's install lifecycle. */
 interface InstallState {

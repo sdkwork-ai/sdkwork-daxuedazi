@@ -16,6 +16,7 @@ const MODE_TITLE_KEYS: Record<WindowTitleMode, AppHeaderKey> = {
   image: 'mode.image',
   document: 'mode.document',
   appstore: 'mode.appstore',
+  'template-library': 'mode.templateLibrary',
   knowledge: 'mode.knowledge',
   course: 'mode.course',
   drive: 'mode.drive',

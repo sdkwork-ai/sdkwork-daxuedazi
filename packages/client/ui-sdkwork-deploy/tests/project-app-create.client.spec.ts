@@ -26,13 +26,16 @@ const STATE: ProjectAppState = {
 function app(overrides: Partial<AppResponse> = {}): AppResponse {
   return {
     id: 'app-uuid-1',
+    deployApplicationId: '1001',
     name: 'SDKWork Store',
     slug: 'sdkwork-store',
     appKind: 'SPA_WEB',
     appStatus: 'DRAFT',
     defaultEnvironment: 'development',
     ownerType: 'USER',
+    ownershipScope: 'USER',
     tenantId: '100001',
+    organizationId: '0',
     nginxConfigOverridden: false,
     createdAt: '2026-10-03T00:00:00.000Z',
     updatedAt: '2026-10-03T00:00:00.000Z',

@@ -22,6 +22,7 @@ export type AppModeId =
   | 'image'
   | 'document'
   | 'appstore'
+  | 'template-library'
   | 'knowledge'
   | 'course'
   | 'drive'

@@ -13,6 +13,7 @@ import css from './TemplateLibraryPage.module.css'
 import '../../../../../../sdkwork-appstore/apps/sdkwork-appstore-pc/src/index.css'
 import {
   AppstoreMarketsSurface,
+  type AppstoreMarketsSurfaceProps,
   type AppstoreMarketsSurfaceSession,
 } from '@sdkwork/appstore-pc-embed'
 import { getSdkworkGlobalTokenManager } from '@deepseek-ai/dsh-client-ui-sdkwork-iam/sdkwork-global-token-manager'
@@ -395,7 +396,7 @@ export function TemplateLibraryApp(props: TemplateLibraryAppProps): ReactNode {
       className: css.catalogScroll,
       scrollResetKey: snapshot.navigationResetKey,
     },
-    createElement(AppstoreMarketsSurface as FC, {
+    createElement(AppstoreMarketsSurface as FC<AppstoreMarketsSurfaceProps>, {
       // Remount on identity changes too: a signed-in token swap must not keep
       // the previous account's template shelf and drafts on screen.
       key: `${snapshot.environmentRevision}:${snapshot.identityKey}`,
