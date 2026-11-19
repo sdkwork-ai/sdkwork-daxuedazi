@@ -3,9 +3,11 @@
  * service (auth controller over the generated app client + settings mirror
  * + presentation dispatch), binds the settings-menu account seam to the IAM
  * session (`ctx.account.setSource`), registers the account app mode (rail
- * entry + full-page auth page), and hosts the modal sign-in surface on the
- * frame's floating overlay. The `ui-sdkwork-iam` settings scope (base URL, app id,
- * presentation, QR/OAuth toggles) lands from the Host settings document.
+ * entry + full-page auth page), hosts the modal sign-in surface on the
+ * frame's floating overlay, and contributes the credential fixes a Chat
+ * failure row offers (sign in, or open the BirdCoder card on the Models page).
+ * The `ui-sdkwork-iam` settings scope (base URL, app id, presentation, QR/OAuth
+ * toggles) lands from the Host settings document.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
@@ -17,6 +19,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 // Type-only: pulls ctx.account (the settings-menu seam) into this program.
 import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-settings-menu/client'
+// Type-only: pulls the Chat failure row's action seat into this program.
+import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 // Type-only: pulls ctx.locale into this program.
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { AccountRuntime } from '@deepseek-ai/dsh-client-ui-sdkwork-settings-menu/client'
@@ -36,7 +40,10 @@ import { createIamUiStore } from './iam-ui-store.ts'
 import { createIamSignOutStore } from './iam-sign-out-store.ts'
 import { IamService, type IamProfileSnapshot } from './iam-service.ts'
 import { startRelayCredentialMirror } from './relay-credential.ts'
-import { RelayProviderHint, type RelayProviderHintInjected } from './RelayProviderHint.tsx'
+import { RelayProviderHint, RELAY_PROVIDER, type RelayProviderHintInjected } from './RelayProviderHint.tsx'
+import {
+  ModelSettingsFixLink, SignInFixLink, type ModelSettingsFixInjected, type SignInFixInjected,
+} from './MissingCredentialActions.tsx'
 import { AccountModePage, toSdkworkLocale, type AccountModePageInjected } from './AccountModePage.tsx'
 import { readDesktopSignInPage } from './desktop-sign-in-page.ts'
 import { SignInOverlay, type SignInOverlayInjected } from './SignInOverlay.tsx'
@@ -139,19 +146,10 @@ export function apply(ctx: ClientContext): void {
   tryBootstrap()
   ctx.effect(() => env.subscribe(tryBootstrap), 'ui-sdkwork-iam: session bootstrap')
 
-  // The modal open/close actions bound by the overlay registration; the
-  // service dispatches through them from the settings-menu sign-in gesture.
+  // The sign-in overlay owns the modal state; the service receives that
+  // store's bound actions when the entry mounts (see the registration below),
+  // so a request recorded earlier has a surface to present.
   const uiStore = createIamUiStore()
-  let boundModal: BoundActions<typeof uiStore> | undefined
-  service.attachModal({
-    openEntry: () => { boundModal?.openEntry() },
-    openLogin: () => { boundModal?.openLogin() },
-    openBrowser: () => { boundModal?.openBrowser() },
-    close: () => { boundModal?.closeModal() },
-  })
-  // Answer a pending welcome request now that the overlay can mount; the call
-  // is a no-op once the request was consumed or no session restore is pending.
-  tryBootstrap()
 
   // The account mode page: full-page auth while signed out, the account
   // summary while signed in, the config notice while unconfigured.
@@ -195,7 +193,20 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     store: uiStore,
     inject: (actions): SignInOverlayInjected => {
-      boundModal = actions
+      // The store's bound actions exist only after this entry rendered, so the
+      // service may present through them from this point on. A launch request
+      // or a failed cold-start callback recorded before the mount is answered
+      // here, after the surface can actually open; deferring past the render
+      // keeps store writes out of React's render phase.
+      queueMicrotask(() => {
+        service.attachModal({
+          openEntry: actions.openEntry,
+          openLogin: actions.openLogin,
+          openBrowser: actions.openBrowser,
+          close: actions.closeModal,
+        })
+        tryBootstrap()
+      })
       return {
         controller: service.controller,
         onClose: () => { service.dismissSignIn() },
@@ -284,4 +295,32 @@ export function apply(ctx: ClientContext): void {
       signedIn: () => service.isSignedIn(),
     }),
   }, RelayProviderHint))
+
+  // The Chat failure row's credential fixes: the sentence the row already
+  // renders names both repairs, so each phrase becomes the gesture instead of
+  // the row growing a separate action strip. Sign in raises the product entry
+  // modal (the relay then uses the signed-in Auth Token); Configure opens
+  // Settings → Models on the BirdCoder card to store a key there. The settings
+  // shell provides the deep-link service; a composition without it keeps the
+  // plain sentence, since there is no Models page to open either.
+  ctx.slots.inject('conversation.chat.turn-error.sign-in', () => ctx.slots.register({
+    name: 'conversation.chat.turn-error.sign-in',
+    inject: (): SignInFixInjected => ({
+      signIn: () => { service.openSignInOverlay() },
+      hooks: {
+        signedIn: {
+          getSnapshot: () => service.isSignedIn(),
+          subscribe: listener => service.subscribe(listener),
+        },
+      },
+    }),
+  }, SignInFixLink))
+  ctx.slots.inject('conversation.chat.turn-error.model-settings', () => ctx.slots.register({
+    name: 'conversation.chat.turn-error.model-settings',
+    inject: (): ModelSettingsFixInjected => ({
+      configure: () => {
+        ctx.get('settingsMenu')?.openSection('models', { focusProvider: RELAY_PROVIDER })
+      },
+    }),
+  }, ModelSettingsFixLink))
 }

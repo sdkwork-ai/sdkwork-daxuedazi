@@ -58,10 +58,42 @@ function failureMessage(
   if (code === 'ACCOUNT_SIGN_IN_REQUIRED') return t('message.failure.accountSignInRequired')
   // The adapter's own message names an internal credential reference. The
   // product fixes are a sign-in (whose token the relay consumes) and a key on
-  // the Models page, so the row names both instead.
-  if (code === 'MISSING_CREDENTIAL') return t('message.failure.missingCredential')
+  // the Models page, so this copy names both instead. The failure row splits
+  // the same fragments around its repair seats; a retry detail has no seat, so
+  // it reads the phrases as plain text.
+  if (code === 'MISSING_CREDENTIAL') {
+    return t('message.failure.missingCredential.before')
+      + t('message.failure.missingCredential.signIn')
+      + t('message.failure.missingCredential.between')
+      + t('message.failure.missingCredential.models')
+      + t('message.failure.missingCredential.after')
+  }
   if (code === 'QUOTA' || code === 'ACCOUNT_QUOTA') return t('message.failure.quota')
   return code === 'AUTH' ? t('message.failure.auth') : message
+}
+
+/**
+ * The missing-credential sentence with its two repair seats in place: the
+ * sign-in and Models-page phrases become the feature-provided links exactly
+ * where the sentence names them, and stay plain text when no feature fills the
+ * seat, so the row reads as one piece of copy in every composition.
+ */
+function MissingCredentialCopy({ node, renderSlot, t }: {
+  node: TurnErrorNode
+  renderSlot: PropsRenderSlots<'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'>['renderSlot']
+  t: ChatViewSlotProps['t']
+}) {
+  const signIn = t('message.failure.missingCredential.signIn')
+  const models = t('message.failure.missingCredential.models')
+  return (
+    <>
+      {t('message.failure.missingCredential.before')}
+      {renderSlot('conversation.chat.turn-error.sign-in', { code: node.code, label: signIn }, { fallback: signIn })}
+      {t('message.failure.missingCredential.between')}
+      {renderSlot('conversation.chat.turn-error.model-settings', { code: node.code, label: models }, { fallback: models })}
+      {t('message.failure.missingCredential.after')}
+    </>
+  )
 }
 
 function ModelRetryItem({ node, active, t }: {
@@ -133,16 +165,21 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Persistent, turn-positioned feedback for a terminal failure. */
-function TurnErrorItem({ node, t }: {
+function TurnErrorItem({ node, t, renderSlot }: {
   node: TurnErrorNode
   t: ChatViewSlotProps['t']
+  renderSlot: PropsRenderSlots<'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'>['renderSlot']
 }) {
   return (
     <div className={css.turnErrorRow} role="status">
       <StateDot state="error" className={css.turnErrorDot} />
       <div className={css.turnErrorCopy}>
         <span className={css.turnErrorTitle}>{node.code === 'ACCOUNT_SIGNED_OUT' || node.code === 'INTERRUPTED' ? t('message.taskStopped') : t('message.turnError')}</span>
-        <span className={css.turnErrorMessage}>{failureMessage(node.message, node.code, t)}</span>
+        <span className={css.turnErrorMessage}>
+          {node.code === 'MISSING_CREDENTIAL'
+            ? <MissingCredentialCopy node={node} renderSlot={renderSlot} t={t} />
+            : failureMessage(node.message, node.code, t)}
+        </span>
       </div>
       {node.code !== undefined && node.code !== 'INTERRUPTED' && <code className={css.turnErrorCode}>{node.code}</code>}
     </div>
@@ -404,8 +441,12 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 })
 
 /** Terminal turn-error keyed Chat renderer. */
-export const TurnErrorNodeView = memo(function TurnErrorNodeView({ node, t }: ChatNodeViewProps<'turn-error'>) {
-  return <TurnErrorItem node={node.data} t={t} />
+export const TurnErrorNodeView = memo(function TurnErrorNodeView({
+  node, renderSlot, t,
+}: ChatNodeViewProps<'turn-error'> & PropsRenderSlots<
+  'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'
+>) {
+  return <TurnErrorItem node={node.data} renderSlot={renderSlot} t={t} />
 })
 
 /** Max-tokens turn-end notice keyed Chat renderer. */

@@ -71,6 +71,8 @@ type PanelProps = {
   rows: readonly SettingsSectionRow[]
   renderSlot: SettingsMenuRootComponentProps['renderSlot']
   activeId: string | undefined
+  /** Provider row the shell was asked to reveal in the active section. */
+  focusProvider: string | undefined
   onSelect: (id: string) => void
   onClose: () => void
 }
@@ -80,7 +82,7 @@ type PanelProps = {
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
+function SettingsPanel({ rows, renderSlot, activeId, focusProvider, onSelect, onClose }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
@@ -128,7 +130,14 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
             </button>
           </div>
           <div className={css.options}>
-            {active !== undefined && renderSlot('settings.section', { close: onClose }, { only: active })}
+            {active !== undefined && renderSlot(
+              'settings.section',
+              {
+                close: onClose,
+                ...focusProvider === undefined ? {} : { focusProvider },
+              },
+              { only: active },
+            )}
           </div>
         </div>
       </div>
@@ -146,19 +155,35 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     useSections, useOnboardingSteps, useTheme, useAccount, useSessions,
     renderSlot, setTheme, signIn, logout, checkForUpdates, updatesAvailable,
     openDesktopPlugins, desktopPluginsAvailable, desktopPluginsUsable, quitApp, quitAvailable, t,
+    useStore, actions,
   } = props
   const [menuOpen, setMenuOpen] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [activeId, setActiveId] = useState<string | undefined>(undefined)
+  const [apiKeysOpen, setApiKeysOpen] = useState(false)
+  const [officialAccountsOpen, setOfficialAccountsOpen] = useState(false)
+  const [miniProgramsOpen, setMiniProgramsOpen] = useState(false)
+  const [dnsOpen, setDnsOpen] = useState(false)
+  const [certificatesOpen, setCertificatesOpen] = useState(false)
+  const [myDeploymentsOpen, setMyDeploymentsOpen] = useState(false)
+  const [pointsRechargeOpen, setPointsRechargeOpen] = useState(false)
+  const [helpToastSeq, setHelpToastSeq] = useState(0)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
-  const close = useCallback(() => {
-    setDialogOpen(false)
-    setActiveId(undefined)
-  }, [])
-  const openSection = useCallback((id: string) => {
-    setActiveId(id)
-    setDialogOpen(true)
-  }, [])
+  // Dialog visibility, the active section, and the row a deep link asked to
+  // reveal live in the declared store: a surface outside the rail opens the
+  // same dialog through `ctx.settingsMenu`.
+  const { dialogOpen, activeId, focusProvider } = useStore(state => state)
+  const close = actions.close
+  const closeApiKeys = useCallback(() => { setApiKeysOpen(false) }, [])
+  const closeOfficialAccounts = useCallback(() => { setOfficialAccountsOpen(false) }, [])
+  const closeMiniPrograms = useCallback(() => { setMiniProgramsOpen(false) }, [])
+  const closeDns = useCallback(() => { setDnsOpen(false) }, [])
+  const closeCertificates = useCallback(() => { setCertificatesOpen(false) }, [])
+  const closeMyDeployments = useCallback(() => { setMyDeploymentsOpen(false) }, [])
+  const closePointsRecharge = useCallback(() => { setPointsRechargeOpen(false) }, [])
+  // The wallet card requests the purchase modal and dismisses the menu itself
+  // (the `close` contract above), so this stays a pure visibility write: the
+  // modal lives outside the popover and keeps rendering after the menu unmounts.
+  const openPointsRecharge = useCallback(() => { setPointsRechargeOpen(true) }, [])
+  const openSection = useCallback((id: string) => { actions.openSection(id) }, [actions])
 
   const rows = useSections(s => s)
   const theme = useTheme(s => s)
@@ -295,7 +320,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const onSelect = useCallback((id: string) => {
     setMenuOpen(false)
     if (id === 'settings') {
-      setDialogOpen(true)
+      actions.open()
     } else if (id === 'light' || id === 'dark' || id === 'system') {
       setTheme(id)
     } else if (id === 'check-updates') {
@@ -309,7 +334,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     } else if (id === 'logout') {
       logout()
     }
-  }, [setTheme, signIn, logout, checkForUpdates, openDesktopPlugins, quitApp])
+  }, [setTheme, signIn, logout, checkForUpdates, openDesktopPlugins, quitApp, actions])
 
   return (
     <>
@@ -346,7 +371,8 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
           rows={rows}
           renderSlot={renderSlot}
           activeId={activeId}
-          onSelect={setActiveId}
+          focusProvider={focusProvider}
+          onSelect={actions.select}
           onClose={close}
         />
       )}

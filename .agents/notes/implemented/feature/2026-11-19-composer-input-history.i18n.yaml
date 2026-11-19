@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-19-composer-input-history.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-19-composer-input-history.md
+/agent-note-composer-input-history:
+  en: 5a6c091d29310573
+  zh: 64a09aa8b8a34084
+/agent-note-composer-input-history/problem:
+  en: 30a53bed1272685d
+  zh: 67774390b2b1d024
+/agent-note-composer-input-history/decision:
+  en: 07a165ddf92a1b69
+  zh: efe2b27f8f28dc2a
+/agent-note-composer-input-history/alternatives-considered:
+  en: b16737a314f797da
+  zh: 3958a4380a13c1dd
+/agent-note-composer-input-history/consequences:
+  en: b2aec4f62f2446a6
+  zh: 4c5d26cd74987b77
+/agent-note-composer-input-history/testing:
+  en: 0ffd19c0e2b3fa5e
+  zh: f998a899a6321a39

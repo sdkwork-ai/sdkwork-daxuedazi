@@ -81,8 +81,15 @@ export function registerChatNodeRenderers(
     { name: 'conversation.chat.node', key: 'inherited-history', locale: NS }, InheritedHistoryNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'model-retry', locale: NS }, RetryNodeView))
-  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
-    { name: 'conversation.chat.node', key: 'turn-error', locale: NS }, TurnErrorNodeView))
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node',
+    key: 'turn-error',
+    locale: NS,
+    children: {
+      'conversation.chat.turn-error.sign-in': { kind: 'single', scope: 'session' },
+      'conversation.chat.turn-error.model-settings': { kind: 'single', scope: 'session' },
+    },
+  }, TurnErrorNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'turn-max-tokens', locale: NS }, TurnMaxTokensNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(

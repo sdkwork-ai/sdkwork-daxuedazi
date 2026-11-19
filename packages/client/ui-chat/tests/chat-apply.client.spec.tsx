@@ -125,10 +125,15 @@ describe('Chat apply wiring', () => {
       expect(notice.getSnapshot()).toBeNull()
       ;(face.dismissNotice as QuotaNoticeInjected['dismissNotice'])()
       expect(notice.getSnapshot()).toBeNull()
-      // The turn-error row carries neither a transient notice nor a chain child.
+      // The turn-error row carries neither a transient notice nor an inject
+      // face of its own; features repair its failure through the two repair
+      // seats it declares in place of the sentence's phrases.
       const row = b.runtime.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'turn-error')!
       expect(row.inject).toBeUndefined()
-      expect(row.children).toBeUndefined()
+      expect(row.children).toMatchObject({
+        'conversation.chat.turn-error.sign-in': { kind: 'single', scope: 'session' },
+        'conversation.chat.turn-error.model-settings': { kind: 'single', scope: 'session' },
+      })
     } finally {
       await b.runtime.dispose()
     }

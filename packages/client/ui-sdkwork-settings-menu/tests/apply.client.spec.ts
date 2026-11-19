@@ -8,6 +8,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-sdkwork-settings-menu/client'
 import { AccountRuntime } from '../src/client/account.ts'
+import { createSettingsMenuStore } from '../src/client/menu-store.ts'
 import { CloseLabel, HeaderContent, TriggerContent } from '../src/client/chrome.tsx'
 import { GeneralSection } from '../src/client/GeneralSection.tsx'
 import { SettingsDocumentAction } from '../src/client/SettingsDocumentAction.tsx'
@@ -231,6 +232,22 @@ describe('ui-sdkwork-settings-menu apply', () => {
     expect(listeners.size).toBe(0)
     expect(seen).toEqual([undefined, '学员', undefined])
     off()
+  })
+
+  it('provides the deep-link service over the same dialog store the shell renders', async () => {
+    const b = await bench()
+    declare(b.slots)
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const entry = b.slots.entries('mode.rail.settings')[0]!
+    const shell = entry.store as ReturnType<typeof createSettingsMenuStore>
+    const instance = shell.create()
+    // Registration and the service share one instance: the caller opens the
+    // same dialog the shell renders, on the section it asked for.
+    expect(instance.getSnapshot()).toEqual({ dialogOpen: false, activeId: undefined, focusProvider: undefined })
+    b.ctx.get('settingsMenu')!.openSection('models', { focusProvider: 'birdcoder' })
+    expect(instance.getSnapshot()).toEqual({ dialogOpen: true, activeId: 'models', focusProvider: 'birdcoder' })
+    instance.actions.close()
+    expect(instance.getSnapshot()).toEqual({ dialogOpen: false, activeId: undefined, focusProvider: undefined })
   })
 
   it('refreshes loaded document availability on reconnect without reading it eagerly', async () => {
