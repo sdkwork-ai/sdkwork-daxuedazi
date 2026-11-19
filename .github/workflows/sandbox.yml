@@ -145,14 +145,20 @@ jobs:
   # workflow's only darwin runner, so the platform-dependent unit expectations
   # (Seatbelt path canonicalization: /tmp IS /private/tmp — sandbox semantics,
   # hence this workflow rather than ci-master.yml) take their darwin branch only
-  # here. A job of its own so the seatbelt e2e leg keeps the matrix budget. The
-  # budget below is a completion ceiling, not a latency target: the full suite
-  # takes 16 minutes on a fast macos-latest runner and was under half done at
-  # 20 on the slowest observed.
+  # here. A job of its own so the seatbelt e2e leg keeps the matrix budget.
+  #
+  # The budget below is a completion ceiling, not a latency target. The upstream
+  # suite took 16 minutes on a fast macos-latest runner and was under half done
+  # at 20 on the slowest observed, which is why the ceiling was 60. The fork's
+  # matrix is larger than upstream's (the `sdkwork-birdcoder2-{pad,h5,pc}`
+  # families plus the SDKWork plugin packages), and run 44600532136 reached
+  # 2,505 of 3,434 spec files at the 60-minute mark — cancelled while still
+  # printing passes, never while stuck. 120 keeps the same headroom over the
+  # extrapolated ~82 minutes instead of truncating a green run.
   unit-darwin:
     name: unit tests (darwin parity, macos-latest)
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7.0.1
         with:

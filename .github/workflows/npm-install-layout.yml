@@ -1,0 +1,69 @@
+# Verify npm's physical package placement for two incompatible DSH releases.
+#
+# FORK DIVERGENCE: upstream runs this gate inside `release.yml`'s dependency
+# layout job, beside `verify-package-dependencies`, and lets it hold the pack
+# rehearsal. The graph is now 2.4M resolution work units, and npm needs well
+# over 42 minutes to walk it: run 44600532460 spent its full 42.5-minute hang
+# guard inside npm without finishing (the size budget itself never fired), and a
+# local run reproduced the same cut-off. Keeping that on the push path made
+# every push take an hour, so the gate lives here instead — once a day, plus
+# manual dispatch — and `Release (dsh)` keeps only the manifest-level policy
+# check, which answers in seconds.
+name: NPM install layout
+
+on:
+  schedule:
+    # 03:17 UTC daily; off the hour so it does not queue behind the cron burst.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PRIMARY_NODE_VERSION: '24'
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  layout:
+    name: npm placement across two DSH releases
+    runs-on: ubuntu-24.04
+    # The gate's own guard allows ~127 minutes of npm time; the job leaves room
+    # for install and checkout on top of that.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+          clean: true
+          # The check reads `git ls-tree` from release refs, so a shallow clone
+          # would make it fail closed on missing history rather than on layout.
+          fetch-depth: 0
+
+      - name: Clone SDKWork ecosystem siblings
+        uses: ./.github/actions/setup-sdkwork-siblings
+        with:
+          token: ${{ secrets.SDKWORK_GITHUB_TOKEN }}
+
+      - name: Configure runner-private caches
+        run: |
+          echo "NODE_COMPILE_CACHE=${{ runner.temp }}/node-compile-cache" >> "$GITHUB_ENV"
+          echo "npm_config_devdir=${{ runner.temp }}/node-gyp" >> "$GITHUB_ENV"
+          echo "TMPDIR=${{ runner.temp }}" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v5.0.0
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify npm install layout
+        run: pnpm run verify-npm-install-layout

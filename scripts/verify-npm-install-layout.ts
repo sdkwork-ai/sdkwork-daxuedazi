@@ -70,12 +70,21 @@ const SECONDS_PER_WORK_UNIT = 2.6e-4
 /**
  * Wall-clock guard for the npm child process. This is a hang guard, not the
  * gate's growth criterion: {@link MAX_RESOLUTION_WORK_UNITS} decides whether the
- * graph is too large to verify, and a runner up to four times slower than the
- * measured host cannot decide this gate's outcome. Derived from the budget so a
- * raised budget cannot silently shrink the guard's headroom.
+ * graph is too large to verify, and the guard only decides whether npm stopped
+ * making progress at all.
+ *
+ * FORK DIVERGENCE: the multiplier is 12, not upstream's 4. Run 44600532460
+ * (ubuntu-24.04) and a local Windows run both hit the old 2,548,000 ms guard
+ * with the graph still inside {@link MAX_RESOLUTION_WORK_UNITS} — the budget
+ * never fired, so what ran out was wall-clock, not headroom in the size check.
+ * At 12 the guard is 7,644,000 ms (~127 minutes), which is long enough for a
+ * runner several times slower than the calibration host to finish. The gate is
+ * also no longer part of the push-triggered `Release (dsh)` lane: it moved to
+ * `.github/workflows/npm-install-layout.yml`, because a once-a-day dependency
+ * placement check must not stretch every push by an hour.
  */
 const NPM_HANG_GUARD_MS = Math.round(
-  4 * MAX_RESOLUTION_WORK_UNITS * SECONDS_PER_WORK_UNIT * 1000,
+  12 * MAX_RESOLUTION_WORK_UNITS * SECONDS_PER_WORK_UNIT * 1000,
 )
 
 /** Synthetic incompatible versions used to expose cross-release placement errors. */
