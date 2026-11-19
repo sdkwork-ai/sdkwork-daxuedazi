@@ -125,4 +125,15 @@
 * **`settings.launcher` 声明了不渲染的子 slot**：上游新增的 `ui-account-notifications` 给 `settings.launcher.notifications` 指定 owner 契约后，`AccountMenu`（fork 侧不渲染通知条）注册时仍声明该 child，`tsc` 报 `TS2769`（`children declared but the component consumes no renderSlot`）。按 `06a97f4f97` 的既定决策删掉该声明；通知条仍由 `AccountNotices` 在 `settings.notice` 下渲染。
 * **`dsh-client-hmr` 丢 `dsh.client.external`**：其 `src/client/index.ts` 从 `@deepseek-ai/dsh-api-gateway/client` 取值，但 package.json 的 `dsh.client` 块在上游同步中丢了 `external` 声明，客户端打包的 purity 门禁因此拒绝该解析。补回后 client bundle 通过。
 
+第二轮（`Sandbox` 失败项）：
+
+* **`.gitignore` 的 staging 规则误伤子目录**：`.env.standalone.staging` / `.env.cloud.staging` 两条忽略规则没有根锚定，除仓库根的私有文件外，也把 `apps/sdkwork-birdcoder2-{pad,h5,pc}/.env.standalone.staging` 一起挡在版本库外——这三个文件由 `pnpm workflow:materialize-client-env` 生成、内容只有公开占位令牌，于是 CI checkout 后每个应用的 10 个环境矩阵文件都只剩 9 个。两条规则改为 `/` 锚定，三个文件一并入库。
+* **pad 环境矩阵测试仍按已废弃的三段命名断言**：`apps/sdkwork-birdcoder2-pad/tests/config/config.spec.ts` 自 pad 应用族引入后未再更新，仍要求 `.env.<profile>.<environment>.tablet-android`（`62cbdce890b` 已按 ENVIRONMENT_SPEC §5.1.7 取消第三段命名），并把公开面令牌 `SDKWORK_ACCESS_TOKEN` 当成秘密键。改为断言 10 个两段命名文件、`VITE_SDKWORK_RUNTIME_TARGET` 取仓库基线 `tablet-ipados`（Android 由 `scripts/tablet.mjs` 在调用时注入），公开令牌按 `alg: none` + `token_class: application` + `user_id: 0` + `permission_scope: ["iam:self"]` 白名单校验。
+
+部署期可覆盖的配置项（本版打包产物复核）：
+
+* 容器/Compose：监听端口 `DSH_WEB_PORT`、宿主发布地址 `DSH_PUBLISH_HOST`/`DSH_PUBLISH_PORT`、数据与工作区目录 `DSH_DATA_DIR`/`DSH_WORKSPACE_DIR`、对外权威 `DSH_TRUSTED_HOSTS`、镜像 `DSH_IMAGE`，以及 `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` 透传；入口会校验端口为 1–65535。
+* Kubernetes：`service.port`、`runtime.allowedOrigins`、`image.digest`（生产要求不可变摘要）、`secret.example.yaml` 提供的凭据键。
+* 数据库：按 SDKWork 规范统一走 `SDKWORK_DATABASE_*`（主机级档位 `config/host/postgres.env`，样例见 `config/host/postgres.env.example`）。本版本运行时无 Redis 依赖，因此没有 Redis 配置面。
+
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。
