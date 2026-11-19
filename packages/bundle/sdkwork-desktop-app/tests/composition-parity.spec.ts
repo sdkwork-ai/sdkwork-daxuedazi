@@ -8,6 +8,7 @@ import { composeEntries, loadOptionalPatches } from '@deepseek-ai/dsh-app-boot'
 
 const BASE_PATCH = fileURLToPath(new URL('../../base/cordis.patch.yml', import.meta.url))
 const WEB_PATCH = fileURLToPath(new URL('../../web-app/cordis.patch.yml', import.meta.url))
+const SDK_PATCH = fileURLToPath(new URL('../../sdk-app/cordis.patch.yml', import.meta.url))
 const DESKTOP_PATCH = fileURLToPath(new URL('../cordis.patch.yml', import.meta.url))
 const DESKTOP_PACKAGE = fileURLToPath(new URL('../package.json', import.meta.url))
 // The browser welcome step's own namespace constant. Read as source: a
@@ -138,5 +139,25 @@ describe('profile-backed settings namespaces', () => {
       expect(row?.disabled ?? false, `${layer} disables the ${namespace} row`).toBe(false)
       expect(rows.has(FORK_ONLY_SETTINGS_ROW), `${layer} carries fork-only row ${FORK_ONLY_SETTINGS_ROW}`).toBe(false)
     }
+  })
+})
+
+describe('Office engine ceilings across the profiles the packaging smoke runs', () => {
+  it('gives every Office-bearing profile the same per-operation ceiling', () => {
+    // Two different profiles run the same Desktop packaging smoke: the prepared
+    // runtime (base + sdk-app) and the desktop surface (base + web-app +
+    // sdkwork-desktop-app). A ceiling raised for one of them alone leaves the
+    // other lane failing on the same operation — exactly what run 44630482793
+    // recorded, where the sdk-app raise let the prepared-runtime smoke pass
+    // while the desktop surface still timed out on the XLSX image render. One
+    // release machine, one ceiling: keep the two patch layers equal.
+    const ceiling = (patches: readonly string[], layer: string): unknown => {
+      const row = compose(patches).get('office-kit')
+      expect(row, `${layer} has no office-kit row`).toBeDefined()
+      const config = row?.config as { timeoutMs?: unknown } | undefined
+      expect(typeof config?.timeoutMs, `${layer} office-kit ceiling is not a number`).toBe('number')
+      return config?.timeoutMs
+    }
+    expect(ceiling([BASE_PATCH, WEB_PATCH], 'web-app')).toBe(ceiling([BASE_PATCH, SDK_PATCH], 'sdk-app'))
   })
 })
