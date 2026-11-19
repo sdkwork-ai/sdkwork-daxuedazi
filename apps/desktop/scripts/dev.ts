@@ -36,15 +36,8 @@ import { INSECURE_TLS_ELECTRON_SWITCH, ONLINE_REQUEST_LOG_VARIABLE, PRODUCTION_G
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
 const BUILD_ROOT = join(APP_ROOT, '.desktop-build')
-const DEVELOPMENT_ROOT = join(BUILD_ROOT, 'development')
 /** Local application-data subdirectory holding the staged Electron mirror of this checkout. */
 const STAGED_ELECTRON_DIRECTORY = join('dsh-desktop-dev-electron', 'electron-dist')
-/** Home, npm project and browser data of the `--online` debug lane, kept out of the development state. */
-const ONLINE_ROOT = join(BUILD_ROOT, 'online')
-/** Web port the development shell serves; the packaged shell keeps the default, so both run at once. */
-const DEVELOPMENT_HOST_WEB_PORT = 19388
-/** Web port the `--online` debug shell serves, so it runs beside a development shell. */
-const ONLINE_HOST_WEB_PORT = 19389
 /** Request logger preloaded into the `--online` Electron child through `NODE_OPTIONS`. */
 const ONLINE_REQUEST_LOG_MODULE = join(APP_ROOT, 'scripts', 'online-request-log.cjs')
 
@@ -263,6 +256,7 @@ async function launchElectron(
   if (process.platform === 'darwin') {
     const executable = prepareDevelopmentApp({ electron, appRoot: APP_ROOT, directory: directories.stateRoot,
       home: laneHome.home, dshDir: directories.project, webDist, userData, webPort, mainPort, rendererPort, hostPort,
+      openDevtools: launchEnvironment.DSH_DESKTOP_OPEN_DEVTOOLS! })
     await runElectron(executable, [], APP_ROOT, launchEnvironment)
     return
   }
