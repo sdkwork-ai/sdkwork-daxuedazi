@@ -277,7 +277,6 @@
     "@botharness/ui": "workspace:*",
     "deepseekbot": "workspace:*",
     "@deepseek-ai/dsh-client-ui-file-drag": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-context-menu": "workspace:*",
     "@deepseek-ai/dsh-client-ui-file-actions": "workspace:*",
     "@deepseek-ai/dsh-client-ui-account-notifications": "workspace:*",
     "@deepseek-ai/dsh-office-kit": "workspace:*",

@@ -126,12 +126,7 @@
     "@types/picomatch": "^4.0.3",
     "clsx": "^2.1.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@deepseek-ai/dsh-timeout": "workspace:*",
-    "@deepseek-ai/dsh-session-projection-cache": "workspace:*",
-    "@deepseek-ai/dsh-session-query": "workspace:*",
-    "@deepseek-ai/dsh-api-remote-access": "workspace:*",
-    "@types/picomatch": "^4.0.3"
+    "react-dom": "^18.2.0"
   },
   "files": [
     "locale/*.json",
