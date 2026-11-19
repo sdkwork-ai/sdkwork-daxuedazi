@@ -319,7 +319,11 @@ export function apply(ctx: Context): void {
   }
   ctx.remoteAccess.whenAccess('account/watch', () => ctx.slots.inject('settings.launcher', () => ctx.slots.register({
     name: 'settings.launcher', locale: 'settings.account', inject: () => operations,
-    children: { 'settings.launcher.notifications': { kind: 'single', scope: 'root' } },
+    // The launcher renders no notifications strip, so it declares no child:
+    // `settings.launcher.notifications` belongs to `AccountNotices` below, and
+    // a declared-but-unrendered child is a type error once the slot names an
+    // owner contract (upstream's `ui-account-notifications`). This is the same
+    // fork decision recorded for the AccountMenu change in 06a97f4f97.
   }, AccountMenu)))
   ctx.remoteAccess.whenAccess('account/watch', () => ctx.slots.inject('settings.notice', () => ctx.slots.register({
     name: 'settings.notice', inject: () => operations,

@@ -114,4 +114,15 @@
 * 冲突按 fork-first 规则逐项解决：第一轮 92 个（79 个仅版本行的 `package.json` 保留 rc.7，13 个真实冲突合并双方行为，`tsconfig.base.json` 自动合入产生的两条同值重复映射已去重）；第二轮 6 个（`.gitmodules` 的 mcp-connector 版本注释、`agent.workflow.json` 与 `scripts/sdkwork-sources.manifest.json` 的 cloudrouter pin、`pnpm-lock.yaml` 的 5 处 rc.1 陈旧块与 zod `4.4.3`→`4.6.6`、`plugins/dsh-mcp-connector` 子模块 gitlink、本 changelog）。无文件误删：本轮上游未删除任何文件，仅新增一条 `tsconfig.base.json` 映射。
 * 子模块 pin 校验（前移方向均为 fork 现有指针的后代，无 fork 改动丢失）：`dsh-market` `e8dc352` → `b7d62fd`；`dsh-mcp-connector` `11af59ab`（v0.2.113）→ `98f1f38`（v0.2.117）；`dsh-ui-usage-billing` → `fd0468c`（1.8.8-sdkwork.1）；`sdkwork-deepseekbot` → `05d0e36b`。`sdkwork-cloudrouter` pin `07ff220` → `1c3763e8` 同为后代，且 `1c3763e8` 才含 `pc-console-vm-instances` 包。
 
+##### fork 侧发布收口：打包链路与 CI 修复（2026-11-20）
+
+本版按 `sdkwork-daxuedazi-v0.2.2-rc.7` 重新打包并更新发布：tag 前移到本次同步后的 `main`，`container-release.yml` 重新产出全部 31 个资产（6 个桌面目标、2 个容器镜像、Compose/K8s bundle、`SHA256SUMS` 与 `latest*.yml`），GitHub Release 正文就是本节内容（不累积历史版本）。打通链路时修掉的问题：
+
+* **每条 lane 首步 `pnpm install --frozen-lockfile` 失败（`ERR_PNPM_OUTDATED_LOCKFILE`）**：根 `package.json` 的三个 workspace 依赖（`@deepseek-ai/dsh-mcp-manager`、`dsh-linear`、`dsh-notion`）只进了 manifest、没有进 lockfile 的根 importer；同时 `pnpm-workspace.yaml` 的 `dshmarket>` 三条 override 仍钉在 `0.2.2-rc.5`，而 workspace 已到 `0.2.2-rc.7`，安装报 `ERR_PNPM_NO_MATCHING_VERSION_INSIDE_WORKSPACE`。override 升到 rc.7 并重算 lockfile 后 `pnpm install --frozen-lockfile` 通过——这是 `CI master`、`Release (dsh)`、`Release (vendor)`、`Sandbox`、`E2E`、`Node Addon System` 六条 workflow 全部失败的同一个根因。
+* **`agent.workflow.json` 重复依赖**：`sdkwork-shop` 与 `sdkwork-inventory` 在 `dependencies[]` 各出现两次（合并双方各留一份，其中 inventory 那份还是旧 ref `f8b294e8`），`verify-sdkwork-dependencies` 直接失败、打包第一步即中止。按 manifest 去重为 42 条，每条 ref 与 `scripts/sdkwork-sources.manifest.json` 逐一相等。
+* **`desktop-package-target.yml` 工作流文件非法**：job 级 `env` 里 `SDKWORK_DEPLOY_APPLICATION_ID` 写了两次（一次读 `vars`、一次写死公开 app id），重复键让 GitHub 判定文件非法，六条桌面 lane 全部在启动前被拒（run 显示 0 秒失败）。合并为一条 `${{ vars.SDKWORK_DEPLOY_APPLICATION_ID || 'app_01a18…' }}`，变量缺省时仍有可用的公开身份。
+* **`SessionNode` 缺 `cwd`**：`ui-workspace` 的类型定义在上游同步中丢了 `cwd?: string`，而 `Rows.tsx` 用 `node.cwd` 渲染行菜单与悬停卡，`tsc` 报 3 处 `TS2339`。补回该字段（构造处本来就在写入 `cwd`，只是接口没声明）。
+* **`settings.launcher` 声明了不渲染的子 slot**：上游新增的 `ui-account-notifications` 给 `settings.launcher.notifications` 指定 owner 契约后，`AccountMenu`（fork 侧不渲染通知条）注册时仍声明该 child，`tsc` 报 `TS2769`（`children declared but the component consumes no renderSlot`）。按 `06a97f4f97` 的既定决策删掉该声明；通知条仍由 `AccountNotices` 在 `settings.notice` 下渲染。
+* **`dsh-client-hmr` 丢 `dsh.client.external`**：其 `src/client/index.ts` 从 `@deepseek-ai/dsh-api-gateway/client` 取值，但 package.json 的 `dsh.client` 块在上游同步中丢了 `external` 声明，客户端打包的 purity 门禁因此拒绝该解析。补回后 client bundle 通过。
+
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。

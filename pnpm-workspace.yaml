@@ -344,9 +344,16 @@ overrides:
   # keeps a second harness closure (and its peer graph) out of the lockfile.
   'dshmarket>@deepseek-ai/cordis': 'link:vendor/cordis'
   'dshmarket>@deepseek-ai/schemastery': 'link:vendor/schemastery'
-  'dshmarket>@deepseek-ai/dsh-settings': '0.2.2-rc.5'
-  'dshmarket>@deepseek-ai/dsh-client-runtime': '0.2.2-rc.5'
-  'dshmarket>@deepseek-ai/dsh-client-ui-primitives': '0.2.2-rc.5'
+  # These three must name the version THIS workspace carries, exactly like the
+  # agency-agents rows above: an override replaces the plugin's own range with
+  # the literal specifier recorded in the lockfile, and pnpm then resolves it
+  # inside the workspace. A pin left behind by a version bump matches no member
+  # and the install dies with `ERR_PNPM_NO_MATCHING_VERSION_INSIDE_WORKSPACE`
+  # before any build step runs (this file carried `0.2.2-rc.5` while the
+  # workspace had already moved to `0.2.2-rc.7`).
+  'dshmarket>@deepseek-ai/dsh-settings': '0.2.2-rc.7'
+  'dshmarket>@deepseek-ai/dsh-client-runtime': '0.2.2-rc.7'
+  'dshmarket>@deepseek-ai/dsh-client-ui-primitives': '0.2.2-rc.7'
   # Two upstream devDependencies of the fork name packages this checkout no
   # longer carries (`@deepseek-ai/dsh-invariants`,
   # `@deepseek-ai/dsh-client-ui-settings-plugins`). Nothing in the plugin's
