@@ -20,14 +20,14 @@ const OFFICE_SKILLS = ['office', 'office-docx', 'office-pptx', 'office-xlsx']
  * Client budget for one Office call in the packaging smoke.
  *
  * It has to sit above the profile's per-operation LibreOffice ceiling
- * (`timeoutMs: 600000` in `packages/bundle/sdk-app/cordis.patch.yml` and its
- * web-app twin): at 240 s this side aborted a conversion the engine was still
+ * (`timeoutMs: 1200000` in `packages/bundle/sdk-app/cordis.patch.yml`): at 240 s
+ * this side aborted a conversion the engine was still
  * allowed to finish, so the Intel macOS lane failed with a bare
  * `TimeoutError: The operation was aborted due to timeout` after the ceiling
  * had already been raised. The engine owns the failure answer; the client only
- * has to outwait it.
+ * has to outwait it, so it carries a minute of slack over the ceiling.
  */
-const OFFICE_CALL_TIMEOUT_MS = 900_000
+const OFFICE_CALL_TIMEOUT_MS = 1_260_000
 
 /**
  * Require each bundled Office skill to be listed and loaded with a nonempty body.
@@ -46,7 +46,7 @@ export function assertOfficeSkillsLoadable(results: ReadonlyArray<{ readonly nam
  * `fetch` cannot carry these two routes: undici fails a request whose response
  * headers have not arrived within 300 s and reports it as a bare
  * `TypeError: fetch failed`, so `OFFICE_CALL_TIMEOUT_MS` never gets to decide
- * and the engine's own ceiling (`timeoutMs: 600000`) never gets to answer — the
+ * and the engine's own ceiling (`timeoutMs: 1200000`) never gets to answer — the
  * Intel macOS lane failed exactly that way while the engine was still
  * converting. `node:http` has no default timeout, so this client budget is the
  * only bound and a slow runner reports what actually happened.

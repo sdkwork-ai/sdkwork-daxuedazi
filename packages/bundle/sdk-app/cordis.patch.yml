@@ -37,13 +37,16 @@
       name: '@deepseek-ai/dsh-office-kit'
       config:
         outputDirectory: !!js dshHomePath('office-kit', 'outputs')
-        # Ceiling for one LibreOffice operation, not a target. Raised twice for
-        # the Intel macOS release runner: 60 s was exceeded by an XLSX
-        # recalculation, then 180 s by first an image render and then a
-        # conversion of the one-row/one-slide smoke fixtures that the arm64 lane
-        # finishes with every operation in 17 s. The ceiling bounds a hung
-        # engine; cancellation still follows the caller's signal.
-        timeoutMs: 600000
+        # Ceiling for one LibreOffice operation, not a target. Raised for the
+        # Intel macOS release runner three times: 60 s was exceeded by an XLSX
+        # recalculation, 180 s by first an image render and then a conversion of
+        # the one-row/one-slide smoke fixtures that the arm64 lane finishes with
+        # every operation in 17 s, and 600 s by the XLSX conversion in run
+        # 44620605332 (the same lane passed DOCX and PPTX, then spent the whole
+        # ceiling in XLSX). The ceiling bounds a hung engine; cancellation still
+        # follows the caller's signal, and the desktop smoke client budget is
+        # kept above it so the engine owns the failure answer.
+        timeoutMs: 1200000
 
     # The Office tools stay registered without Kit; calls report the service's unavailable error.
     - id: tool-office

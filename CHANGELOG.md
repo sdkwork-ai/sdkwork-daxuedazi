@@ -133,6 +133,7 @@
 * **`dsh-better-sidebar` 子模块落后一个提交**：`plugins/dsh-better-sidebar` 跟的是 `dev`，落后 `8d48469a`——该提交去掉了 Session Sources 目录项里 `dsh-better-sidebar@0.29.0` 那一半安装命令，否则会在 web profile 已加载侧栏的前提下再装一份。其余七个子模块（`dsh-im`/`dsh-market`/`dsh-mcp-connector`/`dsh-skill-market`/`dsh-ui-usage-billing`/`sdkwork-deepseekbot`/`sdkwork-dsh-agents`）逐一比对各自分支头，behind=0。
 * **`Sandbox` 的 darwin 单测在 60 分钟上限处被截断**：上游套件在快跑机器上 16 分钟完成、最慢观测到 20 分钟过半，所以原上限是 60。本 fork 的矩阵比上游大（`sdkwork-birdcoder2-{pad,h5,pc}` 三族加 SDKWork 插件包），run 44600532136 到 60 分钟时已通过 2,505 / 3,434 个 spec 文件、仍在持续打 ✓（不是卡死），按外推约需 82 分钟。上限提到 120，保留同样的余量而不是把一次绿色运行截断。
 * **`Release (dsh)` 的 `verify-npm-install-layout` 已成死门禁**：run 44600532460 在 npm 里耗满 42.5 分钟的挂起守卫仍未走完，本地复跑同样在 42m55s 处触发同一守卫；而 `MAX_RESOLUTION_WORK_UNITS` 的规模判定自始至终没有触发——耗尽的不是图大小的余量，是墙钟时间。这个检查按设计要在两个互不兼容的 DSH 版本间走 2.4M 个工作单元的 npm 解析，图上去了就不可能几分钟跑完。处理：守卫倍数由 4 提到 12（≈127 分钟，规模预算不变，仍由 `MAX_RESOLUTION_WORK_UNITS` 决定图是否过大），并把该门禁从每次 push 的 `Release (dsh)` 迁到独立的 `npm-install-layout.yml`（每日 03:17 UTC + 手动触发，job 上限 240 分钟）。`Release (dsh)` 只保留秒级的清单级依赖策略校验。
+* **mac-x64 桌面目标在 XLSX 转换上撞上引擎上限**：run 44620605332 里六个桌面目标中五个成功（win-x64、win-arm64、mac-arm64、linux-x64、linux-arm64），只有 Intel 的 mac-x64 在 `prepare:dsh` 的运行时 smoke 处报 `OfficeKitError: LibreOffice conversion timed out`——DOCX 与 PPTX 已通过，XLSX 用尽了每操作 600 秒的上限，而 arm64 机器上全部 Office 操作 17 秒完成。这是同一个上限第四次为 Intel runner 让路（60 s → 180 s → 600 s → 现在），所以引擎 `timeoutMs` 提到 1200000，打包 smoke 的客户端预算同步提到 1260000（必须始终高于引擎上限，否则客户端先放弃，历史上 240 s 就是这样踩的）。上限只界定「挂了多久才放弃」，不影响成功路径。
 
 部署期可覆盖的配置项（本版打包产物复核）：
 
