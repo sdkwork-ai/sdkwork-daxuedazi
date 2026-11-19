@@ -129,6 +129,8 @@
 
 * **`.gitignore` 的 staging 规则误伤子目录**：`.env.standalone.staging` / `.env.cloud.staging` 两条忽略规则没有根锚定，除仓库根的私有文件外，也把 `apps/sdkwork-birdcoder2-{pad,h5,pc}/.env.standalone.staging` 一起挡在版本库外——这三个文件由 `pnpm workflow:materialize-client-env` 生成、内容只有公开占位令牌，于是 CI checkout 后每个应用的 10 个环境矩阵文件都只剩 9 个。两条规则改为 `/` 锚定，三个文件一并入库。
 * **pad 环境矩阵测试仍按已废弃的三段命名断言**：`apps/sdkwork-birdcoder2-pad/tests/config/config.spec.ts` 自 pad 应用族引入后未再更新，仍要求 `.env.<profile>.<environment>.tablet-android`（`62cbdce890b` 已按 ENVIRONMENT_SPEC §5.1.7 取消第三段命名），并把公开面令牌 `SDKWORK_ACCESS_TOKEN` 当成秘密键。改为断言 10 个两段命名文件、`VITE_SDKWORK_RUNTIME_TARGET` 取仓库基线 `tablet-ipados`（Android 由 `scripts/tablet.mjs` 在调用时注入），公开令牌按 `alg: none` + `token_class: application` + `user_id: 0` + `permission_scope: ["iam:self"]` 白名单校验。
+* **桌面打包 lane 的部署应用 ID 会被仓库变量带偏**：`desktop-package-target.yml` 原来写的是 `vars.SDKWORK_DEPLOY_APPLICATION_ID`，而该变量当前值 `381158476182720512` 并不是 IAM 为本次部署绑定的 runtime application id（`2026-11-12-pinned-production-bootstrap-token.md` 记录的权威值是 `app_01a18b4f-6f61-7ff1-b86c-75b54995883f`，其他值一律 `40103`）。同一条链路上 `container-release.yml`、`release.yml`、`e2e.yml`、`sandbox.yml`、`debug-docker.yml` 传的都是字面量，只有桌面六目标会拿到另一个身份，产物里的引导令牌会被 IAM 抑制、表现为桌面端无法登录。三个 workflow 的该变量统一为同一字面量。
+* **`dsh-better-sidebar` 子模块落后一个提交**：`plugins/dsh-better-sidebar` 跟的是 `dev`，落后 `8d48469a`——该提交去掉了 Session Sources 目录项里 `dsh-better-sidebar@0.29.0` 那一半安装命令，否则会在 web profile 已加载侧栏的前提下再装一份。其余七个子模块（`dsh-im`/`dsh-market`/`dsh-mcp-connector`/`dsh-skill-market`/`dsh-ui-usage-billing`/`sdkwork-deepseekbot`/`sdkwork-dsh-agents`）逐一比对各自分支头，behind=0。
 
 部署期可覆盖的配置项（本版打包产物复核）：
 

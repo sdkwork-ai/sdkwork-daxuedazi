@@ -74,10 +74,18 @@ env:
   # for the variable contract. A job-level `env` holds one mapping per key, so
   # the repository variable and the build's public identity cannot be two
   # entries: a repeated key makes the workflow file invalid and GitHub rejects
-  # the whole lane before it starts. Prefer the variable and fall back to the
-  # identity this fork builds with, which keeps a repository without the
-  # variable (fresh fork, pull request from a fork) able to package.
-  SDKWORK_DEPLOY_APPLICATION_ID: ${{ vars.SDKWORK_DEPLOY_APPLICATION_ID || 'app_01a18b4f-6f61-7ff1-b86c-75b54995883f' }}
+  # the whole lane before it starts.
+  #
+  # FORK DIVERGENCE: this lane pins the registered runtime application id rather
+  # than reading `vars.SDKWORK_DEPLOY_APPLICATION_ID`. The variable currently
+  # holds `381158476182720512`, which is not the id IAM bound this deployment to
+  # (`.agents/notes/implemented/bug-fix/2026-11-12-pinned-production-bootstrap-token.md`
+  # records `40103` for every other value). `release.yml`, `container-release.yml`,
+  # `e2e.yml`, `sandbox.yml`, and `debug-docker.yml` all pass this same literal,
+  # so the six desktop targets and the container image stay on one identity. A
+  # desktop artifact built from another id ships a bootstrap token IAM
+  # suppresses, and only the desktop surfaces would fail to log in.
+  SDKWORK_DEPLOY_APPLICATION_ID: app_01a18b4f-6f61-7ff1-b86c-75b54995883f
   # The installed application identity is the selected brand's `desktop.appId`
   # from `brands/<key>.json`; this lane packages the shipped brand (daxuedazi)
   # because it sets no DSH_BRAND. Do not pin DSH_DESKTOP_APP_ID here: a lane

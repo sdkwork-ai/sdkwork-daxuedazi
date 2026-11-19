@@ -25,8 +25,11 @@ concurrency:
 env:
   NODE_VERSION: '24'
   # The Web build refuses the committed deploy-id placeholder; see release.yml
-  # for the variable contract.
-  SDKWORK_DEPLOY_APPLICATION_ID: ${{ vars.SDKWORK_DEPLOY_APPLICATION_ID }}
+  # for the identity contract. FORK DIVERGENCE: a literal, because
+  # `vars.SDKWORK_DEPLOY_APPLICATION_ID` holds `381158476182720512`, which is not
+  # the id IAM bound this deployment to; `container-bundle` below already passes
+  # this same literal so the image and the desktop targets share one identity.
+  SDKWORK_DEPLOY_APPLICATION_ID: app_01a18b4f-6f61-7ff1-b86c-75b54995883f
 
 jobs:
   resolve:

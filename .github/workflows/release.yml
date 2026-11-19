@@ -23,10 +23,14 @@ env:
   DSH_TELEMETRY_DISABLED: '1'
   # The Web build bakes the installation's deploy application id into the page
   # (`apps/web/vite.config.ts` refuses the committed placeholder). The id is a
-  # public client identity — the built HTML carries it — so it lives in a
-  # repository variable, not a secret, and every Web-building workflow passes
-  # the same value.
-  SDKWORK_DEPLOY_APPLICATION_ID: ${{ vars.SDKWORK_DEPLOY_APPLICATION_ID }}
+  # public client identity — the built HTML carries it — so it is not a secret.
+  #
+  # FORK DIVERGENCE: pinned as a literal instead of `vars.SDKWORK_DEPLOY_APPLICATION_ID`
+  # because that variable holds `381158476182720512`, which is not the id IAM
+  # bound this deployment to. The build job below already passes this literal,
+  # and so do `container-release.yml`, `e2e.yml`, `sandbox.yml`,
+  # `debug-docker.yml`, and the desktop lanes.
+  SDKWORK_DEPLOY_APPLICATION_ID: app_01a18b4f-6f61-7ff1-b86c-75b54995883f
 
 jobs:
   dependencies:
