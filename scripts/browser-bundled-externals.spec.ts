@@ -110,8 +110,17 @@ describe('browser dependency discovery', () => {
               if (!output.code.includes(text)) throw new Error('missing Client output hook: ' + text)
             }
             if (output.code.includes('__dshChunkStyles_')) throw new Error('unexpanded metadata marker')
-            if (output.code.includes('stylesheets:') !== ${JSON.stringify(styles)}) throw new Error('unexpected stylesheet metadata')
-            if (output.code.includes('text:') !== ${JSON.stringify(styles)}) throw new Error('unexpected stylesheet text producer')
+            // FORK DIVERGENCE from deepseek-harness: a plain \`.css\` import keeps this fork's
+            // bundle-load style injector (\`<style data-plugin-css>\`, see styleInjectionModule)
+            // instead of upstream's deferred \`meta().stylesheets\` record. Consumers rely on the
+            // injected tag — ui-sdkwork-apikey's console sheet states why (the packaged shell does
+            // not scan the checkout) — and injection order is module-table load order, which is
+            // what holds the ten Tailwind utility sheets in the cascade recorded by
+            // .agents/notes/implemented/architecture/2026-09-28-plugin-tailwind-embed-cascade-containment.md.
+            // \`x.module.css\` still lands in the chunk's metadata.
+            if (output.code.includes('stylesheets:')) throw new Error('unexpected stylesheet metadata')
+            if (output.code.includes('data-plugin-css') !== ${JSON.stringify(styles)}) throw new Error('unexpected stylesheet injector')
+            if (output.code.includes('text:') !== false) throw new Error('unexpected stylesheet text producer')
           },
         })
         return configs
