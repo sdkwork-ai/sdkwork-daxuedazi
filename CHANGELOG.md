@@ -4,7 +4,7 @@
 
 ## 0.2.2-rc.7（fork 同步 2026-11-19）
 
-本版本发布 fork 版本线 **0.2.2-rc.7**（tag `sdkwork-daxuedazi-v0.2.2-rc.7`），内容为 `deepseek-ai/deepseek-harness` **0.2.2-rc.5** 的完整合入（经上游 `sdkwork-birdcoder2` 合并指针 `7ebcb9add8`）。上游版本线是 **0.2.2-rc.5**（tag `dsh-v0.2.2-rc.5`）；相对上一合并基底 `68cd0b637e`（rc.4 合并点）本次上游新增 **249 个提交（其中 149 个非 merge 功能/修复提交）、1064 个文件变更**（+23051 / −10933）。全部随真实双亲 merge commit 入树，未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留。fork 侧本地 105 个提交（品牌、SDKWork 组件、依赖与打包修复）同时保留。2026-11-20 再次从上游 `sdkwork-birdcoder2` 同步：合并基底 `7ebcb9add8` → `daa4abe6ebc`，新增 17 个提交（含 tag `birdcoder-v0.2.2-rc.5`），同样以真实双亲 merge commit 合入，上游 commit message 与代码注释逐字保留。
+本版本发布 fork 版本线 **0.2.2-rc.7**（tag `sdkwork-daxuedazi-v0.2.2-rc.7`），内容为 `deepseek-ai/deepseek-harness` **0.2.2-rc.5** 的完整合入（经上游 `sdkwork-birdcoder2` 合并指针 `7ebcb9add8`）。上游版本线是 **0.2.2-rc.5**（tag `dsh-v0.2.2-rc.5`）；相对上一合并基底 `68cd0b637e`（rc.4 合并点）本次上游新增 **249 个提交（其中 149 个非 merge 功能/修复提交）、1064 个文件变更**（+23051 / −10933）。全部随真实双亲 merge commit 入树，未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留。fork 侧本地 105 个提交（品牌、SDKWork 组件、依赖与打包修复）同时保留。2026-11-20 再次从上游 `sdkwork-birdcoder2` 同步：合并基底 `7ebcb9add8` → `daa4abe6ebc`，新增 17 个提交（含 tag `birdcoder-v0.2.2-rc.5`），同样以真实双亲 merge commit 合入，上游 commit message 与代码注释逐字保留；同日第二轮再合入 2 个提交（`daa4abe6ebc` → `51d3091c28`，打包链路修复与 changelog），同样为真实双亲 merge commit。
 
 ### 上游变更（deepseek-harness 0.2.2-rc.5）
 
@@ -71,9 +71,9 @@
 
 * fork 版本线维持 **0.2.2-rc.7**（tag `sdkwork-daxuedazi-v0.2.2-rc.7`）；上游本次推进到 **0.2.2-rc.5**（tag `dsh-v0.2.2-rc.5` / `birdcoder-v0.2.2-rc.5`），随上游发布线同步，版本线不倒退。
 * `pnpm-workspace.yaml` 的 27 条 `@michengai/dsh-agency-agents>@deepseek-ai/dsh*` 覆盖行保留 fork 的 rc.7 pin；`pnpm-lock.yaml` 保留 fork 的 workspace 链接与 SDKWork sibling importer 块（本地开发走 `pnpm-workspace.yaml` 的 `../sdkwork-*` 相对路径 + `workspace:*`，CI/release 走 `agent.workflow.json` 声明、`scripts/sdkwork-sources.manifest.json` pin 的 git 仓库 checkout，两者同源）。
-* SDKWork 生态 pin 本次沿用 fork 已推送的 `main`：`sdkwork-cloudrouter`（`07ff220`）、`sdkwork-deployments`（`eb9279ec`），并保留上游新增的 `sdkwork-shop`（`a4a2e686`）与 `sdkwork-inventory`（`f8b294e8`）两条 pin。云端路由与部署控制台新增的 `@sdkwork/{shop,inventory,deployments}-backend-sdk` 依赖已 join workspace 成员并在 `tsconfig.base.json` 建映射（重复的同值映射行已去重），`Dockerfile` / `Dockerfile.debug` 同步带 `sdkwork-ecosystem` 复制行。
+* SDKWork 生态 pin 本次沿用 fork 已推送的 `main`：`sdkwork-cloudrouter`（`07ff220`，第二轮同步随上游前移到 `1c3763e8`，见下节）、`sdkwork-deployments`（`eb9279ec`），并保留上游新增的 `sdkwork-shop`（`a4a2e686`）与 `sdkwork-inventory`（`f8b294e8`）两条 pin。云端路由与部署控制台新增的 `@sdkwork/{shop,inventory,deployments}-backend-sdk` 依赖已 join workspace 成员并在 `tsconfig.base.json` 建映射（重复的同值映射行已去重），`Dockerfile` / `Dockerfile.debug` 同步带 `sdkwork-ecosystem` 复制行。
 * `plugins/sdkwork-dsh-agents` 子模块由 `2d317ce`（1.2.26）前移到 `a2911f0`（1.2.34 镜像同步），并把新版新增的 `@deepseek-ai/dsh-error@0.2.2-rc.3` 依赖补进 lockfile；不同步时 `pnpm install --frozen-lockfile` 直接报 `ERR_PNPM_OUTDATED_LOCKFILE`。
-* 新增 `plugins/dsh-market` 子模块（`e8dc3529`，`dsh-market` 的 SDKWork fork），host 半侧由 `scripts/build-dsh-market.mjs` 从子模块 `src/` 编译，浏览器半侧 `client/client.js` 由子模块提交，本仓不重新生成（详见下节）。
+* 新增 `plugins/dsh-market` 子模块（`e8dc3529`，`dsh-market` 的 SDKWork fork；第二轮同步前移到 `b7d62fd`，见下节），host 半侧由 `scripts/build-dsh-market.mjs` 从子模块 `src/` 编译，浏览器半侧 `client/client.js` 由子模块提交，本仓不重新生成（详见下节）。
 
 #### 子模块本地改动（随本次一并提交）
 
@@ -92,10 +92,26 @@
 * **翻译配对门禁覆盖子模块**：`.gitmodules` 的 `path` 被解析进排除范围（`parseGitmodulePaths` / `isSubmodulePath`），子模块工作树内的双语文档在其所在仓库翻译，本仓不再要求 sidecar；新增包 README 与 agent-note 补规格（`fix(birdcoder2): guard the gitmodule path capture against a missing group`）。
 * **桌面运行时冒烟**：Office 转换的两条冒烟路由从 `fetch` 换成 `node:http`——undici 在响应头 300 s 未到时就抛裸 `TypeError: fetch failed`，使 `OFFICE_CALL_TIMEOUT_MS` 与引擎自身的 `timeoutMs: 600000` 都轮不到决定；`node:http` 无默认超时，只由该客户端预算兜底，慢 runner 于是「慢但成功」，失败时也报得出路由与预算（`fix(desktop): outwait the Office engine instead of fetch's 300 s header ceiling`）。
 
-#### 本次上游同步（2026-11-20，`7ebcb9add8` → `daa4abe6ebc`）
+#### 本次上游同步（2026-11-20，`7ebcb9add8` → `51d3091c28`）
 
-* 从 `sdkwork-birdcoder2` 合入 17 个上游提交（对应 tag `birdcoder-v0.2.2-rc.5`）：工作区版本 bump、backend SDK sibling pin 映射、composer 输入历史、设置菜单 shell store、缺失凭据修复接入会话失败行、欢迎页登录交棒新 workspace boot、插件市场 fork、HMR `pluginEvents` 恢复、翻译配对门禁覆盖子模块、Office 冒烟换 `node:http`，以及两份 changelog 提交。全部随真实双亲 merge commit 入树，上游 commit message 与代码注释逐字保留。
-* 上游 changelog 的当前版本内容已并入本节（不叠加历史版本）：上述能力已在上文「合并后的 fork 变更（2026-11-19）」逐项归纳；本文件仍只保留 rc.7 一个 `##` 版本节。
-* fork 侧功能与品牌未被覆盖：`BirdLogo` / `BirdWordmark` / `LoginPanel` / favicon / 安装包图标与 BirdCoder 图标标语均为当前仓库版本；SDKWork 自有组件（`ui-sdkwork-*` / `sdkwork-*`）、设置菜单产品条目（无云端控制台行）、daxuedazi 安装身份与 IAM scheme 全部保留。92 个冲突按 fork-first 规则逐项解决（79 个仅版本行的 `package.json` 保留 rc.7、其余 13 个真实冲突合并双方行为），无文件误删；`tsconfig.base.json` 自动合入产生的两条同值重复映射行已去重。
+* 从 `sdkwork-birdcoder2` 分两轮合入 19 个上游提交（对应 tag `birdcoder-v0.2.2-rc.5`），均以真实双亲 merge commit 入树，未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留：
+  * 第一轮 17 个（`7ebcb9add8` → `daa4abe6ebc`）：工作区版本 bump、backend SDK sibling pin 映射、composer 输入历史、设置菜单 shell store、缺失凭据修复接入会话失败行、欢迎页登录交棒新 workspace boot、插件市场 fork、HMR `pluginEvents` 恢复、翻译配对门禁覆盖子模块、Office 冒烟换 `node:http`，以及两份 changelog 提交。能力细节已在上文「合并后的 fork 变更（2026-11-19）」逐项归纳。
+  * 第二轮 2 个（`daa4abe6ebc` → `51d3091c28`）：打包链路修复与 changelog，见下节。
+* 上游 changelog 的当前版本内容已并入本节（不叠加历史版本）：本文件仍只保留 rc.7 一个 `##` 版本节。
+
+##### 第二轮上游：重打包前的修复（`9089061d62` / `51d3091c28`）
+
+本次按 `birdcoder-v0.2.2-rc.5` 重打包，版本线不变；打包链路上有两处会必然失败的问题在本轮修掉，另把四个子模块 pin 前移到各自已发布版本。
+
+* **插件市场的 `prepare` 在干净 checkout 上必失败**：`plugins/dsh-market` 的 `prepare` 原来跑完整 `build`，其 `tsc` 要解析 `@deepseek-ai/cordis` 与 `@deepseek-ai/schemastery` 的 `lib/types`——这两者是 Host 编译器的产物，干净 checkout 上尚不存在，`pnpm install` 于是在 `plugins/dsh-market prepare` 阶段直接 `TS2307`（`Cannot find module '@deepseek-ai/cordis'`）。六条打包 lane 与 `Release (dsh)` 的 Dependency layout 都停在这一步。fork 侧改为 emit-only（`tsc -p tsconfig.json --noCheck`，与 `scripts/build-dsh-market.mjs` 的干净 checkout 模式一致），`prepack` 与 `check` 仍保留类型检查构建；安装期也不再重写已提交的 `client/client.js`（`sdkwork-dsh-market` `b7d62fd`）。
+* **云路由新控制台包缺映射**：`sdkwork-cloudrouter` 新增 `@sdkwork/cloudrouter-pc-console-vm-instances`（VM 实例与硬件市场控制台），`pc-console-shell` 已 import 其 `/contribution`，但本仓 `tsconfig.base.json` 没有对应映射，`verify-sdkwork-dependencies` 在打包第一步就失败（`… maps no @sdkwork package root for it`）。按既有 `/*` 形制补映射，并把 `sdkwork-cloudrouter` 的 pin 前移到已推送的 `origin/main` `1c3763e8`——旧 pin 里还没有这个包，release checkout 中不会存在被映射的源文件。两处 pin 记录（`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json`）同步更新。本地仍走 `../sdkwork-*` 相对路径，release 走 pin 的 git checkout。
+* **子模块 pin 前移**：`dsh-mcp-connector` `v0.2.113` → `v0.2.117`；`dsh-ui-usage-billing` `1.8.4-sdkwork.3` → `1.8.8-sdkwork.1`（#123 压缩调用计入统计、缓存写入独立计价，#124 动效作用域，#125 中转站模型 id 归一与未收录模型补价，#126 通道可见性，#127 兜底账本行键归一与按日补价）；`sdkwork-deepseekbot` `ef40c579` → `05d0e36b`（新配置默认展开 Simple Subpanel 列）；`dsh-market` `e8dc352` → `b7d62fd`。`pnpm-lock.yaml` 只随之改写两个 importer：56 条 `@deepseek-ai/dsh-*` pin `0.2.2-rc.1` → `0.2.2-rc.3`，以及 mcp-connector 的 `undici ^6.29.1`、`zod ^4.6.6`。
+* **本地 Windows 打包验证**：`package:win:x64:unsigned` 在 win-x64 上通过——安装包与 zip 产出，运行时冒烟跑到 CLI 离线插件装卸、Office 技能加载与 DOCX/XLSX/PPTX→PDF 转换全绿，`stage-desktop-artifacts.ts` 按发布契约收出 3 个资产（`.exe` / `.zip` / `latest.yml`）。
+
+##### fork 侧完整性校验
+
+* fork 侧功能与品牌未被覆盖：`BirdLogo` / `BirdWordmark` / `LoginPanel` / favicon / 安装包图标与 BirdCoder 图标标语均为当前仓库版本；SDKWork 自有组件（`ui-sdkwork-*` / `sdkwork-*`）、设置菜单产品条目（无云端控制台行）、daxuedazi 安装身份与 IAM scheme 全部保留。
+* 冲突按 fork-first 规则逐项解决：第一轮 92 个（79 个仅版本行的 `package.json` 保留 rc.7，13 个真实冲突合并双方行为，`tsconfig.base.json` 自动合入产生的两条同值重复映射已去重）；第二轮 6 个（`.gitmodules` 的 mcp-connector 版本注释、`agent.workflow.json` 与 `scripts/sdkwork-sources.manifest.json` 的 cloudrouter pin、`pnpm-lock.yaml` 的 5 处 rc.1 陈旧块与 zod `4.4.3`→`4.6.6`、`plugins/dsh-mcp-connector` 子模块 gitlink、本 changelog）。无文件误删：本轮上游未删除任何文件，仅新增一条 `tsconfig.base.json` 映射。
+* 子模块 pin 校验（前移方向均为 fork 现有指针的后代，无 fork 改动丢失）：`dsh-market` `e8dc352` → `b7d62fd`；`dsh-mcp-connector` `11af59ab`（v0.2.113）→ `98f1f38`（v0.2.117）；`dsh-ui-usage-billing` → `fd0468c`（1.8.8-sdkwork.1）；`sdkwork-deepseekbot` → `05d0e36b`。`sdkwork-cloudrouter` pin `07ff220` → `1c3763e8` 同为后代，且 `1c3763e8` 才含 `pc-console-vm-instances` 包。
 
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。
