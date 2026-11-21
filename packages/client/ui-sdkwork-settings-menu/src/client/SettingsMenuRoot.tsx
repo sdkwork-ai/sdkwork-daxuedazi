@@ -39,8 +39,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   IconAgentPresetOutlineRegular, IconCloseOutlineRegular, IconDarkOutlineRegular,
-  IconDataOutlineRegular, IconFollowsystemOutlineRegular, IconLightOutlineRegular,
-  IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular,
+  IconDataOutlineRegular, IconFollowsystemOutlineRegular, IconInfoOutlineRegular,
+  IconLightOutlineRegular, IconPanelLeftOutlineRegular, IconPersonalizationOutlineRegular,
   IconRefreshOutlineRegular, IconSettingsOutlineRegular, IconSkillOutlineRegular,
   IconUserOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -53,6 +53,9 @@ import css from './SettingsMenuRoot.module.css'
 
 /** Nav glyph by section id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
+  // The About page (`ui-sdkwork-about`): the info glyph separates reference
+  // material from the configuration pages above it.
+  if (id === 'about') return <IconInfoOutlineRegular className={css.navIcon} size={16} />
   // The sidebar's own page (`ui-sdkwork-sidebar`) draws the column's glyph.
   if (id === 'sidebar-layout') return <IconPanelLeftOutlineRegular className={css.navIcon} size={16} />
   if (id === 'models') return <IconDataOutlineRegular className={css.navIcon} size={16} />
@@ -153,36 +156,17 @@ function SettingsPanel({ rows, renderSlot, activeId, focusProvider, onSelect, on
 export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
   const {
     useSections, useOnboardingSteps, useTheme, useAccount, useSessions,
-    renderSlot, setTheme, signIn, logout, checkForUpdates, updatesAvailable,
+    renderSlot, setTheme, signIn, logout, checkForUpdates, openAbout, aboutAvailable, updatesAvailable,
     openDesktopPlugins, desktopPluginsAvailable, desktopPluginsUsable, quitApp, quitAvailable, t,
     useStore, actions,
   } = props
   const [menuOpen, setMenuOpen] = useState(false)
-  const [apiKeysOpen, setApiKeysOpen] = useState(false)
-  const [officialAccountsOpen, setOfficialAccountsOpen] = useState(false)
-  const [miniProgramsOpen, setMiniProgramsOpen] = useState(false)
-  const [dnsOpen, setDnsOpen] = useState(false)
-  const [certificatesOpen, setCertificatesOpen] = useState(false)
-  const [myDeploymentsOpen, setMyDeploymentsOpen] = useState(false)
-  const [pointsRechargeOpen, setPointsRechargeOpen] = useState(false)
-  const [helpToastSeq, setHelpToastSeq] = useState(0)
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   // Dialog visibility, the active section, and the row a deep link asked to
   // reveal live in the declared store: a surface outside the rail opens the
   // same dialog through `ctx.settingsMenu`.
   const { dialogOpen, activeId, focusProvider } = useStore(state => state)
   const close = actions.close
-  const closeApiKeys = useCallback(() => { setApiKeysOpen(false) }, [])
-  const closeOfficialAccounts = useCallback(() => { setOfficialAccountsOpen(false) }, [])
-  const closeMiniPrograms = useCallback(() => { setMiniProgramsOpen(false) }, [])
-  const closeDns = useCallback(() => { setDnsOpen(false) }, [])
-  const closeCertificates = useCallback(() => { setCertificatesOpen(false) }, [])
-  const closeMyDeployments = useCallback(() => { setMyDeploymentsOpen(false) }, [])
-  const closePointsRecharge = useCallback(() => { setPointsRechargeOpen(false) }, [])
-  // The wallet card requests the purchase modal and dismisses the menu itself
-  // (the `close` contract above), so this stays a pure visibility write: the
-  // modal lives outside the popover and keeps rendering after the menu unmounts.
-  const openPointsRecharge = useCallback(() => { setPointsRechargeOpen(true) }, [])
   const openSection = useCallback((id: string) => { actions.openSection(id) }, [actions])
 
   const rows = useSections(s => s)
@@ -279,6 +263,13 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
         },
       ],
     })
+    // The desktop application menu's About command in the web surface: the row
+    // opens the same About dialog ui-sdkwork-about seats on the shell overlay
+    // layer, so the settings page and the app menu share one design. Absent
+    // without the plugin.
+    if (aboutAvailable) {
+      entries.push({ id: 'about', label: t('menu.about'), icon: <IconInfoOutlineRegular size={16} /> })
+    }
     // The desktop shell group: the entries the native application menu owned
     // before the shell dropped its menu bar (Windows/Linux). Each row is
     // gated on its bridge face, so web compositions render neither the rows
@@ -303,7 +294,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     return entries
   }, [
     account.membership, account.points, account.signInAvailable, account.signedIn, account.username,
-    t, renderSlot, closeMenu,
+    t, renderSlot, closeMenu, aboutAvailable,
     updatesAvailable, desktopPluginsAvailable, desktopPluginsUsable, quitAvailable,
   ])
 
@@ -323,6 +314,8 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
       actions.open()
     } else if (id === 'light' || id === 'dark' || id === 'system') {
       setTheme(id)
+    } else if (id === 'about') {
+      openAbout()
     } else if (id === 'check-updates') {
       checkForUpdates()
     } else if (id === 'desktop-plugins') {
@@ -334,7 +327,7 @@ export function SettingsMenuRoot(props: SettingsMenuRootComponentProps) {
     } else if (id === 'logout') {
       logout()
     }
-  }, [setTheme, signIn, logout, checkForUpdates, openDesktopPlugins, quitApp, actions])
+  }, [setTheme, signIn, logout, checkForUpdates, openAbout, openDesktopPlugins, quitApp, actions])
 
   return (
     <>

@@ -727,6 +727,26 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
   }
 
   /**
+   * The signed-in session's complete credential triple.
+   *
+   * Cross-plugin SDKWork clients that authenticate with both transport halves
+   * (for example an app-access-token exchange over `dual-token`) need the
+   * access token as well as the auth token. Same authority as
+   * {@link authToken}: the last session the durable store reported, falling
+   * back to the controller's session before the first report.
+   * @returns the current access, auth, and refresh tokens; empty while signed out.
+   */
+  sessionTokens(): { accessToken?: string; authToken?: string; refreshToken?: string } {
+    const session = this.observedTokens ?? this.controller.getState().session
+    if (session === undefined) return {}
+    return {
+      ...(session.accessToken ? { accessToken: session.accessToken } : {}),
+      ...(session.authToken ? { authToken: session.authToken } : {}),
+      ...(session.refreshToken ? { refreshToken: session.refreshToken } : {}),
+    }
+  }
+
+  /**
    * Observe the credentials themselves rather than the rendered state: a
    * rotated token does not necessarily re-render a surface, while a credential
    * mirror has to follow it. Listeners fire from {@link publishTokens}, so they
@@ -1389,7 +1409,10 @@ export class IamService implements AuthenticatedModeGate, SdkworkSignInRequireme
     const failure = browserFailureOf(error)
     this.desktopFailure = failure
     this.desktopFailed = true
-    console.error('ui-sdkwork-iam: browser login failed', failure)
+    // The failure keeps the product-facing reason; the rejected step itself
+    // carries the transport status, problem code, and trace id a support
+    // report needs to correlate the attempt with the IAM server's logs.
+    console.error('ui-sdkwork-iam: browser login failed', failure, error)
     this.notifyDesktop()
   }
 

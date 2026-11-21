@@ -70,6 +70,14 @@ export type SettingsMenuRootInjected = {
   }
   /** Switch the theme preference (light/dark/system). */
   setTheme: (id: string) => void
+  /**
+   * Open the product About dialog through the ui-sdkwork-about service. The row
+   * is the desktop shell's application-menu About command in the web surface, so
+   * every platform reaches one About design.
+   */
+  openAbout: () => void
+  /** Whether the About service exists in this composition (web-only builds without the plugin hide the row). */
+  aboutAvailable: boolean
   /** Start the sign-in flow through the account provider (no-op while anonymous). */
   signIn: () => void
   /** End the session through the account provider. */

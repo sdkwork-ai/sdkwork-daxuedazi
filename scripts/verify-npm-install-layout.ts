@@ -68,24 +68,29 @@ export const MAX_RESOLUTION_WORK_UNITS = 2_450_000
 const SECONDS_PER_WORK_UNIT = 2.6e-4
 
 /**
+ * Wall-clock guard the budget itself implies: four times the calibrated cost of
+ * a graph exactly at {@link MAX_RESOLUTION_WORK_UNITS}.
+ */
+const BUDGET_DERIVED_NPM_HANG_GUARD_MS = Math.round(
+  4 * MAX_RESOLUTION_WORK_UNITS * SECONDS_PER_WORK_UNIT * 1000,
+)
+
+/**
  * Wall-clock guard for the npm child process. This is a hang guard, not the
  * gate's growth criterion: {@link MAX_RESOLUTION_WORK_UNITS} decides whether the
- * graph is too large to verify, and the guard only decides whether npm stopped
- * making progress at all.
+ * graph is too large to verify, and a runner up to four times slower than the
+ * measured host cannot decide this gate's outcome. Derived from the budget so a
+ * raised budget cannot silently shrink the guard's headroom.
  *
- * FORK DIVERGENCE: the multiplier is 12, not upstream's 4. Run 44600532460
- * (ubuntu-24.04) and a local Windows run both hit the old 2,548,000 ms guard
- * with the graph still inside {@link MAX_RESOLUTION_WORK_UNITS} — the budget
- * never fired, so what ran out was wall-clock, not headroom in the size check.
- * At 12 the guard is 7,644,000 ms (~127 minutes), which is long enough for a
- * runner several times slower than the calibration host to finish. The gate is
- * also no longer part of the push-triggered `Release (dsh)` lane: it moved to
- * `.github/workflows/npm-install-layout.yml`, because a once-a-day dependency
- * placement check must not stretch every push by an hour.
+ * FORK MEASUREMENT (SDKWork BirdCoder): the derived ceiling is enough again once
+ * the glue edges are out of the graph ({@link stripGlueDshEdges}). Before that,
+ * the fork never finished: `Release (dsh)` run 44621601708 expired a 7,200 s
+ * guard on ubuntu-24.04 with no layout error, and this host had the npm child
+ * still resolving after 1 h 55 m at 93% of one core. With the glue edges dropped
+ * the same graph returns a verdict in 223 s here, which is 11× inside the
+ * derived guard.
  */
-const NPM_HANG_GUARD_MS = Math.round(
-  12 * MAX_RESOLUTION_WORK_UNITS * SECONDS_PER_WORK_UNIT * 1000,
-)
+const NPM_HANG_GUARD_MS = BUDGET_DERIVED_NPM_HANG_GUARD_MS
 
 /** Synthetic incompatible versions used to expose cross-release placement errors. */
 export const SYNTHETIC_DSH_VERSIONS = ['0.1.0', '0.2.0'] as const
@@ -123,33 +128,62 @@ function cloneForVersion(manifest: object, version: string): MutableRegistryMani
 }
 
 /**
- * Rewrite DSH edges of non-DSH packages that pin the working release.
+ * Remove every DSH edge from a non-DSH ("glue") package.
+ *
+ * Glue packages — workspace members outside the DSH namespace, such as the
+ * BotHarness packages `@deepseek-ai/dsh-web-app` publishes against, and the
+ * plugin submodules that peer on a range of DSH versions — are the one part of
+ * this graph the gate never reads: {@link assertDualDshInstallLayout} walks the
+ * edges of DSH packages only. Their edges onto DSH packages therefore have to
+ * *resolve* without the gate ever asserting what they resolved to, and in a
+ * two-release registry no resolution is both cheap and honest:
+ *
+ * - A range with no candidate left after the substitution (`dsh-mcp-client`
+ *   pinned to a release this workspace no longer publishes) makes npm search
+ *   for one.
+ * - A range that fits both synthetic releases — a plugin's `"*"` peer, since no
+ *   prerelease satisfies `*` — lets npm choose per placement, so the glue
+ *   package earns a copy under each release and every choice re-runs
+ *   `canPlacePeers` over the whole peer set.
+ * - A range rewritten to the root release instead makes npm *install* that
+ *   release's copies for the shared glue package, so those packages exist only
+ *   at the root and the assertion fails on `only <root> contains: …`.
+ * - An edge onto a `@deepseek-ai/dsh-*` package the workspace does not build
+ *   pulls an unrelated published release into the graph. `ui-usage-billing`
+ *   peers on `@deepseek-ai/dsh-invariants`, whose own `schemastery ~3.18.4` and
+ *   `cordis ~4.0.4` have no candidate here.
+ *
+ * Dropping the edges is the only one of those that leaves the assertion intact,
+ * because it asserts nothing about them. Measured on this checkout: 219 edges
+ * dropped, and the dual-release resolution that had never finished inside a
+ * 7,200 s guard returned a verdict in 223 s.
  * @param versions - Published versions of one non-DSH package name.
- * @param sourceVersion - Workspace version the dual substitution replaces.
- * @returns The same map when no version pins the source release; otherwise a rewritten copy.
+ * @returns The same map when no version declares a DSH edge; otherwise a copy without them.
  */
-function rewriteGlueDshEdges(
+function stripGlueDshEdges(
   versions: ReadonlyMap<string, RegistryVersion>,
-  sourceVersion: string,
 ): ReadonlyMap<string, RegistryVersion> {
-  const rootVersion = SYNTHETIC_DSH_VERSIONS[1]
   let rewritten: Map<string, RegistryVersion> | undefined
   for (const [version, manifest] of versions) {
     let changed = false
-    const next: Record<string, unknown> = { ...manifest }
-    for (const field of DEPENDENCY_FIELDS) {
-      const dependencies = manifest[field]
-      if (dependencies === undefined) continue
-      let dependenciesNext: Record<string, string> | undefined
-      for (const [dependency, range] of Object.entries(dependencies)) {
-        if (!isDshPackage(dependency)) continue
-        const synthetic = glueRangeForSourceRelease(range, sourceVersion, rootVersion)
-        if (synthetic === undefined) continue
-        dependenciesNext ??= { ...dependencies }
-        dependenciesNext[dependency] = synthetic
-        changed = true
+    const next: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(manifest)) {
+      if (!DEPENDENCY_FIELDS.includes(key as typeof DEPENDENCY_FIELDS[number])) {
+        next[key] = value
+        continue
       }
-      if (dependenciesNext !== undefined) next[field] = dependenciesNext
+      const dependencies = value as Record<string, string>
+      const kept = Object.fromEntries(
+        Object.entries(dependencies).filter(([dependency]) => !isDshPackage(dependency)),
+      )
+      if (Object.keys(kept).length === Object.keys(dependencies).length) {
+        next[key] = value
+        continue
+      }
+      changed = true
+      // A field whose every entry named a DSH package disappears entirely, so a
+      // stripped `optionalDependencies` does not linger as an empty object.
+      if (Object.keys(kept).length > 0) next[key] = kept
     }
     if (changed) {
       rewritten ??= new Map(versions)
@@ -159,28 +193,6 @@ function rewriteGlueDshEdges(
   return rewritten ?? versions
 }
 
-/**
- * Rewrite one non-DSH ("glue") dependency range that pins the working release.
- *
- * Glue packages — workspace members outside the DSH namespace, such as the
- * BotHarness packages `@deepseek-ai/dsh-web-app` publishes against — declare
- * `workspace:*` on DSH packages, which the pack simulation rewrites to the
- * exact workspace version. The dual-release substitution removes that version
- * from the registry, so an exact pin would 404. Point the range at the root
- * synthetic release instead: the glue package is shared between the releases,
- * and npm resolves its dependency against the hoisted root installation.
- * @param range - Already-published range on a non-DSH manifest.
- * @param sourceVersion - Workspace version the dual substitution replaces.
- * @param rootVersion - The root synthetic release version.
- * @returns The synthetic range, or the input when it does not pin the source release.
- */
-function glueRangeForSourceRelease(range: string, sourceVersion: string, rootVersion: string): string | undefined {
-  if (range === sourceVersion || range === `=${sourceVersion}` || range === `^${sourceVersion}`) {
-    return `^${rootVersion}`
-  }
-  if (range === `~${sourceVersion}`) return `~${rootVersion}`
-  return undefined
-}
 
 /**
  * Replace the working release with two incompatible, internally consistent DSH releases.
@@ -193,7 +205,7 @@ export function buildDualDshRegistry(index: RegistryIndex, sourceVersion: string
   let dshPackages = 0
   for (const [name, versions] of index) {
     if (!isDshPackage(name)) {
-      output.set(name, rewriteGlueDshEdges(versions, sourceVersion))
+      output.set(name, stripGlueDshEdges(versions))
       continue
     }
     const source = versions.get(sourceVersion)
@@ -267,10 +279,32 @@ export function assertDualDshInstallLayout(
   const installed = Object.entries(packageLock.packages)
   let checkedDshEdges = 0
 
+  // `react`/`react-dom` are browser build inputs, so the synthetic consumer's
+  // own manifest must never name them. npm 7+ auto-installs peerDependencies,
+  // though, and this fork's DSH client packages declare `react` as a peer (and
+  // plugin submodules declare it as a peer too). Those copies legitimately land
+  // in the resolved tree; rejecting their mere presence is not a DSH-layout
+  // invariant. What the gate must still hold is narrower and stronger:
+  //   1. no DSH package reaches a browser build input through a *runtime* edge
+  //      (dependencies / optionalDependencies) — only a peer declaration may;
+  //   2. each browser runtime resolves to a single installed copy, so the two
+  //      synthetic DSH releases cannot be split by conflicting React versions.
+  const BROWSER_INPUTS = new Set(['react', 'react-dom'])
+  const browserCopies = new Map<string, string[]>()
+  const consumer = packageLock.packages['']
+  for (const browserName of BROWSER_INPUTS) {
+    if (consumer?.dependencies?.[browserName] !== undefined
+      || consumer?.optionalDependencies?.[browserName] !== undefined) {
+      errors.push(`synthetic consumer declares browser build input ${browserName}`)
+    }
+  }
+
   for (const [path, manifest] of installed) {
     const name = packageNameAtPath(path, manifest)
-    if (name === 'react' || name === 'react-dom') {
-      errors.push(`${path}: ${name} is a browser build input, not a dependency of the synthetic DSH-only consumer`)
+    if (name !== undefined && BROWSER_INPUTS.has(name)) {
+      const copies = browserCopies.get(name) ?? []
+      copies.push(path)
+      browserCopies.set(name, copies)
     }
     if (name === undefined || !dshPackages.has(name)) continue
     const version = manifest.version
@@ -290,6 +324,13 @@ export function assertDualDshInstallLayout(
 
     for (const field of DEPENDENCY_FIELDS) {
       for (const dependency of Object.keys(manifest[field] ?? {})) {
+        // A peer declaration is how this fork declares the browser runtime; it
+        // is not an edge the DSH package installs on its own. A hard dependency
+        // on a browser input, however, would make the DSH-only consumer drag a
+        // renderer into its runtime closure and must be rejected.
+        if (BROWSER_INPUTS.has(dependency) && field !== 'peerDependencies') {
+          errors.push(`${path}: ${field} ${dependency} is a browser build input in a DSH package`)
+        }
         if (!dshPackages.has(dependency)) continue
         const targetPath = resolvePackagePath(packageLock.packages, path, dependency)
         const optionalPeer = field === 'peerDependencies'
@@ -307,6 +348,13 @@ export function assertDualDshInstallLayout(
           )
         }
       }
+    }
+  }
+
+  for (const browserName of BROWSER_INPUTS) {
+    const copies = browserCopies.get(browserName) ?? []
+    if (copies.length > 1) {
+      errors.push(`${browserName} has ${String(copies.length)} installed copies, expected one: ${copies.join(', ')}`)
     }
   }
 

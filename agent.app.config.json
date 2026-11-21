@@ -41,7 +41,8 @@
       "enabled": true,
       "clientId": "daxuedazi",
       "redirectUris": [
-        "daxuedazi://auth/callback"
+        "daxuedazi://auth/callback",
+        "http://127.0.0.1:0/auth/callback"
       ],
       "allowedScopes": [
         "openid",
@@ -70,6 +71,20 @@
       "standalone"
     ],
     "defaultDeploymentProfile": "cloud"
+  },
+  "environments": {
+    "test": {
+      "accessUrl": "https://birdcoder2-test.sdkwork.com/"
+    },
+    "staging": {
+      "accessUrl": "https://birdcoder2-staging.sdkwork.com/"
+    },
+    "demo": {
+      "accessUrl": "https://birdcoder2-demo.sdkwork.com/"
+    },
+    "production": {
+      "accessUrl": "https://birdcoder2.sdkwork.com/"
+    }
   },
   "media": {
     "icons": {

@@ -1054,6 +1054,12 @@
     # sidebar.workspaces.rowMenus hole; removing the row restores upstream.
     - id: ui-sdkwork-workspace-row-menus
       name: '@deepseek-ai/dsh-client-ui-sdkwork-workspace-row-menus'
+    # SDKWork access-token initializer: the workspace row menu's
+    # "初始化 Access Token" verb and the dialog it opens. Writes the public
+    # application access token (tenant-level or organization-level) into every
+    # selected application root's committed profile matrix.
+    - id: ui-sdkwork-access-token
+      name: '@deepseek-ai/dsh-client-ui-sdkwork-access-token'
     # Durable workflow lifecycle as an independent Chat node after the
     # existing generic workflow tool row.
     - id: ui-workflow-run
@@ -1220,6 +1226,16 @@
     # origin, so this row owns only the page composition.
     - id: ui-sdkwork-profile
       name: '@deepseek-ai/dsh-client-ui-sdkwork-profile'
+
+    # SDKWork 关于 (About): the settings section that presents the product mark,
+    # the build version, the installation's registered app id, and the deployment
+    # identity the BirdCoder2 App API resolves from the deployment access token,
+    # plus the About dialog the desktop application menu's command opens through
+    # `ctx.about`. The read is `GET /app/v3/api/installation` through the
+    # generated `@sdkwork/birdcoder2-app-sdk` client; the local build facts and
+    # the gateway origin/token come from the ui-sdkwork-env profile.
+    - id: ui-sdkwork-about
+      name: '@deepseek-ai/dsh-client-ui-sdkwork-about'
 
     # SDKWork feedback integration: the settings-menu feedback row (bound to
     # the ui-sdkwork-settings-menu feedback seam) and the feedback dialog submitting

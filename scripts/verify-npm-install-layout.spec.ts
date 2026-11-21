@@ -92,6 +92,56 @@ describe('npm install layout verifier', () => {
     expect(dual.get('@deepseek-ai/dsh-invariants')).toBe(index.get('@deepseek-ai/dsh-invariants'))
   })
 
+  it('removes every DSH edge from a glue package and keeps the others', () => {
+    const index: RegistryIndex = new Map([
+      ['@deepseek-ai/dsh', new Map([['0.1.1-rc.2', { name: '@deepseek-ai/dsh', version: '0.1.1-rc.2' }]])],
+      ['@deepseek-ai/dsh-child', new Map([['0.1.1-rc.2', { name: '@deepseek-ai/dsh-child', version: '0.1.1-rc.2' }]])],
+      ['@deepseek-ai/dsh-invariants', new Map([['0.1.0-rc.8', {
+        name: '@deepseek-ai/dsh-invariants',
+        version: '0.1.0-rc.8',
+      }]])],
+      ['dsh-mcp-connector', new Map([['0.2.117', {
+        name: 'dsh-mcp-connector',
+        version: '0.2.117',
+        dependencies: { '@deepseek-ai/dsh-child': '0.1.1-rc.2', 'left-pad': '^1.3.0' },
+        optionalDependencies: { '@deepseek-ai/dsh': '^0.1.1-rc.2' },
+        peerDependencies: {
+          '@deepseek-ai/dsh': '*',
+          '@deepseek-ai/dsh-invariants': '*',
+          react: '19.2.8',
+        },
+      }]])],
+    ])
+
+    const dual = buildDualDshRegistry(index, '0.1.1-rc.2')
+
+    // No resolution of these edges is both cheap and honest: an unchanged range
+    // has no candidate, a range fitting both releases lets npm choose per
+    // placement, and a range bound to the root release makes npm install that
+    // release's copies for a shared package. The gate asserts DSH edges only, so
+    // it drops them and keeps the glue package's own dependencies.
+    expect(dual.get('dsh-mcp-connector')?.get('0.2.117')).toMatchObject({
+      dependencies: { 'left-pad': '^1.3.0' },
+      peerDependencies: { react: '19.2.8' },
+    })
+    expect(dual.get('dsh-mcp-connector')?.get('0.2.117')).not.toHaveProperty('optionalDependencies')
+  })
+
+  it('leaves a glue package without DSH edges untouched', () => {
+    const index: RegistryIndex = new Map([
+      ['@deepseek-ai/dsh', new Map([['0.1.1-rc.2', { name: '@deepseek-ai/dsh', version: '0.1.1-rc.2' }]])],
+      ['dsh-better-sidebar', new Map([['0.32.1', {
+        name: 'dsh-better-sidebar',
+        version: '0.32.1',
+        peerDependencies: { react: '19.2.8' },
+      }]])],
+    ])
+
+    const dual = buildDualDshRegistry(index, '0.1.1-rc.2')
+
+    expect(dual.get('dsh-better-sidebar')).toBe(index.get('dsh-better-sidebar'))
+  })
+
   it('ignores a DSH package that is not a workspace member in the layout', () => {
     const layout = validLayout()
     const packages = {
@@ -112,16 +162,72 @@ describe('npm install layout verifier', () => {
     })
   })
 
-  it.each([
-    ['react', 'node_modules/react'],
-    ['react-dom', 'node_modules/react-dom'],
-    ['react', 'node_modules/dsh-previous/node_modules/react'],
-    ['react-dom', 'node_modules/dsh-previous/node_modules/react-dom'],
-  ])('rejects browser runtime %s installed at %s in the DSH-only consumer', (name, path) => {
+  it('accepts one auto-installed react/react-dom peer copy per release-free root', () => {
     const layout = validLayout()
-    const packages = { ...layout.packages, [path]: { version: '18.3.1' } }
+    const packages = {
+      ...layout.packages,
+      'node_modules/react': { version: '19.2.8' },
+      'node_modules/react-dom': { version: '19.2.8' },
+    }
+    expect(assertDualDshInstallLayout({ ...layout, packages }, WORKSPACE_DSH_PACKAGES)).toEqual({
+      dshPackagesPerVersion: 3,
+      checkedDshEdges: 4,
+    })
+  })
+
+  it('rejects a browser runtime declared by the synthetic consumer itself', () => {
+    const layout = validLayout()
+    const packages = {
+      ...layout.packages,
+      '': { dependencies: { ...layout.packages['']?.dependencies, react: '19.2.8' } },
+      'node_modules/react': { version: '19.2.8' },
+    }
     expect(() => assertDualDshInstallLayout({ ...layout, packages }, WORKSPACE_DSH_PACKAGES)).toThrow(
-      `${path}: ${name} is a browser build input`,
+      'synthetic consumer declares browser build input react',
+    )
+  })
+
+  it.each([
+    ['dependencies', 'dependencies react is a browser build input'],
+    ['optionalDependencies', 'optionalDependencies react is a browser build input'],
+  ])('rejects a DSH package reaching react through %s', (field, message) => {
+    const layout = validLayout()
+    const packages = {
+      ...layout.packages,
+      'node_modules/@deepseek-ai/dsh': {
+        ...layout.packages['node_modules/@deepseek-ai/dsh'],
+        [field]: { react: '19.2.8' },
+      },
+      'node_modules/react': { version: '19.2.8' },
+    }
+    expect(() => assertDualDshInstallLayout({ ...layout, packages }, WORKSPACE_DSH_PACKAGES)).toThrow(message)
+  })
+
+  it('allows a DSH package to declare react only as a peer', () => {
+    const layout = validLayout()
+    const packages = {
+      ...layout.packages,
+      'node_modules/@deepseek-ai/dsh': {
+        ...layout.packages['node_modules/@deepseek-ai/dsh'],
+        peerDependencies: { ...layout.packages['node_modules/@deepseek-ai/dsh']?.peerDependencies, react: '19.2.8' },
+      },
+      'node_modules/react': { version: '19.2.8' },
+    }
+    expect(assertDualDshInstallLayout({ ...layout, packages }, WORKSPACE_DSH_PACKAGES)).toEqual({
+      dshPackagesPerVersion: 3,
+      checkedDshEdges: 4,
+    })
+  })
+
+  it('rejects two installed copies of a browser runtime', () => {
+    const layout = validLayout()
+    const packages = {
+      ...layout.packages,
+      'node_modules/react': { version: '19.2.8' },
+      'node_modules/dsh-previous/node_modules/react': { version: '18.3.1' },
+    }
+    expect(() => assertDualDshInstallLayout({ ...layout, packages }, WORKSPACE_DSH_PACKAGES)).toThrow(
+      'react has 2 installed copies, expected one',
     )
   })
 

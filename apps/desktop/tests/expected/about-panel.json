@@ -1,7 +1,7 @@
 {
   "darwin:en-US": {
     "menu": [
-      { "label": "About 学伴AI", "role": "about" },
+      { "label": "About 学伴AI" },
       { "type": "separator" }
     ],
     "options": {
@@ -14,7 +14,7 @@
   },
   "darwin:zh-CN": {
     "menu": [
-      { "label": "关于 学伴AI", "role": "about" },
+      { "label": "关于 学伴AI" },
       { "type": "separator" }
     ],
     "options": {

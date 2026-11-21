@@ -52,6 +52,34 @@ describe('readSdkworkDesktopBridge', () => {
       Reflect.deleteProperty(globalThis, 'sdkworkDesktop')
     }
   })
+
+  it('validates the optional loopback slice', async () => {
+    const loopback = {
+      start: vi.fn(async () => ({ redirectUri: 'http://127.0.0.1:1234/auth/callback' })),
+      cancel: vi.fn(async () => {}),
+      onCallback: vi.fn(() => () => {}),
+    }
+    Reflect.set(globalThis, 'sdkworkDesktop', { ...bridge(), loopbackLogin: loopback })
+    try {
+      const parsed = readSdkworkDesktopBridge()
+      expect(await parsed?.loopbackLogin?.start())
+        .toEqual({ redirectUri: 'http://127.0.0.1:1234/auth/callback' })
+      expect(parsed?.loopbackLogin?.onCallback(() => {})).toBeTypeOf('function')
+      await parsed?.loopbackLogin?.cancel()
+
+      Reflect.set(globalThis, 'sdkworkDesktop', { ...bridge(), loopbackLogin: { start: 1 } })
+      expect(readSdkworkDesktopBridge()?.loopbackLogin).toBeUndefined()
+
+      Reflect.set(globalThis, 'sdkworkDesktop', {
+        ...bridge(),
+        loopbackLogin: { ...loopback, start: async () => ({ redirectUri: 42 }) },
+      })
+      await expect(readSdkworkDesktopBridge()?.loopbackLogin?.start())
+        .rejects.toThrow(/redirect URI/u)
+    } finally {
+      Reflect.deleteProperty(globalThis, 'sdkworkDesktop')
+    }
+  })
 })
 
 describe('createIamDesktopLogin', () => {
@@ -82,7 +110,9 @@ describe('createIamDesktopLogin', () => {
     expect(runtimeOptions.authorizeBaseUrl).toBe('https://platform.birdcoder.com')
     expect(runtimeOptions.flowTtlMs).toBe(270_000)
     expect(runtimeOptions.host.id).toBe('electron')
-    expect(runtimeOptions.onSession).toBe(onSession)
+    expect(runtimeOptions.onSession).toBeTypeOf('function')
+    await runtimeOptions.onSession({} as never)
+    expect(onSession).toHaveBeenCalledTimes(1)
 
     await login.begin()
     expect(runtime.beginLogin).toHaveBeenCalledTimes(1)
@@ -124,7 +154,9 @@ describe('createIamDesktopLogin', () => {
       method: 'POST',
       contentType: 'application/json',
       skipAuth: true,
-      sdkworkUnwrapKind: 'data',
+      // The generated operation unwraps the create envelope's `data.item`;
+      // the hand-written at-most-once caller must request the same shape.
+      sdkworkUnwrapKind: 'item',
       retry: { maxRetries: 0 },
       body: command,
     })

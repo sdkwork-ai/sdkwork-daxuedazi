@@ -28,6 +28,7 @@ interface RootOverrides {
   desktopPluginsAvailable?: boolean
   desktopPluginsUsable?: boolean
   quitAvailable?: boolean
+  aboutAvailable?: boolean
 }
 
 /** Render the root with stubbed framework hooks and inject callbacks. */
@@ -36,6 +37,7 @@ function root(over: RootOverrides = {}) {
   const signIn = vi.fn()
   const logout = vi.fn()
   const checkForUpdates = vi.fn()
+  const openAbout = vi.fn()
   const openDesktopPlugins = vi.fn()
   const quitApp = vi.fn()
   const useSections = vi.fn((sel: (rows: readonly SettingsSectionRow[]) => readonly SettingsSectionRow[]) => sel(over.sections ?? []))
@@ -62,6 +64,8 @@ function root(over: RootOverrides = {}) {
     signIn,
     logout,
     checkForUpdates,
+    openAbout,
+    aboutAvailable: over.aboutAvailable ?? false,
     updatesAvailable: over.updatesAvailable ?? false,
     openDesktopPlugins,
     desktopPluginsAvailable: over.desktopPluginsAvailable ?? false,
@@ -72,7 +76,7 @@ function root(over: RootOverrides = {}) {
   }
   render(<SettingsMenuRoot {...props as unknown as SettingsMenuRootComponentProps} />)
   return {
-    setTheme, signIn, logout, checkForUpdates, openFeedback, openPersona, openDesktopPlugins, quitApp, renderSlot, menu,
+    setTheme, signIn, logout, checkForUpdates, openAbout, openDesktopPlugins, quitApp, renderSlot, menu,
   }
 }
 
@@ -119,6 +123,20 @@ describe('SettingsMenuRoot', () => {
     expect((signOut as HTMLButtonElement).disabled).toBe(true)
     act(() => { signOut.click() })
     expect(logout).not.toHaveBeenCalled()
+  })
+
+  it('opens the About dialog from the app menu row when the About service is mounted', () => {
+    const { openAbout } = root({ aboutAvailable: true })
+    openMenu()
+    act(() => { screen.getByRole('menuitem', { name: '关于' }).click() })
+    expect(openAbout).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('hides the About row without the About service', () => {
+    root()
+    openMenu()
+    expect(screen.queryByRole('menuitem', { name: '关于' })).toBeNull()
   })
 
   it('keeps the cloud-console, help, feedback, and persona rows out of the product menu', () => {

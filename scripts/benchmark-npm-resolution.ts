@@ -558,7 +558,13 @@ export async function runCommandWithTimeout(
       exited,
       delay(FORCED_EXIT_TIMEOUT_MS).then(() => undefined),
     ])
-    if (forced === undefined) throw new Error('timed-out process tree did not exit after SIGKILL')
+    // A tree that outlives SIGKILL is a cleanup failure, not a verdict: report the
+    // deadline the same way an ordinary timeout does, so the caller's diagnostic
+    // still names the limit that expired instead of this message. On Windows the
+    // `npm.cmd` → cmd.exe tree is the case that reaches here.
+    if (forced === undefined) {
+      return { status: null, signal: 'SIGKILL', durationMs: performance.now() - started, output, timedOut: true }
+    }
     return { ...forced, durationMs: performance.now() - started, output, timedOut: true }
   } finally {
     if (timeout !== undefined) clearTimeout(timeout)
@@ -693,7 +699,14 @@ export async function resolveNpmPackageLock(
   } finally {
     server.closeAllConnections()
     await close(server)
-    rmSync(consumer, { recursive: true, force: true })
+    try {
+      rmSync(consumer, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    } catch {
+      // A killed npm child can keep a handle on its consumer directory, and on
+      // Windows that surfaces as EBUSY. Cleanup is best effort: letting it throw
+      // here would replace the guard's diagnostic (the timeout, or the layout
+      // error) with a scratch-directory message that names no cause.
+    }
   }
 }
 

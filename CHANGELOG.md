@@ -141,5 +141,34 @@
 * 容器/Compose：监听端口 `DSH_WEB_PORT`、宿主发布地址 `DSH_PUBLISH_HOST`/`DSH_PUBLISH_PORT`、数据与工作区目录 `DSH_DATA_DIR`/`DSH_WORKSPACE_DIR`、对外权威 `DSH_TRUSTED_HOSTS`、镜像 `DSH_IMAGE`，以及 `DEEPSEEK_BASE_URL` / `DEEPSEEK_API_KEY` 透传；入口会校验端口为 1–65535。
 * Kubernetes：`service.port`、`runtime.allowedOrigins`、`image.digest`（生产要求不可变摘要）、`secret.example.yaml` 提供的凭据键。
 * 数据库：按 SDKWork 规范统一走 `SDKWORK_DATABASE_*`（主机级档位 `config/host/postgres.env`，样例见 `config/host/postgres.env.example`）。本版本运行时无 Redis 依赖，因此没有 Redis 配置面。
+##### 上游 changelog 当前版本：2026-11-20 再打包
+
+本次仍在 `0.2.2-rc.5` 版本线上，把 tag 之后合入 main 的 IAM deep-link loopback policy 与 access-token bootstrap 纳入正式包，并只前移真正前进的 git submodule。
+
+* **子模块前移**：`dsh-mcp-connector` `e762e57` → `ed9ea13`（v0.2.118 + 实时 locale 修复与 GilData MCP bridge）；远端 `main` 相对旧 pin 是快进，依赖集合未变，因此 `pnpm-lock.yaml` 的 importer 无需改写。`dsh-better-sidebar` 保持 `aa2a058`：远端 `main` 的 `2811573` 实际是它的祖先，移动会造成倒退并丢掉已合入的 editor 修复。
+* **依赖管理**：本地仍由 `pnpm-workspace.yaml` 的 `../sdkwork-*` 相对路径与 `workspace:*` 解析，release 仍由 `agent.workflow.json` 与 `scripts/sdkwork-sources.manifest.json` 的 git pin checkout 解析；没有把任何本地路径写进 release 依赖。
+* **本地 Windows 打包验证**：`package:win:x64:unsigned` 在 win-x64 上通过，产出 `BirdCoder-0.2.2-rc.5-win-x64.exe` / `.zip` / `latest.yml`；冒烟覆盖 CLI 离线插件装卸、Office 技能加载与 DOCX/XLSX/PPTX→PDF 转换，全部通过。
+
+##### 上游 changelog 当前版本：2026-11-21 IAM 兑换与启动锚点修复
+
+同一 `0.2.2-rc.5` 版本线，纳入 tag 之后合入 main 的 IAM 登录与 access-token 修复，并撤掉一处会让 release 工作流在 CI 必然失败的前置门禁。
+
+* **桌面兑换信封**：`ui-sdkwork-iam` 的 V3 会话创建调用从 `sdkworkUnwrapKind: 'data'` 改为 `'item'`，与生成的 `oauth.desktopSessions.create` 一致（`{"code":0,"data":{"item":{...}}}`）；此前把 `{ item: session }` 交给会话校验器，会把成功兑换误判为不完整会话。登录失败提示优先显示服务端/传输层 `detail`，固定摘要 `message` 退为兜底；失败日志保留原始 error，便于按状态码、问题码与 trace id 与 IAM 服务端日志对齐。
+* **启动锚点**：`admin:bootstrap:app` 从 `scripts/sdkwork-app-bootstrap.mjs` 迁到 `scripts/bootstrap/bootstrap-app.mjs`，支持 `--deploy-application-id` / `SDKWORK_DEPLOY_APPLICATION_ID` 覆盖 manifest 回退值，使 access token 的 `app_id` 与部署自身应用一致（provision → enable → access-credential）。本地新增 `check:architecture` 三项校验（IAM application bootstrap、access-token lifecycle、embedded bootstrap workspace audit），均针对 `sdkwork-specs` 规范，本地全绿。
+* **CI 门禁纠正**：`release:verify` / `release:pack` 曾被前置 `check:release-access-token:require-anchor`。该脚本依赖 CI 未 checkout 的 `../sdkwork-specs/tools/...`，且要求构建后才材料化的应用锚点，放在 `release:verify`（Build 之前）会在干净 checkout 上必然失败；已撤销这两处前置，锚点校验保留为本地按需执行的脚本，不影响 release 打包链。
+* **依赖管理**：本地仍由 `pnpm-workspace.yaml` 的 `../sdkwork-*` 相对路径与 `workspace:*` 解析，release 仍由 `agent.workflow.json` 与 `scripts/sdkwork-sources.manifest.json` 的 git pin checkout 解析；根 importer 的 98 个 devDependency 与 lockfile 逐项一致，没有把本地路径写进 release 依赖。
+* **本地 Windows 打包验证**：`package:win:x64:unsigned` 在 win-x64 上通过，产出 `BirdCoder-0.2.2-rc.5-win-x64.exe` / `.zip` / `latest.yml`。
+
+##### 本次上游同步（2026-11-21，`51d3091c28` → `da26a7b896`）
+
+从上游 `sdkwork-birdcoder2` 再同步 **15 个提交**（合并基底 `51d3091c28` → `da26a7b896`，**315 个文件变更、+17901 / −335**），仍以真实双亲 merge commit 合入：未 squash、未 rebase、未 cherry-pick，上游 commit message 与代码注释逐字保留。上游本批无删除文件。
+
+* **IAM 访问令牌与登录链路**：新增应用访问令牌初始化（`scripts/bootstrap/bootstrap-app.mjs`，支持 `--deploy-application-id` / `SDKWORK_DEPLOY_APPLICATION_ID` 覆盖 manifest 回退值，`provision → enable → access-credential` 三步落地）与永久应用访问令牌（`2026-11-20-permanent-application-access-token`、`2026-11-20-sdkwork-access-token-initializer`）。桌面端新增 IAM 回环重定向策略与深链中继（`iam-loopback-policy.ts` / `iam-loopback-protocol.ts` / `iam-loopback-redirect.ts` / `iam-deep-link-relay.ts`，记录见 `2026-11-20-deeplink-login-multi-process-handoff`）：回环默认关闭，由 OEM profile 的 `sdkwork.iamLoopbackRedirect: true` 或 `DSH_DESKTOP_IAM_LOOPBACK=1` 开启，关闭或壳拒绝监听时回退自定义 scheme。`agent.app.config.json` 的 `redirectUris` 因此新增 `http://127.0.0.1:0/auth/callback`（fork 侧 `daxuedazi://auth/callback` 保留）。
+* **About 面**：新增 `ui-sdkwork-about` 包与桌面 `about-command.ts`（`sdkwork:about:open` / `sdkwork:about:takePending` 两通道），应用菜单与设置菜单的 About 行都改为打开页面内的同一份 About 设计与安装身份面（`2026-11-21-about-installation-identity`），不再走原生面板或 Electron 消息框；菜单项的 `role: about` 随之退场。fork 设置菜单接入 `openAbout` / `aboutAvailable`，其产品行裁剪（无帮助、反馈、角色与兴趣、云端控制台行）保持不变。
+* **发布与校验链路**：`release.yml` / `container-release.yml` 增加 `repair` 判定，并把访问令牌锚点前置门禁从 `release:verify` / `release:pack` 撤下（依赖 CI 未 checkout 的 `../sdkwork-specs/tools/...`，放在 Build 之前必然失败）；`verify-npm-install-layout` 改为一律**剥离 glue DSH 边**（`stripGlueDshEdges`）而不是改写范围，npm 挂起守卫回到由规模预算派生的 4×（上游实测同一张图剥离后 223 s 出结论，fork 侧的 12× 分支随之退场）；`npm-verify` 的浏览器输入断言按 DSH runtime 边收窄、EBUSY 清理容忍；dual-release layout lane 会自带 deadline 上报；桌面打包冒烟的 LibreOffice 超时改为可重试。
+* **env 矩阵**：上游为 `standalone` / `cloud` 两个 profile 补齐 `staging` 与桌面应用的 `.env.<profile>.<environment>` carrier（根目录与 `apps/desktop/` 各 10 份），`.gitignore` 相应撤掉 staging 忽略规则——发布 lane 不再缺 carrier。
+* **子模块**：`dsh-mcp-connector` `a3b1d9a`（v0.2.117）→ `78a2976`（v0.2.119，installed connection layout 修复 + 实时 locale），`dsh-skill-market` `6901769`（v2.1.0）→ `14be569`；两者都经 `git merge-base --is-ancestor` 校验为 fork 现有指针的后代，属快进，无 fork 改动丢失。
+* **conflict 处理（26 处，fork-first + 双方行为同时保留）**：`.gitignore` 采用上游「每个 profile 均入库」，并把 fork 曾踩到的「unanchored staging 规则误伤 `apps/sdkwork-birdcoder2-{pad,h5,pc}/.env.standalone.staging`」写进注释；`desktop-package-target.yml` 保留 fork 的 `app_01a18b4f-…` 字面量（上游新增的同键 job-env 条目会让 workflow 非法）；`container-release.yml` 同时保留 fork 的 `prefix` 输出与上游的 `repair` 输出；三份 `apps/sdkwork-birdcoder2-*/.env.standalone.staging` 保留 fork 的占位令牌；桌面 `about-panel` / `application-menu` 期望快照保留 fork 的「学伴AI」标签并跟随上游去掉 `role: about`；`main-startup.spec.ts` 采用上游的 About 桥接断言；`ui-sdkwork-iam` README 合并 `daxuedazi` scheme 与上游回环说明；设置菜单 5 个文件保留 fork 的行裁剪并接入 About；`sdkwork-oem` 两处期望保留 `daxuedazi` 身份并补 `iamLoopbackRedirect: false`；`pnpm-lock.yaml` 的 `react-router-dom` 采用上游 `^7.15.0` / `7.18.5`（与兄弟仓 `sdkwork-deployments` 的声明一致）。
+* **完整性校验**：fork 的品牌与 SDKWork 自有组件仍为当前仓库版本（`BirdLogo` / `BirdWordmark` / `LoginPanel` / favicon / 安装包图标与标语、`ui-sdkwork-*` / `sdkwork-*`、daxuedazi 安装身份与 IAM scheme）；上游本批未删除文件，合并亦未误删；本文件仍只保留 rc.7 一个 `##` 版本节。
 
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。

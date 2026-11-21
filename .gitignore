@@ -6,12 +6,14 @@ CLAUDE.local.md
 # `~/.sdkwork/<application-code>/credentials/<profile-id>.json`, the host
 # PostgreSQL profile in `config/host/postgres.env`, and desktop packaging
 # settings in `apps/desktop/packaging/<platform>.env`.
-# Root-anchored: the pattern must only cover the repository-root staging files.
-# Unanchored, it also swallowed `apps/sdkwork-birdcoder2-pad/.env.standalone.staging`,
-# so that generated matrix entry never reached the repository and the pad
-# environment test failed on every CI run.
-/.env.standalone.staging
-/.env.cloud.staging
+#
+# Every profile of the matrix is tracked, staging included: a token ships with
+# the packaged application, so a release lane cannot be missing its carrier.
+# Nothing here may ignore a `.env.<profile>.<environment>` name: the fork once
+# kept an unanchored `.env.standalone.staging` rule and it also swallowed
+# `apps/sdkwork-birdcoder2-{pad,h5,pc}/.env.standalone.staging`, so those
+# generated matrix entries never reached the repository and the pad environment
+# test failed on every CI run.
 # Retired composed names. Nothing reads them, and tools/check-env-file-naming.mjs
 # fails when one exists; they stay ignored only so a stray file cannot be
 # committed while it is being deleted.
