@@ -62,7 +62,7 @@ jobs:
               -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth_value" \
               submodule update --init --remote plugins/sdkwork-dsh-agents
           echo "pin $(git -C plugins/sdkwork-dsh-agents rev-parse --short=9 HEAD)"
-      - uses: pnpm/action-setup@v5.0.0
+      - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: ${{ env.PRIMARY_NODE_VERSION }}
