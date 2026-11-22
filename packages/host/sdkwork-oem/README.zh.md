@@ -25,7 +25,7 @@ OEM 部署保留 DeepSeek 官方登录验证流程，只替换其运行的域名
 
 SDKWork IAM 客户端保持生成的 `/app/v3/api/...` PC 登录路径、参数结构与 `X-Platform: pc` 请求头；`sdkwork.iamBaseUrl` 只替换源。
 
-桌面浏览器登录保持 SDKWork 契约：应用打开 `<iamAuthorizeBaseUrl>/iam/v3/oauth/authorize`，携带 PKCE S256、`client_id=sdkwork.iamClientId`、`redirect_uri=sdkwork.iamRedirectUri`、`scope=openid profile offline_access` 与 state。托管页在 `/auth/desktop/launch?redirectUrl=…` 完成，并通过深链把 code 交回应用；应用在 `/app/v3/api/oauth/desktop_sessions` 兑换双 token 会话。出厂默认值就是当前品牌自己的 scheme（`daxuedazi` 与 `daxuedazi://auth/callback`）；profile 未声明 `sdkwork.iamClientId` 时由回调 scheme 派生，构建不会冒用其他品牌的客户端。部署若在 IAM 控制台注册了其他 OAuth 客户端或回调，只需改这两个字段，无需改代码。授权路径与参数保持上游原样。重定向 scheme 必须是桌面应用的 URL scheme（品牌清单的 `desktop.protocol`，出厂品牌为 `daxuedazi`）：打包外壳以该 scheme 向操作系统注册协议处理器，HTTP(S) 重定向永远到不了应用。
+桌面浏览器登录保持 SDKWork 契约：应用打开 `<iamAuthorizeBaseUrl>/iam/v3/oauth/authorize`，携带 PKCE S256、`client_id=sdkwork.iamClientId`、`redirect_uri=sdkwork.iamRedirectUri`、`scope=openid profile offline_access` 与 state。托管页在 `/oauth/desktop/launch?redirectUrl=…` 完成，并通过深链把 code 交回应用；应用在 `/app/v3/api/oauth/desktop_sessions` 兑换双 token 会话。出厂默认值就是当前品牌自己的 scheme（`daxuedazi` 与 `daxuedazi://auth/callback`）；profile 未声明 `sdkwork.iamClientId` 时由回调 scheme 派生，构建不会冒用其他品牌的客户端。部署若在 IAM 控制台注册了其他 OAuth 客户端或回调，只需改这两个字段，无需改代码。授权路径与参数保持上游原样。重定向 scheme 必须是桌面应用的 URL scheme（品牌清单的 `desktop.protocol`，出厂品牌为 `daxuedazi`）：打包外壳以该 scheme 向操作系统注册协议处理器，HTTP(S) 重定向永远到不了应用。
 
 ## 配置
 
@@ -144,7 +144,7 @@ DeepSeek API Key vendor（`llm-deepseek`）不在本表内：它仍使用 DeepSe
 - 登录流程保持上游实现：state/PKCE、`/oauth/callback`、`auth_init`/`auth_exchange`、`/dsh/authorize` 与 `/dsh/authorized`、请求头、grant 存储与 401 处理。只有域名来自配置；不得在 `deepseek-account-platform` 内新增 OEM 分支。
 - 浏览器回调源仅限 `application.origins` 与回环路径。不得把 `loginOrigin` 放宽为任意源；托管部署的公开源必须写入配置，而不是从请求头推断。
 - 不得让 DeepSeek API Key vendor（`llm-deepseek`）或其展示端点走 OEM 配置；OEM 自有模型网关应作为独立 provider 路由。OEM 可配置面限定为账号路由与 DeepSeek Search/Fetch。
-- SDKWork IAM 客户端的所有 PC 路径都由生成 SDK 基于 `sdkwork.iamBaseUrl` 派生；不得在 `ui-sdkwork-iam` 中拼写 IAM API 路径或第二个 IAM 源。桌面流程保持 `/iam/v3/oauth/authorize` 与 `/auth/desktop/launch` 原样；其 `client_id` 与 `redirect_uri` 来自 `sdkwork.iamClientId` 与 `sdkwork.iamRedirectUri`，深链接收端按该重定向精确匹配，而不是接受共享该 scheme 的任意 URL。
+- SDKWork IAM 客户端的所有 PC 路径都由生成 SDK 基于 `sdkwork.iamBaseUrl` 派生；不得在 `ui-sdkwork-iam` 中拼写 IAM API 路径或第二个 IAM 源。桌面流程保持 `/iam/v3/oauth/authorize` 与 `/oauth/desktop/launch` 原样；其 `client_id` 与 `redirect_uri` 来自 `sdkwork.iamClientId` 与 `sdkwork.iamRedirectUri`，深链接收端按该重定向精确匹配，而不是接受共享该 scheme 的任意 URL。
 - 端点字面量——出厂 BirdCoder 默认值（`https://platform.birdcoder.com`、`https://api.birdcoder.com`）与部署可显式恢复的官方值（`https://platform.deepseek.com`、`https://api.deepseek.com`）——只允许出现在具名默认常量（`PUBLIC_BASE_URL`、`DEEPSEEK_DEFAULT_BASE_URL`、`DEEPSEEK_WEB_API_BASE_URL`、本解析器的 `DEFAULT_*`/`OFFICIAL_*`）、测试，以及 `deepseek-account-platform/src/index.ts` 中记录在案的官方 API issuer 守卫里。修改出厂默认值属于产品变更，不是上游同步。
 - 新的品牌文案通过 `LocaleRuntime.setBrand`（客户端）或 `resolveDesktopLocale(locale, brand)`（桌面端）渲染；显示文案中新增字面量 "BirdCoder" 即回归。构建期标识（`productName`、应用标识、操作系统 URL scheme、`daxuedazi` 命令、安装器位图、Web manifest、文档站标识）不进入运行期配置；`sdkwork.iamRedirectUri` 只命名回调路径，不能替换打包外壳注册的 scheme。
 - 场景外观保持由配置控制：`ui.sceneSwitcher` 与 `ui.skillTags` 默认为 `false`，且只能通过 `ui-primitives` 的 `readOemSceneSwitcher` / `readOemSkillTags` 读取。合并把胶囊或标签条硬编码回出厂构建属于缺陷，不是中性的上游变更；`pnpm run verify-oem-identity` 会因此失败。
