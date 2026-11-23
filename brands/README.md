@@ -45,7 +45,6 @@ it exists. At runtime the shell reads `resources/brand.json`; a source checkout
 | `displayNames` | Installed application name per shipped locale (`en`, `zh-CN`, `ja`, `es`, `fr`, `de`, `ru`, `pt`) plus `default`; display copy only, never an identity or a path. A missing locale falls back to `default`, then `displayName` | `学伴AI` |
 | `companyName` | Vendor name for packaging metadata | `SDKWork` |
 | `home.dirName` | Harness home directory under the user's home; dot-prefixed and lower case so two brands cannot collide on a case-insensitive filesystem | `.daxuedazi` |
-| `home.adoptLegacyDshHome` | Whether a packaged first launch may take over an existing `~/.dsh` | `false` |
 | `desktop.appId` | Reverse-DNS identifier; owns the Windows installer GUID, and with it the install directory the next installer upgrades, the uninstall registration and the macOS bundle identifier | `com.sdkwork.daxuedazi` |
 | `desktop.releaseRepository` | GitHub `owner/repo` that publishes this brand's releases; the packaged updater reads `latest.yml` from it | `sdkwork-ai/sdkwork-daxuedazi` |
 | `desktop.productName` | Electron product name; names userData, the single-instance lock and logs | `daxuedazi` |
@@ -118,17 +117,15 @@ The launcher resolves the home before any plugin mounts and exports it as
 `DSH_HOME`, which every consumer already reads:
 
 1. An explicit `DSH_HOME` — tests, CI, portable installs.
-2. `~/<home.dirName>` — the brand's own home.
-3. The legacy `~/.dsh`, only for a brand that sets `home.adoptLegacyDshHome` and
-   only in a packaged launch:
-   - the first launch renames `~/.dsh` to the brand home (same-volume move, so
-     sessions, credentials, profiles and workspaces move with it);
-   - when a rename is refused — an older instance may still hold a file — it
-     creates a directory link instead;
-   - when neither works it keeps using `~/.dsh` for that launch and reports it,
-     so the application still starts and no data is lost.
+2. `~/<home.dirName>` — the brand's own home, created when it is missing.
 
-A brand without `adoptLegacyDshHome` always uses its own directory and never reads `~/.dsh`: importing another product's credentials and sessions is worse than starting empty, and a shared directory would let two installed brands read one home. A source launch of an adopting brand never renames anything; it uses the brand home when it exists and otherwise keeps `~/.dsh`.
+No brand reads, moves, links or writes the upstream `~/.dsh`, and
+`parseBrandManifest` rejects it as a `home.dirName`: importing another product's
+credentials and sessions is worse than starting empty, and a shared directory
+would let an installed DeepSeek Harness, or two installed brands, read one home.
+A brand home therefore starts empty and holds only what this brand creates. A
+bare Electron import (unit tests, a stray `electron .`) applies no home, so the
+npm CLI's `~/.dsh` default still governs that process.
 
 A shipped `resources/oem.json` becomes the default `DSH_OEM_CONFIG` only when the
 home carries no `oem.json` of its own, so a deployment ships its endpoints
@@ -148,8 +145,7 @@ development launcher therefore refuses an inherited `DSH_HOME` that another bran
    the new brand its own [`desktop.webPort`](#ports) block at least nine ports
    away from every existing one and its own
    [`desktop.releaseRepository`](#fields) — the repository that will publish its
-   releases. Leave `home.adoptLegacyDshHome` false unless the new brand replaces
-   an existing `~/.dsh` installation.
+   releases.
 2. Replace the build-time rasters for that brand: `build/icon.{ico,icns,png}`,
    `resources/icon{,-windows,-macos}.png`, the installer brand images
    (`pnpm --dir apps/desktop run generate-icons` and
@@ -180,7 +176,7 @@ Everything listed here is OEM content: upstream owns the surrounding code, this 
 | `apps/desktop/scripts/electron-builder-config.mjs` | `productName`, `extraMetadata.productName`, `executableName`, `artifactName`, protocols, app-id fallback, updater cache directory, `resources/brand.json`, the port-block collision refusal | Keep every brand-derived field and upstream's new builder fields |
 | `apps/desktop/cli/daxuedazi` + `daxuedazi.cmd` | Installed launcher templates (`@BRAND_HOME@`, executable name, command name) | Keep these launchers; upstream's `dsh` launcher belongs to another application |
 | `apps/desktop/scripts/dev.ts` + `apps/desktop/scripts/development-identity.ts` | The source lanes' Web and inspector ports from the brand block, and the refusal of an inherited `DSH_HOME` that another brand exports into the environment | Keep the derivation; a fixed lane or inspector port, or a taken-over home, is a merge defect |
-| `apps/desktop/src/brand.ts` | Resolves the launch brand, owns `~/.<home.dirName>`, exports `DSH_HOME`, and hands the Host the brand Web port; a brand without `adoptLegacyDshHome` never reads `~/.dsh` | Keep the module and its isolation branches; re-resolve it onto upstream's startup changes |
+| `apps/desktop/src/brand.ts` | Resolves the launch brand, owns `~/.<home.dirName>`, exports `DSH_HOME`, and hands the Host the brand Web port; no brand reads, renames or writes `~/.dsh` | Keep the module and its isolation branches; re-resolve it onto upstream's startup changes |
 | `apps/desktop/src/main.ts` | Registers `brand.desktop.protocol`, names the About panel from the OEM brand, applies the brand window icon and tray identity, and passes `desktop.webPort` to the Desktop Host | Keep these call sites inside upstream's restructured `main.ts` |
 | `apps/desktop/src/locale.ts` command copy | The `cliCommand*` strings name the shipped `daxuedazi` command and terminal invocation | Keep the shipped command spelling; other brand builds re-spell them |
 | `apps/desktop/src/command-*.ts` + `scripts/command-path.ps1` | Command ownership receipt, Windows PATH key and mutex stem, all from the manifest | Keep the manifest-derived names; never hardcode a brand |

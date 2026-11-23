@@ -20,7 +20,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { webBuildEnvironment, type WebBuildEnvironment } from '../../../scripts/web-build-environment.ts'
-import { LEGACY_DSH_HOME_DIR_NAME } from '../src/brand.ts'
+import { UPSTREAM_DSH_HOME_DIR_NAME } from '../src/brand.ts'
 import { BRAND_DIRECTORY, BRAND_PORT_BLOCK, parseBrandManifest, type DesktopBrand } from './brand-manifest.mjs'
 import { DEVELOPMENT_LANE_PROFILE, PRODUCTION_LANE_PROFILE, type LaneSdkworkProfile } from './sdkwork-lane-profiles.ts'
 
@@ -192,18 +192,18 @@ function samePath(left: string, right: string): boolean {
 /**
  * Brand key owning a Harness home under the operating-system home.
  *
- * The legacy `~/.dsh` belongs to the upstream application, not to any brand.
+ * The upstream `~/.dsh` belongs to the upstream application, not to any brand.
  * A manifest that cannot be read is skipped: this check only refuses a home it
  * can prove another application owns, and the brand this launch runs as has
  * already been validated.
  * @param home - Absolute candidate home.
  * @param options - Brand, home directory, and manifest directory.
- * @returns Owning brand key, `dsh` for the legacy home, or undefined when no brand owns it.
+ * @returns Owning brand key, `dsh` for the upstream home, or undefined when no brand owns it.
  */
 function foreignOwner(home: string, options: DevelopmentLaneHomeOptions): string | undefined {
   const homeDirectory = options.homeDirectory ?? homedir()
   const directory = options.brandDirectory ?? BRAND_DIRECTORY
-  if (samePath(home, join(homeDirectory, LEGACY_DSH_HOME_DIR_NAME))) return 'dsh'
+  if (samePath(home, join(homeDirectory, UPSTREAM_DSH_HOME_DIR_NAME))) return 'dsh'
   let names: string[]
   try {
     names = readdirSync(directory).filter(name => name.endsWith('.json'))

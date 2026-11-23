@@ -14,7 +14,7 @@
  * @module verify-oem-identity
  */
 
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -42,7 +42,7 @@ const SHIPPED_IDENTITY = Object.freeze({
 })
 
 /** Harness home the shipped brand owns outright. */
-const SHIPPED_HOME = Object.freeze({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
+const SHIPPED_HOME = Object.freeze({ dirName: '.daxuedazi' })
 
 /** Identity values two installed brands must never share. */
 const SHARED_IDENTITY = ['appId', 'releaseRepository', 'productName', 'executableName', 'protocol', 'commandName', 'registryKey', 'updaterCacheDirName', 'artifactPrefix', 'webPort'] as const
@@ -268,9 +268,6 @@ function checkShipped(brand: DesktopBrand | undefined, failures: string[]): void
   if (brand.key !== SHIPPED_KEY) failures.push(`oem identity: brands/${SHIPPED_KEY}.json declares key ${JSON.stringify(brand.key)}`)
   if (brand.home.dirName !== SHIPPED_HOME.dirName) {
     failures.push(`oem identity: home.dirName is ${JSON.stringify(brand.home.dirName)}; the shipped brand owns ${JSON.stringify(SHIPPED_HOME.dirName)} and must never share another product's home`)
-  }
-  if (brand.home.adoptLegacyDshHome !== SHIPPED_HOME.adoptLegacyDshHome) {
-    failures.push(`oem identity: home.adoptLegacyDshHome is ${JSON.stringify(brand.home.adoptLegacyDshHome)}; the shipped brand never takes over ~/.dsh`)
   }
   for (const [field, expected] of Object.entries(SHIPPED_IDENTITY)) {
     const actual = (brand.desktop as unknown as Record<string, unknown>)[field]
@@ -754,7 +751,8 @@ function checkBrandPorts(root: string, failures: string[]): void {
 }
 
 /**
- * Check the home implementation never falls back to another product's home.
+ * Check a packaged launch of the shipped brand creates and uses its own home
+ * while leaving the upstream `~/.dsh` exactly as it found it.
  * @param brand - Parsed shipped manifest.
  * @param failures - Receives the home the shipped brand resolved instead of its own.
  */
@@ -763,11 +761,19 @@ function checkHomeIsolation(brand: DesktopBrand | undefined, failures: string[])
   const directory = mkdtempSync(join(tmpdir(), 'dsh-oem-home-'))
   try {
     mkdirSync(join(directory, '.dsh'))
+    writeFileSync(join(directory, '.dsh', 'credentials.yaml'), 'upstream')
     const env: Record<string, string | undefined> = {}
-    const result = applyBrandHome({ brand, env, homeDirectory: directory, allowAdoption: true })
+    const result = applyBrandHome({ brand, env, homeDirectory: directory })
     if (result.source !== 'brand' || result.home !== join(directory, brand.home.dirName)) {
       failures.push(`oem identity: a packaged launch of the shipped brand resolved ${JSON.stringify(result.home)} (${result.source}) `
-        + `instead of ${JSON.stringify(join(directory, brand.home.dirName))}; the ~/.dsh fallback must not return for a brand that does not adopt it`)
+        + `instead of ${JSON.stringify(join(directory, brand.home.dirName))}; the ~/.dsh fallback must not return for any brand`)
+      return
+    }
+    if (!existsSync(join(directory, brand.home.dirName))) {
+      failures.push(`oem identity: a packaged launch of the shipped brand did not create ${JSON.stringify(join(directory, brand.home.dirName))}`)
+    }
+    if (readFileSync(join(directory, '.dsh', 'credentials.yaml'), 'utf8') !== 'upstream') {
+      failures.push('oem identity: a packaged launch rewrote the upstream ~/.dsh; the brand home must be created beside it, never moved or linked over it')
     }
   } finally {
     rmSync(directory, { recursive: true, force: true })

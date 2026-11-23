@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-rc.7/brand-home-fresh-start/guide.md
+/:
+  en: b439ed8a0bf42005
+  zh: 2b49ed830a45e4fb
+/the-desktop-application-starts-on-an-empty-brand-home-instead-of-taking-over-dsh:
+  en: 2bbc95fb9c33b0b8
+  zh: 137d24cb40657052
+/the-desktop-application-starts-on-an-empty-brand-home-instead-of-taking-over-dsh/change:
+  en: 717cf941c6aef42c
+  zh: 4b907260581650aa
+/the-desktop-application-starts-on-an-empty-brand-home-instead-of-taking-over-dsh/migration:
+  en: d151e09f7db3890c
+  zh: 107713c76a181b2f

@@ -28,7 +28,7 @@ const ACME = Object.freeze({
   key: 'acme',
   displayName: 'Acme Harness',
   companyName: 'Acme',
-  home: { dirName: '.acme', adoptLegacyDshHome: false },
+  home: { dirName: '.acme' },
   desktop: {
     appId: 'com.acme.harness',
     releaseRepository: 'acme/harness-releases',
@@ -58,7 +58,7 @@ function temporaryDirectory(): string {
 it('ships the daxuedazi brand this application builds today', () => {
   const brand = shippedBrand()
   expect(brand.key).toBe('daxuedazi')
-  expect(brand.home).toEqual({ dirName: '.daxuedazi', adoptLegacyDshHome: false })
+  expect(brand.home).toEqual({ dirName: '.daxuedazi' })
   expect(brand.desktop).toEqual({
     appId: 'com.sdkwork.daxuedazi',
     releaseRepository: 'sdkwork-ai/sdkwork-daxuedazi',
@@ -128,7 +128,6 @@ it('rejects malformed fields instead of falling back', () => {
     ['key', (manifest) => { manifest.key = 'Acme' }],
     ['home.dirName', (manifest) => { (manifest.home as Record<string, unknown>).dirName = 'acme' }],
     ['home.dirName', (manifest) => { (manifest.home as Record<string, unknown>).dirName = '.ACME' }],
-    ['home.adoptLegacyDshHome', (manifest) => { (manifest.home as Record<string, unknown>).adoptLegacyDshHome = 'yes' }],
     ['desktop.appId', (manifest) => { (manifest.desktop as Record<string, unknown>).appId = 'acme' }],
     ['desktop.releaseRepository', (manifest) => { (manifest.desktop as Record<string, unknown>).releaseRepository = 'acme' }],
     ['desktop.releaseRepository', (manifest) => { delete (manifest.desktop as Record<string, unknown>).releaseRepository }],
@@ -146,6 +145,13 @@ it('rejects malformed fields instead of falling back', () => {
     corrupt(manifest)
     expect(() => parseBrandManifest(manifest), field).toThrow(/brand:/u)
   }
+})
+
+it('ignores a home key the schema no longer reads', () => {
+  const manifest = acme()
+  const home = manifest.home as Record<string, unknown>
+  home.adoptLegacyDshHome = true
+  expect(parseBrandManifest(manifest).home).toEqual({ dirName: '.acme' })
 })
 
 it('packages a second brand with its own identity and ships its manifest', async () => {

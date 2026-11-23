@@ -36,7 +36,6 @@
 | `displayNames` | 各发行语言（`en`、`zh-CN`、`ja`、`es`、`fr`、`de`、`ru`、`pt`）及 `default` 对应的已安装应用显示名；仅用于显示，不作为标识或路径。未声明的语言回退到 `default`，再回退到 `displayName` | `学伴AI` |
 | `companyName` | 打包元数据中的厂商名 | `SDKWork` |
 | `home.dirName` | 用户主目录下的 Harness home 目录名；带点且小写，避免在大小写不敏感的文件系统上互相冲突 | `.daxuedazi` |
-| `home.adoptLegacyDshHome` | 打包后的首次启动是否可以接管已存在的 `~/.dsh` | `false` |
 | `desktop.appId` | 反向域名标识；拥有 Windows 安装器 GUID，因而决定下一次安装要升级的目录、卸载登记与 macOS bundle id | `com.sdkwork.daxuedazi` |
 | `desktop.releaseRepository` | 发布该品牌 Release 的 GitHub `owner/repo`；打包后的更新器从它读取 `latest.yml` | `sdkwork-ai/sdkwork-daxuedazi` |
 | `desktop.productName` | Electron 产品名；决定 userData、单实例锁与日志目录 | `daxuedazi` |
@@ -81,13 +80,9 @@
 启动器在任何插件挂载之前解析 home，并把它导出为 `DSH_HOME`——所有使用方本就读取该变量：
 
 1. 显式 `DSH_HOME` —— 测试、CI、便携安装。
-2. `~/<home.dirName>` —— 品牌自己的 home。
-3. 旧 `~/.dsh`，仅当品牌设置 `home.adoptLegacyDshHome` 且仅在打包启动时：
-   - 首次启动把 `~/.dsh` 重命名为品牌 home（同盘移动，会话、凭据、profile 与工作区随之迁移）；
-   - 重命名被拒时——旧实例可能仍占用文件——改为创建目录联接；
-   - 两者都失败时本次启动继续使用 `~/.dsh` 并报告，应用仍能启动且数据不丢失。
+2. `~/<home.dirName>` —— 品牌自己的 home，不存在时新建。
 
-未设置 `adoptLegacyDshHome` 的品牌始终使用自己的目录，永不读取 `~/.dsh`：导入其他产品的凭据与会话，比从空目录开始更糟，而共用目录会让两个已安装品牌读到同一个 home。接管旧 home 的品牌在源码启动时从不重命名；品牌 home 存在就用它，否则继续使用 `~/.dsh`。
+任何品牌都不读取、移动、联接或写入上游 `~/.dsh`，`parseBrandManifest` 也拒绝把它作为 `home.dirName`：导入其他产品的凭据与会话，比从空目录开始更糟，而共用目录会让已安装的 DeepSeek Harness，或两个已安装品牌，读到同一个 home。因此品牌 home 从空目录开始，只保存本品牌创建的内容。裸 Electron 导入（单元测试、误跑的 `electron .`）不应用任何 home，npm CLI 的 `~/.dsh` 默认值仍然支配该进程。
 
 随包提供的 `resources/oem.json` 只有在 home 中没有自己的 `oem.json` 时才成为默认 `DSH_OEM_CONFIG`，因此部署方可以只读地提供端点，用户仍可在 `~/.<brand>/oem.json` 中覆盖。
 
@@ -95,7 +90,7 @@
 
 ## 新增品牌
 
-1. 把 `brands/daxuedazi.json` 复制为 `brands/<key>.json`，修改 `key`、`displayName`、`companyName`、`home.dirName` 与每个 `desktop` 值；新品牌的 [`desktop.webPort`](#ports) 端口块必须与既有每个品牌至少相差九个端口，并须给它自己的 [`desktop.releaseRepository`](#fields)——即将发布其 Release 的仓库。除非新品牌要替代既有的 `~/.dsh` 安装，`home.adoptLegacyDshHome` 保持 false。
+1. 把 `brands/daxuedazi.json` 复制为 `brands/<key>.json`，修改 `key`、`displayName`、`companyName`、`home.dirName` 与每个 `desktop` 值；新品牌的 [`desktop.webPort`](#ports) 端口块必须与既有每个品牌至少相差九个端口，并须给它自己的 [`desktop.releaseRepository`](#fields)——即将发布其 Release 的仓库。
 2. 替换该品牌的构建期位图：`build/icon.{ico,icns,png}`、`resources/icon{,-windows,-macos}.png`、安装器品牌图（`pnpm --dir apps/desktop run generate-icons` 与 `generate-installer-brand` 重新生成出厂那一套），以及欢迎页标识。运行时从不替换图片。
 3. 用 `DSH_BRAND=<key>`（以及通道需要的 `DSH_DESKTOP_UNSIGNED` 与签名变量）通过 `package:*` 脚本构建。不要设置 `DSH_DESKTOP_APP_ID`：身份由清单提供，指向其他品牌的值会让打包失败。
 4. 校验：`pnpm exec vitest run apps/desktop/tests/brand-manifest.spec.ts apps/desktop/tests/brand-home.spec.ts apps/desktop/tests/desktop-application-identity.spec.ts`，然后并排安装两个品牌，确认两个 home（`~/.daxuedazi`、`~/.<key>`）、两个 userData 目录、两个 URL scheme、两个命令与两段互不重叠的端口块——在一个品牌运行时启动另一个，正是这套清单要避免的冲突。
@@ -114,7 +109,7 @@
 | `apps/desktop/scripts/electron-builder-config.mjs` | `productName`、`extraMetadata.productName`、`executableName`、`artifactName`、protocols、app id 回退、更新缓存目录、`resources/brand.json`、端口块冲突拒绝 | 保留每个品牌派生字段，同时接纳上游新增的打包字段 |
 | `apps/desktop/cli/daxuedazi` + `daxuedazi.cmd` | 已安装启动器模板（`@BRAND_HOME@`、可执行名、命令名） | 保留这两个启动器；上游的 `dsh` 启动器属于另一个应用 |
 | `apps/desktop/scripts/dev.ts` + `apps/desktop/scripts/development-identity.ts` | 源码通道的 Web 与 inspector 端口（取自品牌端口块）以及对其他品牌导出到环境中的继承 `DSH_HOME` 的拒绝 | 保留该派生；写死的通道或 inspector 端口、被接管的 home 属于合并缺陷 |
-| `apps/desktop/src/brand.ts` | 解析本次启动的品牌、拥有 `~/.<home.dirName>`、导出 `DSH_HOME`，并把品牌 Web 端口交给 Host；未声明 `adoptLegacyDshHome` 的品牌永不读取 `~/.dsh` | 保留该模块及其隔离分支；把它重新落到上游的启动流程改动上 |
+| `apps/desktop/src/brand.ts` | 解析本次启动的品牌、拥有 `~/.<home.dirName>`、导出 `DSH_HOME`，并把品牌 Web 端口交给 Host；任何品牌都不读取、重命名或写入 `~/.dsh` | 保留该模块及其隔离分支；把它重新落到上游的启动流程改动上 |
 | `apps/desktop/src/main.ts` | 注册 `brand.desktop.protocol`、用 OEM 品牌命名关于面板、应用品牌窗口图标与托盘身份，并把 `desktop.webPort` 传给 Desktop Host | 在上游重构后的 `main.ts` 中保留这些调用点 |
 | `apps/desktop/src/locale.ts` 命令文案 | `cliCommand*` 文案写出出厂 `daxuedazi` 命令与终端调用方式 | 保留出厂命令拼写；其他品牌构建需重新拼写 |
 | `apps/desktop/src/command-*.ts` + `scripts/command-path.ps1` | 命令归属回执、Windows PATH 键与互斥体名，全部来自清单 | 保留清单派生名，绝不写死品牌 |

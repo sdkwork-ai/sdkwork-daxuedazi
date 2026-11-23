@@ -168,10 +168,10 @@ it('fails when the uninstaller targets another brand data directory', () => {
   expect(verifyOemIdentity(root).failures.some(failure => failure.includes('uninstall.nsh'))).toBe(true)
 })
 
-it('fails when a brand may take over the legacy home again', () => {
+it('ignores the retired adoptLegacyDshHome key a manifest may still carry', () => {
   const root = fixture()
-  edit(root, 'brands/daxuedazi.json', text => text.replace('"adoptLegacyDshHome": false', '"adoptLegacyDshHome": true'))
-  expect(verifyOemIdentity(root).failures.some(failure => failure.includes('adoptLegacyDshHome'))).toBe(true)
+  edit(root, 'brands/daxuedazi.json', text => text.replace('"dirName": ".daxuedazi"', '"dirName": ".daxuedazi",\n    "adoptLegacyDshHome": true'))
+  expect(verifyOemIdentity(root).failures.filter(failure => failure.includes('adoptLegacyDshHome'))).toEqual([])
 })
 
 it('fails when two brands claim overlapping port blocks', () => {

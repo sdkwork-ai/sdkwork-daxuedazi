@@ -64,12 +64,10 @@ export function parseBrandDisplayNames(raw: unknown, fallback: string, source?: 
  */
 export function resolveBrandDisplayName(brand: DesktopBrand | BrandDisplayNames, locale: string | undefined): string
 
-/** Harness home and legacy-adoption behavior of one brand. */
+/** Harness home of one brand. */
 export interface DesktopBrandHome {
   /** Directory name under the operating-system home; dot-prefixed and lower case so two brands cannot collide. */
   readonly dirName: string
-  /** Whether a first launch may take over the legacy `~/.dsh` data. */
-  readonly adoptLegacyDshHome: boolean
 }
 
 /** Desktop application identity of one brand. */

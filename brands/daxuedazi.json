@@ -15,8 +15,7 @@
   },
   "companyName": "SDKWork",
   "home": {
-    "dirName": ".daxuedazi",
-    "adoptLegacyDshHome": false
+    "dirName": ".daxuedazi"
   },
   "desktop": {
     "appId": "com.sdkwork.daxuedazi",
