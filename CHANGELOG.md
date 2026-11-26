@@ -161,4 +161,11 @@
 * 品牌与 OEM 表面保持本仓库版本：`BirdLogo` / `BirdWordmark` / `LoginPanel` / `createBootBrand()`、三处鸟标栅格（`apps/web/public/favicon.png`、`website/public/favicon.png`、`welcome-bird.png`）、学伴AI OEM 身份、`daxuedazi://` IAM 回调与 `~/.daxuedazi` home 规则不受 merge 影响；标语与图标沿用当前仓库。
 * 依本次交付要求，编译与测试问题不在合并阶段处理，留待 merge 完成后单独收敛。
 
+#### 发布打包与依赖（2026-11-26）
+
+* **发布依赖全部跟进远端 main**：`scripts/sdkwork-sources.manifest.json` 与 `agent.workflow.json` 的 42 个 SDKWork sibling pin 统一更新到各自远端 `main` HEAD；本地仍以 `pnpm-workspace.yaml` 的 `../sdkwork-*` 相对路径 + `workspace:*` 解析，CI/release 仍由 git 仓库按 SHA checkout 到同一相对布局，未改成 git-URL 依赖；`pnpm-lock.yaml` 按新 workspace 重算，`pnpm install --frozen-lockfile` 校验通过。
+* **子模块推进到跟踪分支 HEAD**：`plugins/dsh-im` → `6d49cfe6`、`plugins/dsh-better-sidebar`（`dev`）→ `d00f0211`、`plugins/dsh-mcp-connector` → `ea10bba6`；其余三个子模块原本已在远端 HEAD，指针不变。
+* **打包修复路径泛化**：`container-release.yml` 的 repair dispatch 新增 `repair-artifacts` / `repair-runs` 成对输入，可按产物名只替换失败 lane，成功的桌面与容器 lane 从 base run 原样复用；旧的单 lane `repair-mac-x64-run` 保持兼容。
+* **发布命名与配置**：本次 tag 为 `sdkwork-daxuedazi-v0.2.3-alpha.2`，Release 名沿用「项目名-版本」；安装期端口 `DSH_PUBLISH_HOST` / `DSH_PUBLISH_PORT` / `DSH_WEB_PORT` 与数据卷路径均可由环境变量覆盖，数据库/Redis 由依赖的 SDKWork sibling 服务按各自 main 配置提供，本容器无状态、不暴露无效开关。
+
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。
