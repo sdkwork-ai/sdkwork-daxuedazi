@@ -34,7 +34,7 @@ export const BRAND_PROTOCOL_ENV = 'DSH_BRAND_PROTOCOL'
  */
 export const BRAND_APP_ID_ENV = 'DSH_BRAND_APP_ID'
 /** Brand shipped without an OEM profile. */
-export const DEFAULT_BRAND_NAME = 'BirdCoder'
+export const DEFAULT_BRAND_NAME = '学伴AI'
 /** Company shipped without an OEM profile. */
 export const DEFAULT_COMPANY_NAME = 'SDKWork'
 /** Official browser login origin a deployment can explicitly restore; the shipped profile uses BirdCoder. */
@@ -55,12 +55,6 @@ export const DEFAULT_IAM_BASE_URL = 'https://api.birdcoder.com'
 /** Hosted SDKWork IAM authorization origin shipped for production. */
 export const DEFAULT_IAM_AUTHORIZE_BASE_URL = 'https://platform.birdcoder.com'
 /**
- * OAuth client the shipped brand's desktop browser login presents. A launch that
- * reports the brand it runs as (`DSH_BRAND_PROTOCOL`) uses that brand's scheme
- * instead, so this value only decides a launch that reports none.
- */
-export const DEFAULT_IAM_CLIENT_ID = 'birdcoder'
-/**
  * Deep-link callback the shipped brand's hosted SDKWork IAM login returns
  * through. Its scheme is the desktop application's registered URL scheme
  * (`desktop.protocol` in the brand manifest); a launch that reports its brand
@@ -68,7 +62,15 @@ export const DEFAULT_IAM_CLIENT_ID = 'birdcoder'
  * name the brand's reverse-domain application id (`desktop.appId`) as the
  * scheme instead — the form RFC 8252 sections 7.1 and 8.4 recommend.
  */
-export const DEFAULT_IAM_REDIRECT_URI = 'birdcoder://auth/callback'
+export const DEFAULT_IAM_REDIRECT_URI = 'daxuedazi://auth/callback'
+/**
+ * OAuth client the desktop browser login presents without a profile value: the
+ * deep-link scheme of {@link DEFAULT_IAM_REDIRECT_URI}, which is the installed
+ * brand the tenant registers. A profile that repoints `sdkwork.iamRedirectUri`
+ * carries that brand's scheme into the client id as well, unless it names an
+ * explicit `sdkwork.iamClientId`.
+ */
+export const DEFAULT_IAM_CLIENT_ID = 'daxuedazi'
 
 /** Service domains per SDKWork lifecycle. */
 const ENVIRONMENT_ORIGINS: Readonly<Record<OemEnvironment, {
@@ -159,7 +161,7 @@ export interface OemSdkworkConfig {
   readonly iamClientId: string
   /**
    * Registered deep-link callback the hosted login returns through, e.g.
-   * `birdcoder://auth/callback`. Its scheme is the desktop application's URL
+   * `daxuedazi://auth/callback`. Its scheme is the desktop application's URL
    * scheme from the brand manifest, so a callback from another brand never
    * reaches this application.
    */
@@ -185,6 +187,39 @@ export interface OemBrandConfig {
    * hidden unless a deployment explicitly asks for it.
    */
   readonly showApiKeyEntry: boolean
+}
+
+/**
+ * Deployment switches for product surfaces the shipped build keeps out of the
+ * way.
+ *
+ * The scene chrome switches decide whether the client mounts the fork's
+ * developer-workbench surfaces at all. The marketplace switches decide the
+ * shipped default of one sidebar quick entry each: the entry, its page, and the
+ * Settings switch always mount, and `false` ships the row hidden so each user
+ * can turn it on; a deployment that promotes a storefront sets its field to
+ * true and every user starts with the row visible.
+ */
+export interface OemUiConfig {
+  /** Whether the new-session hero renders the Code/Media/Document scene switcher. */
+  readonly sceneSwitcher: boolean
+  /** Whether the composer renders the staged scene's skill-tag strip. */
+  readonly skillTags: boolean
+  /**
+   * Whether the App Store's sidebar quick entry ships visible. The rail entry,
+   * the keyed page, and the store itself mount either way.
+   */
+  readonly appStore: boolean
+  /**
+   * Whether the template library's sidebar quick entry ships visible. The
+   * entry and its keyed page mount either way.
+   */
+  readonly templateLibrary: boolean
+  /**
+   * Whether the demand hall's sidebar quick entry ships visible. The entry and
+   * its keyed page mount either way.
+   */
+  readonly demandHall: boolean
 }
 
 /** The deployment's own hosted application surface. */
@@ -221,21 +256,30 @@ export interface OemDeepSeekConfig {
 export interface OemConfig {
   readonly environment: OemEnvironment
   readonly brand: OemBrandConfig
+  readonly ui: OemUiConfig
   readonly application: OemApplicationConfig
   readonly sdkwork: OemSdkworkConfig
   readonly deepseek: OemDeepSeekConfig
 }
 
-/** Browser-visible subset injected into the page bootstrap: the display brand, IAM origins, OAuth client, and lifecycle. */
+/** Browser-visible subset injected into the page bootstrap: the display brand, product chrome, IAM origins, OAuth client, and lifecycle. */
 export interface OemBootConfig {
   readonly environment: OemEnvironment
   readonly brand: OemBrandConfig
+  readonly ui: OemUiConfig
   readonly sdkwork: OemSdkworkConfig
 }
 
 /** Raw OEM fields one environment can override; every field is optional. */
 export interface OemEnvironmentOverride {
   readonly brand?: { readonly name?: unknown; readonly companyName?: unknown; readonly showApiKeyEntry?: unknown }
+  readonly ui?: {
+    readonly sceneSwitcher?: unknown
+    readonly skillTags?: unknown
+    readonly appStore?: unknown
+    readonly templateLibrary?: unknown
+    readonly demandHall?: unknown
+  }
   readonly application?: { readonly origins?: unknown }
   readonly sdkwork?: {
     readonly iamBaseUrl?: unknown
@@ -272,6 +316,7 @@ export function defaultOemConfig(environment: OemEnvironment = 'production'): Oe
   return {
     environment,
     brand: { name: DEFAULT_BRAND_NAME, companyName: DEFAULT_COMPANY_NAME, showApiKeyEntry: false },
+    ui: { sceneSwitcher: false, skillTags: false, appStore: false, templateLibrary: false, demandHall: false },
     application: { origins: [...DEFAULT_APPLICATION_ORIGINS] },
     sdkwork: {
       iamBaseUrl: DEFAULT_IAM_BASE_URL,
@@ -390,7 +435,8 @@ const IAM_CLIENT_ID_PATTERN = /^[a-z][a-z0-9._-]{0,63}$/u
  * @param where - field path named in validation errors.
  * @param expected - scheme of the brand this application runs as.
  * @returns the validated client id.
- * @throws Error when the value is not a usable lower-case client id.
+ * @throws Error when the value is not a usable lower-case client id, or the
+ *   callback's scheme cannot name one and no explicit id is declared.
  */
 function iamClientId(value: string | undefined, where: string, expected: string): string {
   const text = (value ?? expected).trim()
@@ -544,11 +590,21 @@ export function resolveOemConfig(
     if (!Object.hasOwn(ENVIRONMENT_ORIGINS, key)) throw new Error(`oem: environments.${key} is not a supported lifecycle`)
   }
   const override = optionalRecord(environments[environment], `environments.${environment}`)
-  const section = (key: 'brand' | 'application' | 'sdkwork' | 'deepseek'): Record<string, unknown> => ({
+  const section = (key: 'brand' | 'ui' | 'application' | 'sdkwork' | 'deepseek'): Record<string, unknown> => ({
     ...optionalRecord(root[key], key),
     ...optionalRecord(override[key], `environments.${environment}.${key}`),
   })
   const brand = section('brand')
+  const ui = section('ui')
+  // The startup icon is build-time identity, not a profile value: a deployment
+  // that needs another mark replaces the generated rasters in the build. Reject
+  // an attempted override instead of silently ignoring it (AGENTS.md, "OEM
+  // startup icon").
+  for (const [where, source] of [['brand', brand], ['ui', ui]] as const) {
+    if (source.icon !== undefined) {
+      throw new Error(`oem: ${where}.icon is not configurable; the startup icon is build-time identity (replace the rasters in the build)`)
+    }
+  }
   const application = section('application')
   const sdkwork = section('sdkwork')
   const deepseek = section('deepseek')
@@ -652,6 +708,13 @@ export function resolveOemConfig(
       showApiKeyEntry: optionalBoolean(brand, 'showApiKeyEntry', 'brand.showApiKeyEntry')
         ?? defaults.brand.showApiKeyEntry,
     },
+    ui: {
+      sceneSwitcher: optionalBoolean(ui, 'sceneSwitcher', 'ui.sceneSwitcher') ?? defaults.ui.sceneSwitcher,
+      skillTags: optionalBoolean(ui, 'skillTags', 'ui.skillTags') ?? defaults.ui.skillTags,
+      appStore: optionalBoolean(ui, 'appStore', 'ui.appStore') ?? defaults.ui.appStore,
+      templateLibrary: optionalBoolean(ui, 'templateLibrary', 'ui.templateLibrary') ?? defaults.ui.templateLibrary,
+      demandHall: optionalBoolean(ui, 'demandHall', 'ui.demandHall') ?? defaults.ui.demandHall,
+    },
     application: {
       origins: originList(application.origins, 'application.origins', allowLoopbackHttp, allowInsecureHttp),
     },
@@ -753,6 +816,7 @@ export function oemBootConfig(config: OemConfig): OemBootConfig {
   return {
     environment: config.environment,
     brand: { ...config.brand },
+    ui: { ...config.ui },
     sdkwork: { ...config.sdkwork },
   }
 }
