@@ -8,7 +8,7 @@
  */
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AppKind, AppResponse, AppTemplateResponse, AppStatus } from '@sdkwork/deployments-app-sdk'
+import type { AppKind, AppResponse, ApplicationScaffoldResponse, AppStatus } from '@sdkwork/deployments-app-sdk'
 import type { DeployHost, DeployHostClients } from '../src/client/deployHost.ts'
 import { DeployedAppsDialog, type DeployedAppsDialogProps } from '../src/client/DeployedAppsDialog.tsx'
 import { DeployedAppsPanel, type DeployedAppsPanelProps } from '../src/client/DeployedAppsPanel.tsx'
@@ -19,8 +19,8 @@ afterEach(cleanup)
 
 /** Shipped Chinese copy with `{name}` interpolation. */
 const t = ((key: DeployKey, params?: Record<string, unknown>) => {
-  const template = (zh as Record<string, string>)[key] ?? key
-  return template.replace(/\{(\w+)\}/gu, (_match, name: string) => {
+  const scaffold = (zh as Record<string, string>)[key] ?? key
+  return scaffold.replace(/\{(\w+)\}/gu, (_match, name: string) => {
     const value = params?.[name]
     return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
   })
@@ -105,12 +105,57 @@ describe('DeployedAppsPanel', () => {
     expect(screen.getByText(zh['deployments.shownCount'].replace('{shown}', '2').replace('{total}', '2'))).toBeTruthy()
   })
 
-  it('reads every reachable ownership scope', async () => {
+  it('reads the personal and organization ownership scopes, never the tenant level', async () => {
     const { view, list } = panel({ items: [app()] })
     await view.findByText('Store')
-    for (const scope of ['USER', 'TENANT', 'ORGANIZATION']) {
+    for (const scope of ['USER', 'ORGANIZATION']) {
       expect(list).toHaveBeenCalledWith(expect.objectContaining({ scope, page: 1, pageSize: OWNED_APPS_PAGE_SIZE }))
     }
+    // The tenant level is every app in the workspace; it belongs to the
+    // deployments console, and reading it is what made this drawer list
+    // applications the account does not own.
+    for (const other of ['TENANT', 'PLATFORM']) {
+      expect(list).not.toHaveBeenCalledWith(expect.objectContaining({ scope: other }))
+    }
+  })
+
+  it('merges the personal rows with the organization rows under one facet set', async () => {
+    const rowsByScope: Record<string, AppResponse[]> = {
+      USER: [app({ id: 'personal', name: 'Personal App', updatedAt: '2026-03-01T00:00:00Z' })],
+      ORGANIZATION: [app({ id: 'org', name: 'Organization App', appKind: 'ANDROID_APP' })],
+    }
+    const list = vi.fn(async (params: { scope?: string }) => ({
+      items: rowsByScope[params.scope ?? 'USER'] ?? [],
+      pageInfo: { mode: 'offset', hasMore: false },
+    }))
+    const clients = {
+      deployClient: { app: { list } },
+      driveClient: {},
+    } as unknown as DeployHostClients
+    render(<DeployedAppsPanel clients={clients} t={t} />)
+    expect(await screen.findByText('Personal App')).toBeTruthy()
+    expect(screen.getByText('Organization App')).toBeTruthy()
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    // The chips count the merged set, so an organization-only kind is selectable.
+    const androidChip = screen.getByRole('button', { name: new RegExp(zh['deployments.kind.android']) })
+    expect(androidChip.textContent).toContain('1')
+    fireEvent.click(androidChip)
+    expect(screen.queryByText('Personal App')).toBeNull()
+    expect(screen.getByText('Organization App')).toBeTruthy()
+  })
+
+  it('keeps the rows that loaded and reports the scope that failed', async () => {
+    const list = vi.fn(async (params: { scope?: string }) => {
+      if (params.scope === 'ORGANIZATION') throw new Error('org offline')
+      return { items: [app({ name: 'Personal App' })], pageInfo: { mode: 'offset', hasMore: false } }
+    })
+    const clients = {
+      deployClient: { app: { list } },
+      driveClient: {},
+    } as unknown as DeployHostClients
+    render(<DeployedAppsPanel clients={clients} t={t} />)
+    expect(await screen.findByText('Personal App')).toBeTruthy()
+    expect(screen.getByText(zh['deployments.partialLoadFailed'].replace('{message}', 'org offline'))).toBeTruthy()
   })
 
   it('narrows by application kind and clears the facet', async () => {
@@ -200,7 +245,7 @@ describe('DeployedAppsPanel', () => {
     expect(await view.findByText(zh['deployments.filteredEmpty'])).toBeTruthy()
     expect(screen.queryByRole('button', { name: new RegExp(zh['deployments.kind.android']) })).toBeNull()
 
-    fireEvent.click(screen.getAllByRole('button', { name: zh['deployments.clearFilters'] })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: zh['deployments.clearFilters'] })[0])
     expect(await view.findByText('Web Store')).toBeTruthy()
   })
 
@@ -245,15 +290,15 @@ interface DialogState {
   readClients?: () => DeployHostClients
 }
 
-/** One owned template listing the drawer's template tab renders. */
-function templateRow(over: {
+/** One owned scaffold listing the drawer's scaffold tab renders. */
+function scaffoldRow(over: {
   id?: string
   displayName?: string
   templateKey?: string
-  status?: AppTemplateResponse['status']
+  status?: ApplicationScaffoldResponse['status']
   installCount?: string
   latestVersionUuid?: string
-} = {}): AppTemplateResponse {
+} = {}): ApplicationScaffoldResponse {
   return {
     id: over.id ?? 'tpl-1',
     templateKey: over.templateKey ?? 'starter-app',
@@ -282,19 +327,19 @@ function templateRow(over: {
 /** Clients for both ledgers, with the recorded calls exposed to the assertions. */
 function drawerClients(options: {
   apps?: AppResponse[]
-  templates?: AppTemplateResponse[]
+  scaffolds?: ApplicationScaffoldResponse[]
 } = {}): {
   clients: DeployHostClients
   listApps: ReturnType<typeof vi.fn>
-  listTemplates: ReturnType<typeof vi.fn>
+  listScaffolds: ReturnType<typeof vi.fn>
   listVersions: ReturnType<typeof vi.fn>
 } {
   const listApps = vi.fn(async () => ({
     items: options.apps ?? [app()],
     pageInfo: { mode: 'offset', hasMore: false },
   }))
-  const listTemplates = vi.fn(async () => ({
-    items: options.templates ?? [templateRow({ latestVersionUuid: 'version-1' })],
+  const listScaffolds = vi.fn(async () => ({
+    items: options.scaffolds ?? [scaffoldRow({ latestVersionUuid: 'version-1' })],
     pageInfo: { mode: 'offset', hasMore: false },
   }))
   const listVersions = vi.fn(async () => ({
@@ -303,15 +348,17 @@ function drawerClients(options: {
   }))
   const clients = {
     deployClient: {
-      app: { list: listApps },
-      template: {
-        appTemplates: { list: listTemplates },
-        appTemplateVersions: { list: listVersions },
+      app: {
+        list: listApps,
+        scaffolds: {
+          list: listScaffolds,
+          versions: { list: listVersions },
+        },
       },
     },
     driveClient: {},
   } as unknown as DeployHostClients
-  return { clients, listApps, listTemplates, listVersions }
+  return { clients, listApps, listScaffolds, listVersions }
 }
 
 /** Composed props over one host adapter, so a test can reopen the drawer. */
@@ -380,54 +427,55 @@ describe('DeployedAppsDialog', () => {
     const { view } = dialog()
     expect(await view.findByText('Store')).toBeTruthy()
     expect(screen.getByRole('tab', { name: zh['deployments.tab.apps'] }).getAttribute('aria-selected')).toBe('true')
-    expect(screen.getByRole('tab', { name: zh['deployments.tab.templates'] }).getAttribute('aria-selected')).toBe('false')
+    expect(screen.getByRole('tab', { name: zh['deployments.tab.scaffolds'] }).getAttribute('aria-selected')).toBe('false')
     expect(screen.getByRole('tabpanel', { name: zh['deployments.tab.apps'] })).toBeTruthy()
-    // The template tab has not been visited, so its ledger is neither mounted
+    // The scaffold tab has not been visited, so its ledger is neither mounted
     // nor announced.
-    expect(screen.queryByRole('tabpanel', { name: zh['deployments.tab.templates'] })).toBeNull()
+    expect(screen.queryByRole('tabpanel', { name: zh['deployments.tab.scaffolds'] })).toBeNull()
     expect(document.querySelectorAll('[role="tabpanel"]')).toHaveLength(2)
   })
 
   it('keeps both tabpanels addressable from their tabs', async () => {
     const { view } = dialog()
     await view.findByText('Store')
-    for (const label of [zh['deployments.tab.apps'], zh['deployments.tab.templates']]) {
+    for (const label of [zh['deployments.tab.apps'], zh['deployments.tab.scaffolds']]) {
       const controls = screen.getByRole('tab', { name: label }).getAttribute('aria-controls')
       expect(controls).toBeTruthy()
       expect(document.getElementById(controls!)).not.toBeNull()
     }
   })
 
-  it('switches to the caller’s app templates and back without re-reading either ledger', async () => {
+  it('switches to the caller’s app scaffolds and back without re-reading either ledger', async () => {
     const { view, drawer } = dialog()
     await view.findByText('Store')
-    fireEvent.click(screen.getByRole('tab', { name: zh['deployments.tab.templates'] }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['deployments.tab.scaffolds'] }))
 
-    const templatePanel = screen.getByRole('tabpanel', { name: zh['deployments.tab.templates'] })
+    const scaffoldPanel = screen.getByRole('tabpanel', { name: zh['deployments.tab.scaffolds'] })
     expect(await view.findByText('Starter App')).toBeTruthy()
-    expect(screen.getByRole('tab', { name: zh['deployments.tab.templates'] }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: zh['deployments.tab.scaffolds'] }).getAttribute('aria-selected')).toBe('true')
     // The visited app ledger stays mounted but hidden: its rows leave the
     // accessibility tree while its state stays available for the switch back.
     expect(screen.queryByRole('tabpanel', { name: zh['deployments.tab.apps'] })).toBeNull()
     expect(screen.getByText('Store')).toBeTruthy()
-    expect(await within(templatePanel).findByText('v1.2.0')).toBeTruthy()
+    expect(await within(scaffoldPanel).findByText('v1.2.0')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: zh['deployments.tab.apps'] }))
     expect(screen.getByRole('tabpanel', { name: zh['deployments.tab.apps'] })).toBeTruthy()
-    expect(screen.queryByRole('tabpanel', { name: zh['deployments.tab.templates'] })).toBeNull()
+    expect(screen.queryByRole('tabpanel', { name: zh['deployments.tab.scaffolds'] })).toBeNull()
     expect(screen.getByText('Store')).toBeTruthy()
     // Neither ledger reloaded: switching only changes which panel is hidden.
-    expect(drawer.listApps).toHaveBeenCalledTimes(3)
-    expect(drawer.listTemplates).toHaveBeenCalledTimes(1)
+    // One app read is two requests (USER + ORGANIZATION).
+    expect(drawer.listApps).toHaveBeenCalledTimes(2)
+    expect(drawer.listScaffolds).toHaveBeenCalledTimes(1)
   })
 
-  it('resets to 我的应用 when reopened and does not mount the template ledger', async () => {
+  it('resets to 我的应用 when reopened and does not mount the scaffold ledger', async () => {
     const drawer = drawerClients()
     const view = render(<DeployedAppsDialog {...composedProps(true, () => drawer.clients)} />)
     await view.findByText('Store')
-    fireEvent.click(screen.getByRole('tab', { name: zh['deployments.tab.templates'] }))
+    fireEvent.click(screen.getByRole('tab', { name: zh['deployments.tab.scaffolds'] }))
     await view.findByText('Starter App')
-    expect(drawer.listTemplates).toHaveBeenCalledTimes(1)
+    expect(drawer.listScaffolds).toHaveBeenCalledTimes(1)
 
     view.rerender(<DeployedAppsDialog {...composedProps(false, () => drawer.clients)} />)
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -435,8 +483,9 @@ describe('DeployedAppsDialog', () => {
     view.rerender(<DeployedAppsDialog {...composedProps(true, () => drawer.clients)} />)
     expect(await screen.findByText('Store')).toBeTruthy()
     expect(screen.getByRole('tab', { name: zh['deployments.tab.apps'] }).getAttribute('aria-selected')).toBe('true')
-    expect(drawer.listApps).toHaveBeenCalledTimes(6)
-    expect(drawer.listTemplates).toHaveBeenCalledTimes(1)
+    // Two opens, two scopes each.
+    expect(drawer.listApps).toHaveBeenCalledTimes(4)
+    expect(drawer.listScaffolds).toHaveBeenCalledTimes(1)
   })
 
   it('re-reads the clients when the environment revision moves', () => {

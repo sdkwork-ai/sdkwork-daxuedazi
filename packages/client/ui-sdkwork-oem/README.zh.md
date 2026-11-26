@@ -7,20 +7,31 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 OEM 配置的浏览器半边。启动时读取 [`@deepseek-ai/dsh-sdkwork-oem`](../../host/sdkwork-oem/README.zh.md) 发布的 `__DSH_OEM__` 页面投影，以及 Web 构建按[品牌清单](../../../brands/README.zh.md)注入的 `__DSH_APP_NAMES__` 名称映射，把逐语言的应用名交给 locale 注册表（`setBrandNames`），让文档标题始终等于当前界面语言对应的名称，并把解析出的生命周期记录到 `documentElement.dataset.dshEnvironment` 以便诊断。所有拼写 `BirdCoder` 的客户端字典文案随后渲染为该语言下的部署品牌（出厂八种语言统一为学伴AI）；真正重命名产品的 OEM 配置在每种语言下都优先，未挂载 OEM 配置的组合仍回落到字典里的 `BirdCoder` 拼写。
 
 侧栏字标通过 [`ui-primitives`](../ui-primitives/README.zh.md) 的 `readOemBrandNameForLocale()` 直接读取同一名称映射，并跟随 `<html lang>`（locale 注册表会随界面语言同步该属性），而不是浏览器首选语言；名称是实时 SVG 文本，较长的 OEM 名称会在上游字标框内缩小字号，而不是撑开槽位。
 
+## 目录
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+## 开发备注
+
+OEM 配置属于部署配置；本包只向 Host 消费者暴露它，自身不渲染页面。
+
 ## 模型体验
 
 无。该插件只改变显示文案与文档标题。
 
+<a id="model-experience"></a>
 #### KV Cache 影响
 
 无；本包不组装任何 provider 请求。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作
 
 - Web manifest 与 `index.html` 标题是构建期文本：manifest 的 `name`/`short_name` 使用默认名称，文档标题则在运行期重新本地化（先由内联引导脚本按浏览器语言设置，再由本插件按界面语言校正）。逐语言名称不同的部署需在构建中一并更新 manifest。

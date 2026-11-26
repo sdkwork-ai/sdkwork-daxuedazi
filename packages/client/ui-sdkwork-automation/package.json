@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-sdkwork-automation",
   "description": "SDKWork Scheduled tasks mode: the quick entry, the Host task catalog with search, status filter and deletion, the run-history view, the template catalog, and the add-task dialog that creates the task in a fresh conversation",
-  "version": "0.2.2-rc.7",
+  "version": "0.2.3-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -74,6 +74,9 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ]
 }

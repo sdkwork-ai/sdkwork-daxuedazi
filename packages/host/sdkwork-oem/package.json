@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-sdkwork-oem",
   "description": "OEM profile plugin: one deployment-owned JSON file naming the DeepSeek login and inference origins plus the display brand, resolved for the Host and published to the browser",
-  "version": "0.2.2-rc.7",
+  "version": "0.2.3-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -28,7 +28,10 @@
   "files": [
     "lib/index.js",
     "lib/types/**/*.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ],
   "license": "MIT",
   "dependencies": {

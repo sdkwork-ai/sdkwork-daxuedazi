@@ -7,9 +7,9 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
-`dsh-birdcoder-account` 把已登录的 SDKWork IAM 会话变成可直接使用的 BirdCoder 中转。BirdCoder 在其 OpenAI 兼容的 `/v1` 面上接受 IAM `authToken` 作为 API Key，因此已登录用户不需要另外配置凭据。插件从会话到达 Host 的任一渠道读取该令牌——桌面端在加密会话旁写出的明文投影，或浏览器客户端经 Host 凭据面写入的 `BIRDCODER_AUTH_TOKEN` 引用——把它写入 `BIRDCODER_API_KEY`，并在设置中没有 `birdcoder` 配置档时以 `openai-completions` 声明该配置档。随后「模型」页会显示已配置的提供方及其模型，模型发现与请求都用该令牌认证，用户保存的 Key 始终优先。登出只移除插件自己写入的内容，并恢复此前的默认模型。
+`dsh-birdcoder-account` 把已登录的 SDKWork IAM 会话变成可直接使用的 BirdCoder 中转。BirdCoder 在其 OpenAI 兼容的 `/v1` 面上接受 IAM `authToken` 作为 API Key，因此已登录用户不需要另外配置凭据。插件从会话到达 Host 的渠道读取该令牌，把它写入 `BIRDCODER_API_KEY`，并在设置中没有 `birdcoder` 配置档时以 `openai-completions` 声明该配置档。登出只移除插件自己写入的内容，并恢复此前的默认模型。
 
 ## 目录
 
@@ -37,6 +37,16 @@ Web/桌面 bundle 也随包提供同一份 `birdcoder` 配置档，并把 `agent
     sessionCredentialRef: BIRDCODER_AUTH_TOKEN
     settingsNs: llm-pi-ai
     pollIntervalMs: 2000
+    # Operator-authored front-end model surface projected onto the relay catalog.
+    modelCatalogEnabled: true
+    modelCatalogEndpoint: https://api.birdcoder.com/app/v3/api/ai/frontend_config
+    # Empty means frontend-model-config.json beside the session (shell projection).
+    modelCatalogDocumentFile: ""
+    modelCatalogChannelCode: llm
+    modelCatalogPollIntervalMs: 300000
+    modelCatalogTimeoutMs: 10000
+    modelCatalogAuthToken: ""
+    modelCatalogAccessToken: ""
 ```
 
 `sessionFile` 默认 `<DSH_HOME>/iam/session.json`，`relaySessionFile` 默认与其同目录的 `relay-session.json`，`stateFile` 默认同目录的 `birdcoder-account.json`，`credentialRef` 默认 `BIRDCODER_API_KEY`，`sessionCredentialRef` 默认 `BIRDCODER_AUTH_TOKEN`，`settingsNs` 默认随包挂载的 `llm-pi-ai` 条目。`pollIntervalMs: 0` 关闭轮询，只保留挂载时与凭据事件触发的同步。
@@ -64,14 +74,28 @@ Web/桌面 bundle 也随包提供同一份 `birdcoder` 配置档，并把 `agent
 
 轮询是有意选择：桌面端原子写入会话文件，按间隔重新读取比维护一个跨平台、销毁时机必须精确的 watcher 更容易掌控。间隔决定外壳写入的登录后中转多久可用、登出后多久消失；客户端引用路径由事件驱动，无需轮询。
 
-<a id="model-experience"></a>
-## 模型体验
+令牌来自桌面端在加密持久会话旁写出的明文投影，或来自浏览器客户端经 Host 凭据面写入的 `BIRDCODER_AUTH_TOKEN` 引用。随后「模型」页会显示已配置的提供方及其模型，模型发现与请求都用该令牌认证，用户保存的 Key 始终优先。
 
-None, as the package configures relay credentials and provider settings; it adds no prompt section, tool, or session content.
+<a id="model-experience"></a>
+## Model Experience
+
+无，因为该包只配置中转凭据与提供方设置；它不添加任何 prompt 段、工具或会话内容。
 
 #### KV Cache effect
 
 不改变任何提示词字节。插件选择 BirdCoder 默认模型后，下一个请求指向另一条提供方路由，因此提供方侧的前缀复用不会跨过这次切换。
+
+### 远程前端模型界面
+
+中转目录不只来自构建期种子。运营端在模型后端的「模型前端配置」（`/admin/model/frontend`）中决定每个产品界面暴露哪些模型，本插件把该文档投影到中转目录：`llm` 界面的可见模型成为有序白名单，供应商下线的模型从选择器中消失，构建之后才发布的模型以最小中转条目出现，无需等待新版本。
+
+文档按以下优先级读取：
+
+1. `<DSH_HOME>/iam/frontend-model-config.json`——桌面外壳用 IAM 双重令牌请求 app-api 并投影到此处，令牌不会进入 Host 子进程；
+2. app-api `GET /app/v3/api/ai/frontend_config`——本进程能读取完整（明文）会话，或部署提供了 `modelCatalogAuthToken` / `modelCatalogAccessToken` 时；
+3. 构建期种子——以上都不可达时。
+
+刷新永远不会清空最近一次可用界面：端点不可达、凭据被拒绝或文档非法时保留上一次暴露，种子是最终离线兜底。加载器把最近一次接受的文档持久化在账户标记旁，限制文档大小、校验形状、支持 `ETag`/304、超时、瞬时失败重试，并在 `llm/adapters-updated` 时重新发布，因此加载顺序不会丢失策略。暴露变化会发出 `llm/models-updated`，模型页与已打开的选择器无需重启即可刷新。`llm` 界面被停用或没有可见模型时表示显式空暴露，而不是回退到种子。
 
 ## 已知限制与后续工作
 

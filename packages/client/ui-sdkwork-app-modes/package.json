@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-sdkwork-app-modes",
   "description": "App-mode surface: the WeChat-desktop-style mode rail (Code/Work/Document/Video/Image/AppStore), placeholder pages for the non-code base modes, the new-session hero's scene switcher, and the sidebar-visibility preference row",
-  "version": "0.2.2-rc.7",
+  "version": "0.2.3-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -37,9 +37,6 @@
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-settings"
-      ],
-      "external": [
-        "@deepseek-ai/dsh-client-ui-conversation/client"
       ],
       "platform": "web"
     }
@@ -78,6 +75,9 @@
     "lib/index.js",
     "lib/client.js",
     "lib/types/**/*.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ]
 }

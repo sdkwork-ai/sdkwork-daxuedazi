@@ -62,18 +62,15 @@ interface SessionEventMap {
     headerSeq?: SessionSeq
   }
   /**
-   * The rendered system prompt on the model-visible surface. The loop appends
-   * the first one as surface node 0 before the step's first `user/message`.
-   * A prepared in-history route can append nonempty changes in a continuing
-   * series. An incapable route, or a new series whose effective text differs,
-   * normalizes text to the first system node; a series start whose latest
-   * surviving node already holds the rendering leaves it in place.
-   * Normalization empties nonempty later nodes, then rewrites the head if
-   * needed, through logged per-node replacements. An empty rendering always
-   * clears all active system nodes, leaving no older instructions model-visible.
-   * Empty later nodes are dormant and project to no message; an empty head with
-   * no active later node records "no system prompt". Restored nonempty text follows
-   * the same route and series rule; empty nodes never restore older text.
+   * System instructions and notices on the model-visible surface. The first
+   * accepted assembly reserves node 0, even with empty content. Later admissions
+   * append new or changed sections independently of the route's capabilities.
+   * Source metadata identifies canonical text and notices; retired records remove
+   * a source from committed state. Empty active text withdraws its instructions
+   * while preserving the source. Earlier messages retain their positions.
+   * `source.reset` replaces committed state, including when compaction rebuilds
+   * the initial system node from current instructions.
+   * Empty system nodes remain in the surface but produce no model message.
    */
   'system/message': { turn: number; step: number; message: SystemMessage }
   /**
@@ -144,8 +141,8 @@ interface SessionEventMap {
   /**
    * Route metadata for the next request, logged only when the route, capacity,
    * or system prompt update mode changes. It does not participate in request
-   * reconstruction or header equality. Prompt admission uses the bound prepared
-   * call's capability, not this snapshot from an earlier request.
+   * reconstruction, header equality, or system-section admission. The bound
+   * prepared call's capabilities determine adapter representation.
    */
   'request/context': RequestContext
   /**
@@ -182,12 +179,12 @@ interface SessionEventMap {
 
 ### 请求头事件：`request/header`
 
-请求信封（即 `EpochHeader`：调用配置 + 适配器所提供默认值的标记 + 已组装的工具 schema）会作为会话状态写入日志，因此每个对话请求都是日志的纯函数（见可重建性 Agent Note）。渲染后的系统提示词不属于请求头：它是派生历史，即 surface 第 0 号节点上的 `system/message` 事件以及任何后续的历史内系统节点（[决策](../../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md)），因此提示词变更替换或追加一个系统节点，而请求头保持不变。带有 reason `'initial'` 或 `'resume'` 的完整 `request/header` 快照记录每个 agent loop 实例的边界；请求变化时会追加 reason 为 `'change'` 的快照；未变的信封显式开启消息序列或跟随 surface 替换时，会追加 reason 为 `'series'` 的快照。如果 `'initial'`、`'resume'` 或 `'change'` 快照所属请求同时开启序列，它会携带 `startsSeries: true`；reason `'series'` 已记录这一事实。普通的仅追加后续 Turn，以及同一模型消息序列内的后续 Step 与重试沿用最新快照。`foldRequestHeader(events)` 通过选择最新快照重建请求头。该事件不是 `SurfaceEventType`，不产生 LLM 消息。
+请求信封（即 `EpochHeader`：调用配置 + 适配器所提供默认值的标记 + 已组装的工具 schema）会作为会话状态写入日志，因此每个对话请求都是日志的纯函数（见可重建性 Agent Note）。渲染后的系统提示词不属于请求头：它是派生历史，即 surface 第 0 号节点上的 `system/message` 事件以及任何后续的历史内系统节点（[决策](../../.agents/notes/implemented/architecture/2026-09-02-system-prompt-as-surface-node.zh.md)），因此普通提示词变更追加系统节点，而请求头保持不变。带有 reason `'initial'` 或 `'resume'` 的完整 `request/header` 快照记录每个 agent loop 实例的边界；请求变化时会追加 reason 为 `'change'` 的快照；未变的信封显式开启消息序列或跟随 surface 替换时，会追加 reason 为 `'series'` 的快照。如果 `'initial'`、`'resume'` 或 `'change'` 快照所属请求同时开启序列，它会携带 `startsSeries: true`；reason `'series'` 已记录这一事实。普通的仅追加后续 Turn，以及同一模型消息序列内的后续 Step 与重试沿用最新快照。`foldRequestHeader(events)` 通过选择最新快照重建请求头。该事件不是 `SurfaceEventType`，不产生 LLM 消息。
 
 ```ts type-equiv
 /**
  * Logged request state outside derived history: call config and tools. The
- * system prompt is derived history — surface node 0, a `system/message` event.
+ * system prompt is derived history — the initial and subsequent `system/message` nodes.
  * The latest full `request/header` snapshot reconstructs the header; canonical
  * empty optional fields are absent.
  */
@@ -209,7 +206,7 @@ interface EpochHeader {
 
 ### 路由容量事件：`request/context`
 
-请求所解析到的路由的上下文元数据是独立的已记录状态，在同一步骤内紧随 `request/header` 追加，且仅在提供方、模型、容量或 `systemPromptUpdate` 模式与上一条记录不同时追加。它保持在 `EpochHeader` 之外，因为该类型是 `headerEquals` 逐字段比较的重建约定。容量与更新模式描述的是路由，不是请求输入，把它们折叠进去会让一次路由变化被登记为请求信封的 `change`，也会把适配器元数据拉进 loop 的请求重建。与 `request/header` 一样，它不是 `SurfaceEventType`，也不产生 LLM 消息。`session.requestContext()` 以增量方式归并最新一条记录；agent loop 在决定变化后的系统提示词是替换最新的系统节点还是追加到已缓存历史之后时，读取该记录的 `systemPromptUpdate`（[决策规则](../../packages/core/agent-loop/README.zh.md#understand-the-implementation)）。适配器不公布容量的路由会以缺失 `contextWindow` 的形式记录，因此新记录可以清除较早路由的容量；未声明更新模式的路由同样会清除较早路由的 `systemPromptUpdate`。
+路由上下文元数据是独立的已记录状态，仅在提供方、模型、容量或 `systemPromptUpdate` 变化时，于同一步骤内紧随 `request/header` 追加。这些字段描述已准备路由，位于 `EpochHeader` 之外；它们不选择系统准入，也不产生 LLM 消息。`session.requestContext()` 以增量方式归并最新记录。缺失的 `contextWindow` 或 `systemPromptUpdate` 会清除上一条路由的对应值。
 
 ```ts type-equiv
 /** Registration-bound metadata for one resolved model route. */
@@ -299,7 +296,7 @@ type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 ## Surface 类型
 
-产生消息的类型（`SurfaceEventType`：`system/message`、`developer/message`、`user/message`、`assistant/message`、`tool/result`）携带 surface 元数据，用来声明它们如何加入有序的派生 surface。`system/message` 承载渲染后的系统提示词：循环把第一条追加为 surface 第 0 号节点，并在提示词变化时恰好替换最新的系统节点，或在历史内路由上追加一条新的；surface 折叠拒绝任何其他覆盖第 0 号节点 `system/message` 的替换，而后续系统节点是普通历史，压缩替换可以遮蔽它。见 [session surface Agent Note](../../.agents/notes/implemented/architecture/2026-06-18-session-surface.zh.md)。
+产生消息的类型（`SurfaceEventType`：`system/message`、`developer/message`、`user/message`、`assistant/message`、`tool/result`）声明其在有序派生 surface 中的位置。系统消息包含段更新和完整重置；[system-prompt 包](../../packages/core/system-prompt/README.zh.md) 规定其含义。第 0 号节点的系统消息只允许系统消息恰好替换该节点；后续系统节点可以被压缩遮蔽。见 [session surface Agent Note](../../.agents/notes/implemented/architecture/2026-06-18-session-surface.zh.md)。
 
 ### `SurfaceEventType`：事件类型中产生消息的子集
 
@@ -339,7 +336,7 @@ type SurfaceOp =
   | { op: 'replace'; startSeq: SessionSeq; endSeq: SessionSeq }
 ```
 
-`'append'` 是常规的尾部追加路径。`replace` 恰好包含 `op`、`startSeq` 和 `endSeq`，不接受别名或额外键。它遮蔽这两个当前 surface 事件序号之间的闭区间，并在原位置插入新事件；相同端点仅替换一个条目。端点必须早于替换事件，但它们的相对顺序按 surface 顺序而非数值序号顺序确定。
+`'append'` 在尾部追加。`replace` 恰好包含 `op`、`startSeq` 和 `endSeq`；它遮蔽两个当前 surface 节点之间的闭区间，并在原位置插入新事件。相同端点仅替换一个条目。所有引用的事件都必须在日志中早于新事件。位置按 surface 顺序而非数值序号顺序确定。
 
 ### `SurfaceIntent`：`session.append()` 的参数
 
@@ -406,10 +403,21 @@ interface SessionMessageProjection<T extends SessionEventType = SessionEventType
 `SurfaceManager(log, baseSeq?, projections?)` 也可以折叠一个连续的已加载窗口，其第一个事件的绝对序号为 `baseSeq`。每个事件在该绝对序号空间中仍保持连续；如果替换跨过窗口头部，由于其声明的范围并不存在，该替换会失败。
 
 ```ts type-equiv
+/** One system node on the current surface, including an empty head. */
+interface SystemSurfaceNode {
+  readonly seq: SessionSeq
+  /** Whether the logged content array has no blocks; a node with empty text blocks is not empty. */
+  readonly isEmpty: boolean
+}
+```
+
+```ts type-equiv
 /** Readonly live projection of the message-producing session events. */
 interface SessionSurface {
   /** Current surface event sequences in model-visible order. */
   readonly nodes: readonly SessionSeq[]
+  /** Current system nodes in surface order, scanned from the surface on each read; citations do not affect membership. */
+  readonly systemNodes: readonly SystemSurfaceNode[]
   /** Monotonic count of committed positional replacements. */
   readonly replaceGeneration: number
   /** Monotonic count of committed replacements and plugin-owned message changes. */
@@ -460,7 +468,7 @@ type SessionEventInput = {
 
 数组中的每个成员将事件类型与对应载荷配对，且仅对产生消息的事件要求surface意图。
 
-去除方法体的声明与源码中的普通类保持同步，覆盖其脱离态工厂、状态访问器、append 方法和历史投影。存储操作仍由生成的 [`ctx.sessions` 小节](#ctxsessions--sessionstore)记录。
+去除方法体的声明与源码中的普通类保持同步，覆盖其脱离态工厂、状态访问器、append 方法和历史投影。存储操作仍保留在 `Session` 类与 `SessionStore` 上。
 
 ```ts public-api
 /**
@@ -1104,155 +1112,6 @@ registerExclusion(exclude: SessionLogUploadExclusion): () => Promise<void>
 ```
 
 Source: [`packages/session/session-log-deepseek/src/index.ts`](../../packages/session/session-log-deepseek/src/index.ts)
-
-<a id="ctxsessions--sessionstore"></a>
-
-### `ctx.sessions` — `SessionStore`
-
-In-memory session store (`ctx.sessions`).
-
-Persistence is intentionally not implemented here — the agent lifecycle attaches a session-log writer to each published session's write handle; a session published outside that lifecycle persists nothing.
-
-```ts cordis-catalog
-/**
- * Register one event interpreter for live creation, restore, and fork.
- * Disposing the contribution makes sessions that used it refuse further derivation.
- * @param projection - pure definition owned by the event's plugin.
- * @returns the fiber-owned disposer.
- * @throws when another definition already owns this event type.
- */
-registerMessageProjection(projection: SessionMessageProjection): () => Promise<void>
-
-/**
- * Create a session owned by the calling fiber: disposing that fiber stops
- * event notification and removes the session from the store. `options.seed`
- * populates the session with a copy of those events (replay/fork);
- * `options.meta` attaches creation metadata (validated absolute `cwd`, seed
- * and parent lineage, and delegation depth) as the immutable
- * {@link SessionHeader} (the store fills `version`/`id`/`createdAt`).
- *
- * For an agent whose session must be torn down IN ORDER with its loop (so the
- * loop's final events are published before the store attachment ends), do NOT use this
- * — fold the session lifecycle into the agent's own effect via
- * {@link prepare} + {@link enter} + {@link announce} (see
- * `dsh-agent-loop`'s creation transaction).
- *
- * @param id - the session id; omitted, the store mints `session-<n>`.
- * @param options - seed events and/or creation metadata for the header.
- * @returns the live session, already entered and announced.
- * @throws if a session with `id` already exists, metadata is not a plain
- *   lossless-JSON record with valid scalar fields, or `meta.cwd` is a
- *   non-absolute path (storage backends key directories off it).
- */
-create(id?: SessionId, options?: CreateSessionOptions): Session
-
-/**
- * Build a session WITHOUT entering it into the store — validate the id/cwd and
- * construct the {@link Session} (with its immutable {@link SessionHeader}).
- * Pairs with {@link enter} + {@link announce}: a caller that owns a composite
- * `ctx.effect` (the agent factory) folds the session lifecycle into that ONE
- * effect so a fiber unload tears the session + agent down as a single ORDERED
- * chain rather than as racing sibling effects — which would remove the publication hooks
- * before the driver's closing events commit, dropping them.
- *
- * @param id - the session id; omitted, the store mints `session-<n>`.
- * @param options - seed events and/or creation metadata for the header. With
- *   `eventState`, every seed event is either independently owned or any
- *   shared value is deeply frozen; {@link Session.fromRestore} validates and
- *   adopts those values without copying or freezing them.
- * @returns the store-owned session, not yet entered and read-only until announced.
- * @throws if a session with `id` already exists, metadata is not a plain
- *   lossless-JSON record with valid scalar fields, or `meta.cwd` is a
- *   non-absolute path.
- */
-prepare(id?: SessionId, options?: PrepareSessionOptions): Session
-
-/**
- * Enter a session into the store: install the module-private
- * append publication hooks and add it to the store. Writes remain disabled
- * until {@link announce} completes successfully. Returns the DETACH
- * disposer (hooks + store removal). Does NOT emit `session/created` —
- * the caller yields this disposer inside its effect and THEN calls
- * {@link announce}, so a throwing `session/created` listener rolls the attach
- * back instead of leaking it.
- *
- * Re-checks the id for a duplicate: `prepare` and `enter` are public
- * cross-package primitives and a caller may interleave arbitrary work (or
- * another create) between them, so a stale prepared session must NOT overwrite
- * a live store entry of the same id — its detach disposer would later delete
- * the REAL session. The {@link create} convenience and the agent factory call
- * the two back-to-back so they never trip this, but the public API cannot
- * assume that.
- *
- * @param session - an unentered session; independent instances become store-owned.
- * @returns the detach disposer (publication hooks + store removal). When called from
- *   a synchronous `session/created` listener, removal and disposal wait until
- *   that creation dispatch unwinds.
- * @throws if a session with this id is already in the store.
- */
-enter(session: Session): () => void
-
-/** Emit `session/created` exactly once for an {@link enter}ed session (with
- * the carrier {@link enter} captured). Separate from {@link enter} so the
- * caller can yield the detach disposer first (rollback safety — see
- * {@link enter}). The Session remains read-only throughout synchronous
- * dispatch; successful completion enables appends. A failed announcement
- * leaves it read-only and cannot be retried.
- * @param session - the entered session to announce to listeners.
- * @throws if the session is not live or its announcement already began,
- *   including a reentrant call from a creation listener. */
-announce(session: Session): void
-
-/**
- * Dispatch the awaited `session/flush` durability checkpoint for `session`,
- * with the carrier captured at {@link enter}. THE flush entry point: the
- * store owns the carrier, so callers (the checkpoint policy's per-request
- * barrier, goal-round-driver's idle checkpoint, teardown drains, and consumers
- * that flush themselves before reading storage) must come through here
- * rather than dispatch a raw `ctx.parallel('session/flush', …)` — one owner
- * and one spelling.
- * @param session - the session whose buffered events must reach durable storage.
- * @returns whether at least one durability listener participated, after every
- *   listener has settled successfully.
- * @throws the first registered listener failure after every listener settles.
- */
-async flush(session: Session): Promise<boolean>
-
-/**
- * Look up a live session.
- * @param id - the session id to look up.
- * @returns the session, or undefined when no live session has that id.
- */
-get(id: SessionId): Session | undefined
-
-/**
- * All live sessions, in creation order.
- * @returns a fresh array; mutating it does not affect the store.
- */
-list(): Session[]
-
-/**
- * Create an independent live session from an exact prefix of a live source.
- * `boundary` is an inclusive source event seq; omitted means the source's
- * current last event. An open tail receives synthetic tool results and
- * step/turn closers with the forked cause. Closed steps and turns remain
- * unchanged, including any failed tool calls already missing results.
- * `inheritedEventCount` counts only copied source events, excluding these closers.
- *
- * @param source - Live source session object or id.
- * @param boundary - Inclusive source event seq to fork through; omitted means
- *   the source's current last event, and omitted on an empty source forks an
- *   empty child.
- * @param childSessionId - Optional child session id; omitted delegates to
- *   `SessionStore`'s id policy.
- * @returns The created live child session.
- */
-fork(source: SessionForkSource, boundary?: SessionSeq, childSessionId?: SessionId): Session
-```
-
-Types: [CreateSessionOptions](persistence.zh.md) · [PrepareSessionOptions](persistence.zh.md) · [SessionId](core.zh.md)
-
-Source: [`packages/core/session/src/index.ts`](../../packages/core/session/src/index.ts)
 
 <a id="api-session-events"></a>
 

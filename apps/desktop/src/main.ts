@@ -720,6 +720,7 @@ async function main(): Promise<void> {
     ipcMain,
     getWindow: () => mainWindow,
     assertSender: (event) => { assertProductSender(event) },
+    appVersion: () => app.getVersion(),
   })
   const showAbout = (): void => { aboutCommand.show() }
   const commandManager = new DesktopCommandManager({
@@ -754,6 +755,12 @@ async function main(): Promise<void> {
   let openedAttempt: string | undefined
   let returnedAttempt: string | undefined
   let pendingWelcomeNotice: WelcomeNotice | undefined
+  /**
+   * Whether the open welcome entry offers "continue without signing in": true
+   * when an independently stored API key keeps the workspace usable, so a
+   * sign-out that returns to the entry still has a way back.
+   */
+  let welcomeContinueAvailable = false
   let previousAccountStatus: string | undefined
   const assertProductSender = (event: IpcMainInvokeEvent): BrowserWindow => {
     assertDesktopSender(event, ['app'])
@@ -835,12 +842,23 @@ async function main(): Promise<void> {
           if (state.status === 'credential-stored' && attempt?.phase === 'succeeded' && welcomeWindow !== undefined) void enterWorkspace({ activate: false }).catch(() => undefined)
           if (previousAccountStatus === 'credential-stored' && state.status === 'signed-out') {
             void readWelcomeState().then(async (value) => {
-              if (needsWelcome(value) && !quitting) {
+              // The user ended the account session: show the signed-out landing
+              // in either case, offering the way back when a stored API key can
+              // still run the workspace.
+              if (quitting) return
+              if (enteredWorkspace) {
                 enteredWorkspace = false
-                await showWelcome()
-                if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
+                refreshApplicationMenu()
               }
-              return undefined
+              await showWelcome('startup', !needsWelcome(value))
+              if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
+            }, async () => {
+              // The credential read is only the continue action's input; the
+              // sign-out still belongs on the landing when it fails.
+              if (quitting || !enteredWorkspace) return
+              enteredWorkspace = false
+              refreshApplicationMenu()
+              await showWelcome()
             }).catch(() => undefined)
           }
           previousAccountStatus = state.status
@@ -850,7 +868,10 @@ async function main(): Promise<void> {
           void readWelcomeState().then(async (value) => {
             if (!needsWelcome(value) || quitting) return
             pendingWelcomeNotice = 'session-expired'
-            enteredWorkspace = false
+            if (enteredWorkspace) {
+              enteredWorkspace = false
+              refreshApplicationMenu()
+            }
             await showWelcome()
             const state = await accountBackend.state()
             if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) welcomeWindow.webContents.send(WELCOME_IPC.state, state)
@@ -1125,6 +1146,19 @@ async function main(): Promise<void> {
     assertProductSender(event)
     return openSignInPage()
   })
+  // The workspace ended its IAM session on the user's confirmation. A sign-out
+  // always returns to the signed-out landing — that is the gesture's meaning —
+  // while a workspace an independently stored API key keeps usable reaches it
+  // again through the entry's "continue without signing in" action. The Host
+  // read only decides that action, so a failed read still switches surfaces.
+  ipcMain.handle(DESKTOP_IPC.authSignedOut, async (event) => {
+    assertProductSender(event)
+    if (!enteredWorkspace || quitting) return
+    const state = await readWelcomeState().catch(() => undefined)
+    if (quitting) return
+    enteredWorkspace = false
+    await showWelcome('startup', state !== undefined && !needsWelcome(state))
+  })
 
   ipcMain.handle(DESKTOP_IPC.bootFailed, (event, message: unknown) => {
     assertDesktopSender(event, ['app'])
@@ -1230,6 +1264,17 @@ async function main(): Promise<void> {
     if (!loopbackEnabled()) throw new Error('loopback login is disabled')
     return iamLoopback.start()
   })
+  // A reloaded page adopts the carrier the previous page started, and takes a
+  // callback the shell accepted while no page could hear the event. Both reads
+  // only expose this process's own waiting login.
+  ipcMain.handle(IAM_LOOPBACK_BRIDGE.pending, (event) => {
+    assertProductSender(event)
+    return iamLoopback.pending()
+  })
+  ipcMain.handle(IAM_LOOPBACK_BRIDGE.takeCallback, (event) => {
+    assertProductSender(event)
+    return iamLoopback.takeCallback()
+  })
   ipcMain.handle(IAM_LOOPBACK_BRIDGE.cancel, async (event) => {
     assertProductSender(event)
     await iamLoopback.cancel()
@@ -1237,6 +1282,8 @@ async function main(): Promise<void> {
   app.on('will-quit', () => {
     void iamLoopback.dispose()
     ipcMain.removeHandler(IAM_LOOPBACK_BRIDGE.start)
+    ipcMain.removeHandler(IAM_LOOPBACK_BRIDGE.pending)
+    ipcMain.removeHandler(IAM_LOOPBACK_BRIDGE.takeCallback)
     ipcMain.removeHandler(IAM_LOOPBACK_BRIDGE.cancel)
     void iamDeepLinkRelay.dispose()
     iamDeepLinks.dispose()
@@ -1631,6 +1678,9 @@ async function main(): Promise<void> {
     { label: currentDesktopLocale().messages.aboutMenu,
       click: () => { showAbout() } },
     { type: 'separator' },
+    shortcuts.settingsMenuItem(currentDesktopLocale().messages.settingsMenu,
+      enteredWorkspace && !isMandatory(), () => { focusPrimaryWindow() }),
+    { type: 'separator' },
     { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
     ...process.platform === 'darwin' || process.platform === 'win32'
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
@@ -1809,7 +1859,9 @@ async function main(): Promise<void> {
     if (process.platform === 'win32') window.setBackgroundColor(chromeFallbackFill())
     if (activate) window.show()
     else window.showInactive()
+    const wasInWorkspace = enteredWorkspace
     enteredWorkspace = true
+    if (!wasInWorkspace) refreshApplicationMenu()
     if (welcomeWindow !== undefined) {
       welcomeWindow.close()
       window.webContents.send(DESKTOP_IPC.enterWorkspace)
@@ -1883,8 +1935,9 @@ async function main(): Promise<void> {
     })
     return request
   }
-  const showWelcome = (purpose: 'startup' | 'sign-in' = 'startup'): Promise<void> => {
+  const showWelcome = (purpose: 'startup' | 'sign-in' = 'startup', continueAvailable = false): Promise<void> => {
     welcomePurpose = purpose
+    welcomeContinueAvailable = continueAvailable
     if (quitting) return Promise.resolve()
     if (welcomeWindow !== undefined && !welcomeWindow.isDestroyed()) {
       if (!welcomeWindow.isVisible()) void track('auth_page_view', {})
@@ -1948,7 +2001,7 @@ async function main(): Promise<void> {
           if (welcomePurpose === 'sign-in') finishSignInPage('dismissed')
           else await enterWorkspace()
         },
-      }, true, oem().brand.showApiKeyEntry)
+      }, true, oem().brand.showApiKeyEntry, welcomeContinueAvailable)
       const window = welcomeWindow
       window.once('closed', () => {
         void welcomeBackend?.account.state().then((state) => {
@@ -2114,7 +2167,10 @@ async function main(): Promise<void> {
       }
       mandatoryUI?.sync()
       if (state.blocking && !wasBlocking) void updateSchedule.check(false, true).catch((error: unknown) => { console.error(error) })
-      wasBlocking = state.blocking
+      if (state.blocking !== wasBlocking) {
+        wasBlocking = state.blocking
+        refreshApplicationMenu()
+      }
     }, policyAuth?.request, () => desktopClientMetadata(locale.id))
     const policy = mandatoryPolicy
     mandatoryUI = new DesktopMandatoryUpdateWindow({

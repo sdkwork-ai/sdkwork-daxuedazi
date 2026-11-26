@@ -21,6 +21,12 @@ import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/r
 import type { SidebarRightTabInfo, SidebarRightTabMenuOwnerProps } from '../src/client/contract/slots.ts'
 import type { createSidebarRightStore } from '../src/client/stores.ts'
 
+declare module '@deepseek-ai/dsh-client-ui-sidebar-right/client' {
+  interface SidebarRightTabParamsMap {
+    'transient-view': { text: string }
+  }
+}
+
 declare module '../src/client/contract/params.ts' {
   interface SidebarRightResourceParamsMap {
     test: { line?: number; x?: number }
@@ -155,7 +161,7 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   }
   const instance = runtime.storeOf('rightbar.session', reference) as ReturnType<ReturnType<typeof createSidebarRightStore>['create']>
   const controller = runtime.ctx.sidebarRight
-  const layout = () => instance.getSnapshot().bySession[SESSION]!.layout
+  const layout = () => instance.getSnapshot().bySession[SESSION].layout
   const open = (name = 'a.txt', options?: Parameters<typeof controller.openResource>[1]) => {
     act(() => { controller.openResource(`dsh-resource://file/session/s-test/${name}`, options) })
     return controller.active()!
@@ -171,6 +177,26 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
     openerView: () => openerView!,
   }
 }
+
+it('keeps an openContent body and its navigation through tab and Session switches', async () => {
+  const h = await mountSeat()
+  act(() => { h.registerPage('transient-view') })
+  act(() => { h.controller.openContent('transient-view', { text: 'In memory' }, { key: 'k' }) })
+  const tab = h.controller.active()!
+  const selector = `[data-tab-body="${tab.id}"]`
+  const body = element(h.view.container, selector)
+  act(() => { h.controller.openTab('guide') })
+  expect(body.isConnected).toBe(true)
+  await act(async () => { await h.runtime.sessions.add({ id: OTHER }) })
+  act(() => { h.selectSession(OTHER) })
+  expect(body.isConnected).toBe(true)
+  act(() => { h.selectSession(SESSION) })
+  act(() => { h.controller.focus(tab.id) })
+  expect(element(h.view.container, selector)).toBe(body)
+  expect(h.bodies.get(tab.id)?.tab.navigation.params).toEqual({ text: 'In memory' })
+  act(() => { h.controller.close(tab.id) })
+  expect(body.isConnected).toBe(false)
+})
 
 it('keeps duplicate Session Tabs independent and preserves a body through docking and float focus', async () => {
   const h = await mountSeat()
@@ -550,7 +576,7 @@ describe('RightbarSeat presentation', () => {
   it.each([0, 1, 2])('selects the default from %i guide entries and protects only a sole guide', async (entryCount) => {
     const h = await mountSeat(1440, true, entryCount)
     act(() => { h.controller.toggleExpanded() })
-    const initial = Object.values(h.layout().tabs)[0]!
+    const initial = Object.values(h.layout().tabs)[0]
     expect(initial.kind).toBe(entryCount === 1 ? 'text' : 'guide')
     if (entryCount !== 1) {
       expect(h.view.container.querySelectorAll('[data-dockkit-tab-close]')).toHaveLength(0)
@@ -568,7 +594,7 @@ describe('RightbarSeat presentation', () => {
     // The close leaves the layout empty; the next expansion reseeds.
     expect(Object.keys(h.layout().tabs)).toHaveLength(0)
     act(() => { h.controller.toggleExpanded() })
-    const reseeded = Object.values(h.layout().tabs)[0]!
+    const reseeded = Object.values(h.layout().tabs)[0]
     expect(reseeded.kind).toBe('text')
     expect(reseeded.id).not.toBe(initial.id)
     fireEvent.click(element(h.view.container, '[data-dockkit-add-tab]'))
@@ -593,7 +619,7 @@ describe('RightbarSeat presentation', () => {
     const h = await mountSeat()
     const floating = h.open('floating.txt')
     act(() => { h.controller.float(floating.id) })
-    const paneId = getPane(h.layout(), h.layout().floats[0]!).id
+    const paneId = getPane(h.layout(), h.layout().floats[0]).id
     expect(h.view.container.querySelector('[data-dockkit-tab-close]')).toBeNull()
     const close = document.querySelector<HTMLButtonElement>(`[data-dockkit-float-close="${paneId}"]`)
     expect(close).not.toBeNull()
@@ -646,22 +672,37 @@ describe('RightbarSeat presentation', () => {
     expect(panel.hasAttribute('data-sidebar-right-opening')).toBe(false)
   })
 
+  it('resizes the split panel without writing an inherited slide distance', async () => {
+    const h = await mountSeat()
+    h.open()
+    const panel = element(h.view.container, '[data-sidebar-right-panel]')
+    fireEvent.transitionEnd(element(panel, "[data-dockkit-host='dock']"))
+    act(() => { h.actions.splitPane(SESSION) })
+    expect(h.view.container.querySelectorAll('[data-dockkit-pane]')).toHaveLength(2)
+    for (const width of [518, 620]) {
+      h.view.update({ width, viewportWidth: 1440, canShow: true })
+      expect(panel.style.getPropertyValue('--dsh-sidebar-right-panel-width')).toBe(`${width}px`)
+      expect(panel.style.getPropertyValue('--dsh-sidebar-width')).toBe('')
+    }
+    act(() => { h.actions.setExpanded(SESSION, false) })
+    expect(panel.style.getPropertyValue('--dsh-sidebar-right-panel-width')).toBe('620px')
+  })
+
   it('fills the viewport without replacing the content tree or releasing the wide track', async () => {
     const h = await mountSeat()
     const tab = h.open()
     const panel = element(h.view.container, '[data-sidebar-right-panel]')
     const body = element(h.view.container, '[data-tab-body]')
-    expect(panel.style.width).toBe('420px')
+    expect(panel.style.getPropertyValue('--dsh-sidebar-right-panel-width')).toBe('420px')
     fireEvent.click(element(h.view.container, '[data-sidebar-right-mode]'))
     expect(h.layout().mode).toBe('fullscreen')
-    expect(panel.style.width).toBe('calc(1px + 100vw)')
-    expect(panel.style.getPropertyValue('--dsh-sidebar-width')).toBe('calc(100vw + 1px)')
+    expect(panel.style.getPropertyValue('--dsh-sidebar-right-panel-width')).toBe('calc(100vw + 1px)')
     expect(panel.dataset['sidebarRightPanel']).toBe('fullscreen')
     expect(element(h.view.container, '[data-tab-body]')).toBe(body)
     expect(h.frame.openRightbar).toHaveBeenLastCalledWith(true, true)
     expect(h.bodies.get(tab.id)?.sidebar).toEqual({ expanded: true, fullscreen: true })
     fireEvent.click(element(h.view.container, '[data-sidebar-right-mode]'))
-    expect(panel.style.width).toBe('420px')
+    expect(panel.style.getPropertyValue('--dsh-sidebar-right-panel-width')).toBe('420px')
     expect(element(h.view.container, '[data-tab-body]')).toBe(body)
     expect(h.frame.openRightbar).toHaveBeenLastCalledWith(true, false)
     fireEvent.click(element(h.view.container, '[data-sidebar-right-toggle]'))
@@ -1039,7 +1080,7 @@ describe('slot-owned useTabInfo', () => {
     expect(h.instance.getSnapshot()).toBe(stored)
     expect(splitButtons()).toHaveLength(2)
     expect([...splitButtons()].every(button => button.hasAttribute('disabled'))).toBe(true)
-    const right = dockPaneIds(h.layout())[1]!
+    const right = dockPaneIds(h.layout())[1]
     h.open('right.txt', { paneId: right })
     const guide = getPane(h.layout(), right).tabs.find(id => h.layout().tabs[id]?.kind === 'guide')!
     act(() => { h.actions.closeTab(SESSION, guide) })

@@ -1,14 +1,15 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { UserTextFacts } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { IconBranchOutlineRegular, JsonBlock, StateDot, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps, UserContentAttachment, UserContentData, UserContentInput,
 } from '../contract/slots.ts'
 import type { ModelRetryNode, TurnErrorNode, UserMessageNode } from '../contract/snapshot.ts'
-import { CompactionItem } from './CompactionItem.tsx'
+import { CommandStatusRow } from './CommandStatusRow.tsx'
+import { CompactionItem, type CompactionRowInjected } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
 import { MessageIconActions } from './MessageIconActions.tsx'
 import css from './MessageItem.module.css'
@@ -73,6 +74,18 @@ function failureMessage(
 }
 
 /**
+ * The repair seats a terminal failure row declares. A missing credential splits
+ * its sentence around two in-place gestures; a quota failure keeps its neutral
+ * copy and appends the one replenishment gesture a feature can offer.
+ */
+type TurnErrorRepairSlot =
+  | 'conversation.chat.turn-error.sign-in'
+  | 'conversation.chat.turn-error.model-settings'
+  | 'conversation.chat.turn-error.top-up'
+
+type TurnErrorRepairRenderer = PropsRenderSlots<TurnErrorRepairSlot>['renderSlot']
+
+/**
  * The missing-credential sentence with its two repair seats in place: the
  * sign-in and Models-page phrases become the feature-provided links exactly
  * where the sentence names them, and stay plain text when no feature fills the
@@ -80,7 +93,7 @@ function failureMessage(
  */
 function MissingCredentialCopy({ node, renderSlot, t }: {
   node: TurnErrorNode
-  renderSlot: PropsRenderSlots<'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'>['renderSlot']
+  renderSlot: TurnErrorRepairRenderer
   t: ChatViewSlotProps['t']
 }) {
   const signIn = t('message.failure.missingCredential.signIn')
@@ -92,6 +105,28 @@ function MissingCredentialCopy({ node, renderSlot, t }: {
       {t('message.failure.missingCredential.between')}
       {renderSlot('conversation.chat.turn-error.model-settings', { code: node.code, label: models }, { fallback: models })}
       {t('message.failure.missingCredential.after')}
+    </>
+  )
+}
+
+/**
+ * The neutral quota sentence with the optional replenishment gesture a feature
+ * contributes. That feature owns whether a top-up can repair this failure (its
+ * account state, its product's billing surface) and the gesture's own spacing,
+ * so an empty seat adds nothing at all: the row never names an action the
+ * composition cannot perform.
+ */
+function QuotaFailureCopy({ node, renderSlot, t }: {
+  node: TurnErrorNode
+  renderSlot: TurnErrorRepairRenderer
+  t: ChatViewSlotProps['t']
+}) {
+  return (
+    <>
+      {t('message.failure.quota')}
+      {renderSlot('conversation.chat.turn-error.top-up', {
+        code: node.code, label: t('message.failure.quota.action'),
+      })}
     </>
   )
 }
@@ -168,8 +203,9 @@ function ModelRetryItem({ node, active, t }: {
 function TurnErrorItem({ node, t, renderSlot }: {
   node: TurnErrorNode
   t: ChatViewSlotProps['t']
-  renderSlot: PropsRenderSlots<'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'>['renderSlot']
+  renderSlot: TurnErrorRepairRenderer
 }) {
+  const quota = node.code === 'QUOTA' || node.code === 'ACCOUNT_QUOTA'
   return (
     <div className={css.turnErrorRow} role="status">
       <StateDot state="error" className={css.turnErrorDot} />
@@ -178,7 +214,9 @@ function TurnErrorItem({ node, t, renderSlot }: {
         <span className={css.turnErrorMessage}>
           {node.code === 'MISSING_CREDENTIAL'
             ? <MissingCredentialCopy node={node} renderSlot={renderSlot} t={t} />
-            : failureMessage(node.message, node.code, t)}
+            : quota
+              ? <QuotaFailureCopy node={node} renderSlot={renderSlot} t={t} />
+              : failureMessage(node.message, node.code, t)}
         </span>
       </div>
       {node.code !== undefined && node.code !== 'INTERRUPTED' && <code className={css.turnErrorCode}>{node.code}</code>}
@@ -416,8 +454,19 @@ export const ContextMessageNodeView = memo(function ContextMessageNodeView({ nod
 })
 
 /** Automatic compaction keyed Chat renderer. */
-export const CompactionNodeView = memo(function CompactionNodeView({ node, t }: ChatNodeViewProps<'compaction'>) {
-  return <CompactionItem node={node.data} t={t} />
+export const CompactionNodeView = memo(function CompactionNodeView({
+  node, openCompaction, useCompactionPreview, t,
+}: ChatNodeViewProps<'compaction'> & InjectFace<CompactionRowInjected>) {
+  const available = useCompactionPreview(value => value)
+  const data = node.data
+  if (data.kind === 'compaction-progress') {
+    const title = t('message.compaction.commandTitle')
+    if (data.status === 'running') return <CommandStatusRow title={title} state="running" summary={t('message.compaction.running')} body={null} t={t} />
+    const error = data.status === 'interrupted' ? t('message.taskStopped') : data.error
+    return <CommandStatusRow title={title} state={error === undefined ? 'ok' : 'error'} summary={error ?? t('command.done')}
+      body={error?.includes('\n') ? error : null} t={t} />
+  }
+  return <CompactionItem node={data} openCompaction={available ? openCompaction : undefined} t={t} />
 })
 
 /** Divider between a forked Session's inherited history and its own messages. */
@@ -443,9 +492,7 @@ export const RetryNodeView = memo(function RetryNodeView({ node, t }: ChatNodeVi
 /** Terminal turn-error keyed Chat renderer. */
 export const TurnErrorNodeView = memo(function TurnErrorNodeView({
   node, renderSlot, t,
-}: ChatNodeViewProps<'turn-error'> & PropsRenderSlots<
-  'conversation.chat.turn-error.sign-in' | 'conversation.chat.turn-error.model-settings'
->) {
+}: ChatNodeViewProps<'turn-error'> & PropsRenderSlots<TurnErrorRepairSlot>) {
   return <TurnErrorItem node={node.data} renderSlot={renderSlot} t={t} />
 })
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import type { OwnerOf } from '@deepseek-ai/dsh-client-ui-slots'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -11,7 +11,7 @@ import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
 
-function setup(autoFocus = true) {
+function setup(autoFocus = true, extraOption?: ReactNode, afterModel = false) {
   const directory = createSnapshotStore<ModelDirectoryState>({
     current: { provider: 'fixture', model: 'fixture' }, routable: true,
     groups: [{ id: 'fixture', name: 'Fixture', models: [{ id: 'fixture', name: 'Fixture' }] }],
@@ -20,10 +20,16 @@ function setup(autoFocus = true) {
   const change = vi.fn()
   const select = vi.fn()
   const renderSlot: ComponentProps<typeof ModelSelect>['renderSlot'] = (name, owner, options) => {
+    if (name === 'conversation.input.model.afterModel') {
+      if (!afterModel) return null
+      const controls = owner as object as OwnerOf<'conversation.input.model.afterModel'>
+      return <button type="button" role="menuitem" data-model-menu-pane="fixture" disabled={controls.locked}
+        onClick={() => { controls.openPane({ key: 'fixture', title: 'Fixture settings' }) }}>Price group</button>
+    }
     if (name === 'conversation.input.model.options') {
       const controls = owner as object as OwnerOf<'conversation.input.model.options'>
-      return <button type="button" role="menuitem" data-model-menu-pane="fixture" disabled={controls.locked}
-        onClick={() => { controls.openPane({ key: 'fixture', title: 'Fixture settings' }) }}>Fixture settings</button>
+      return <><button type="button" role="menuitem" data-model-menu-pane="fixture" disabled={controls.locked}
+        onClick={() => { controls.openPane({ key: 'fixture', title: 'Fixture settings' }) }}>Fixture settings</button>{extraOption}</>
     }
     if (name === 'conversation.input.model.pane') {
       const controls = owner as object as OwnerOf<'conversation.input.model.pane'>
@@ -48,6 +54,8 @@ it('dispatches a keyed page and returns focus to its invoking summary on Escape'
   expect(screen.getByRole('group', { name: 'Fixture settings' })).toBeTruthy()
   fireEvent.blur(toggle, { relatedTarget: null })
   expect(screen.getByText('Fixture explanation')).toBeTruthy()
+  // Explanation text keeps its default press so it stays selectable.
+  expect(fireEvent.mouseDown(screen.getByText('Fixture explanation'))).toBe(true)
   fireEvent.keyDown(toggle, { key: 'Escape' })
   expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Fixture settings' }))
   expect(screen.queryByRole('switch')).toBeNull()
@@ -84,6 +92,33 @@ it.each([false, true])('closes a detail pane on Tab without changing its setting
   expect(trigger.getAttribute('aria-expanded')).toBe('false')
   expect(document.activeElement).toBe(trigger)
   expect(change).not.toHaveBeenCalled()
+})
+
+it('keeps the default press on focusable plugin options that are not buttons', () => {
+  const { trigger } = setup(true, <>
+    <div tabIndex={0} data-testid="tabbable"><span>Tabbable option</span></div>
+    <a href="#fixture">Fixture link</a>
+    <span>Plain option text</span>
+  </>)
+  const tabbable = screen.getByTestId('tabbable')
+  // true = default kept, so the browser can move focus to the control.
+  expect(fireEvent.mouseDown(screen.getByText('Tabbable option'))).toBe(true)
+  expect(fireEvent.mouseDown(screen.getByRole('link', { name: 'Fixture link' }))).toBe(true)
+  // Non-focusable option content still keeps the current focus.
+  expect(fireEvent.mouseDown(screen.getByText('Plain option text'))).toBe(false)
+  act(() => { tabbable.focus() })
+  expect(document.activeElement).toBe(tabbable)
+  expect(trigger.getAttribute('aria-expanded')).toBe('true')
+})
+
+it('renders after-model contributions between the model row and the other options', () => {
+  setup(false, undefined, true)
+  const rows = screen.getAllByRole('menuitem')
+  expect(rows.map(row => row.textContent ?? '')).toEqual(['ModelFixture', 'Price group', 'Fixture settings'])
+  fireEvent.click(rows[1])
+  expect(screen.getByRole('switch')).toBeTruthy()
+  fireEvent.keyDown(screen.getByRole('switch'), { key: 'Escape' })
+  expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Price group' }))
 })
 
 it('keeps the baseline model-save lock on both summary and detail controls', () => {

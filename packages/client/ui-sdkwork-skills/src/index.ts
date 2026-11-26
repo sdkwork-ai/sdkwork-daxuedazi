@@ -59,7 +59,7 @@ const SUPPRESSED: SkillInvocationPolicy = { modelInvocable: false, userInvocable
  * suppressed candidate is filtered out of both catalogs, so only the name and
  * the policy are observable.
  */
-const SUPPRESSION_DESCRIPTION = 'Suppressed by the BirdCoder skill manager'
+const SUPPRESSION_REASON = 'Suppressed by the BirdCoder skill manager'
 const SUPPRESSION_CONTENT = 'This skill is suppressed on this device through the BirdCoder skill settings.'
 
 /**
@@ -88,7 +88,7 @@ function suppressedNames(names: unknown): readonly string[] {
 function suppressionCandidate(name: string): SkillCandidate {
   return {
     name,
-    description: SUPPRESSION_DESCRIPTION,
+    description: SUPPRESSION_REASON,
     invocation: SUPPRESSED,
     source: 'runtime',
     provider: SUPPRESSION_PROVIDER,
@@ -131,10 +131,10 @@ export interface Config {
  * bind a schema to a namespace.
  */
 export const Config = z.object({
-  [DISABLED_SKILLS_FIELD]: UiSkillsSettingsFields[DISABLED_SKILLS_FIELD].volatile(),
-  [HIDDEN_SCENE_TAGS_FIELD]: UiSkillsSettingsFields[HIDDEN_SCENE_TAGS_FIELD].volatile(),
-  [PINNED_SCENE_TAGS_FIELD]: UiSkillsSettingsFields[PINNED_SCENE_TAGS_FIELD].volatile(),
-  [SHOW_SCENE_TAGS_FIELD]: UiSkillsSettingsFields[SHOW_SCENE_TAGS_FIELD].volatile(),
+  disabledSkills: UiSkillsSettingsFields[DISABLED_SKILLS_FIELD].volatile(),
+  hiddenSceneTags: UiSkillsSettingsFields[HIDDEN_SCENE_TAGS_FIELD].volatile(),
+  pinnedSceneTags: UiSkillsSettingsFields[PINNED_SCENE_TAGS_FIELD].volatile(),
+  showSceneTags: UiSkillsSettingsFields[SHOW_SCENE_TAGS_FIELD].volatile(),
 })
 
 /**

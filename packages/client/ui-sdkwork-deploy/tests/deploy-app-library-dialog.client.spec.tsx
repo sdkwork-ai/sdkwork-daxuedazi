@@ -76,7 +76,7 @@ vi.mock('@sdkwork/deployments-pc-console-publishing', async () => {
     UploadSourceDialog: (props: { app: { id: string }; onUploaded: (summary: string) => void; onClose: () => void }) =>
       h('div', null,
         `UPLOAD_DIRECT:${props.app.id}`,
-        h('button', { type: 'button', onClick: () => props.onUploaded('3 files') }, 'upload-done'),
+        h('button', { type: 'button', onClick: () =>{  props.onUploaded('3 files') } }, 'upload-done'),
         h('button', { type: 'button', onClick: props.onClose }, 'close-upload')),
     cardsOfAppKind: (appKind: string) => (appKind === 'SPA_WEB' ? [{ id: 'pc-web' }] : []),
     createDeployAppPublishingService: () => ({
@@ -139,7 +139,7 @@ interface Workspace {
 /** A real DeployHost over an in-memory workspace bridge. */
 function hostOf(
   workspace: Workspace,
-  build: DeployHostBuild | undefined = undefined,
+  build?: DeployHostBuild  ,
   gate?: Promise<void>,
 ): DeployHost {
   const parentOf = (path: string): string => path.slice(0, path.lastIndexOf('/'))
@@ -498,7 +498,7 @@ describe('DeployAppLibraryDialog', () => {
     await act(async () => { button(element, '源码').click() })
     expect(element.textContent).toContain('源码绑定')
     await act(async () => { button(element, 'Git 仓库').click() })
-    const urlInput = [...element.querySelectorAll('input')].find(item => item.placeholder === zh['template.git.urlPlaceholder'])
+    const urlInput = [...element.querySelectorAll('input')].find(item => item.placeholder === zh['scaffold.git.urlPlaceholder'])
     if (urlInput === undefined) throw new Error('the git url input is missing')
     await act(async () => {
       const setter = Object.getOwnPropertyDescriptor(globalThis.HTMLInputElement.prototype, 'value')?.set

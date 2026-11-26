@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-`main` 是 `deepseek-ai/deepseek-harness` 的 fork，在持续合并上游的同时承载 SDKWork 专属功能。一次覆盖 fork 功能、压平上游历史或方向错误的冲突解决，会同时毁掉开源血缘与产品功能。第一次完整同步（2026-08-21，上游 `528c682e06`）确立了下述可执行流程；本笔记记录它，使后续每次同步都遵循同样的步骤与冲突规则。
+`main` 是 `deepseek-ai/deepseek-harness` 的 fork，在持续合并上游的同时承载 SDKWork 专属功能。一次覆盖 fork 功能、压平上游历史或方向错误的冲突解决，会同时毁掉开源血缘与产品功能。第一次完整同步（2026-08-21）确立了下述可执行流程；本笔记记录它，使后续每次同步都遵循同样的步骤与冲突规则。
 
 ## 流程
 
@@ -27,7 +27,7 @@ Status: implemented
 11. **让兄弟仓 pin 与 lockfile 同步推进（2026-09-11 教训）。** CI 会先把 `scripts/sdkwork-sources.manifest.json` 里 pin 的兄弟仓克隆到 `../sdkwork-*`，再运行 `pnpm install --frozen-lockfile`；但 `pnpm-lock.yaml` 记录的是从**本地**兄弟 checkout 解析出的 specifier。因此 pin 落后于本地 HEAD 时，维护者本机安装一切正常，而所有 CI runner 都会以 `ERR_PNPM_OUTDATED_LOCKFILE` 失败——这个报错看起来像 lockfile 问题，而不像 pin 问题。先推送兄弟仓、把每个 pin 指向已推送的 HEAD，然后才重新记录并校验 lockfile，最后再推送合并。
 12. **解决冲突后重跑 OEM 身份门禁。** `pnpm run verify-oem-identity` 读取 [OEM 自有内容清单](../../../../brands/README.zh.md#oem-owned-surfaces)，并指出失配的具体面：出厂 `daxuedazi` 身份取值、`~/.daxuedazi` home 规则、IAM 回调 scheme、每个打包通道的产物命名派生，以及文档指引。解决 OEM 自有文件时取上游结构、再把 OEM 字段重新落回去。`scripts/sync-upstream.sh verify` 会运行同一门禁（步骤 5c），因此只要合并丢了 OEM 内容，就无法记录 anchor。
 
-## 冲突决策表
+### 冲突决策表
 
 | 表面 | 取哪边 | 原因 |
 |---|---|---|
@@ -45,3 +45,9 @@ Status: implemented
 ## 结果
 
 2026-08-21 同步合并了 172 个上游提交、277 个冲突文件，把 fork 的 `sdkwork-` 命名契约写进 AGENTS.md，修复了两处真实接口缺口（desktop-carrier 的 `renderIndex`；测试的 boot 标记断言），并以零合并引入的 typecheck/测试回退落地。剩余失败（sdkwork 兄弟包 API 漂移、陈旧双语配对）是 fork 既有债务，由 WIP 分支继续处理。
+
+## 备选方案
+
+**用 rebase 把 fork 重新落到上游之上，而不是合并。** 否决原因：rebase 会重写 fork 历史并合成重放每一次冲突，丢失下一次同步所依赖的 merge base 记录。
+
+**把上游压缩成一个提交。** 否决原因：这会破坏上游历史，使下一次增量同步无法计算 merge base。

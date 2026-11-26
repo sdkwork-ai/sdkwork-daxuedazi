@@ -25,6 +25,7 @@ import { AccountPlatformHost } from '../src/client/AccountPlatformHost.tsx'
 import type { AccountPlatformHostInjected } from '../src/client/AccountPlatformHost.tsx'
 import { AccountQuotaNotice } from '../src/client/AccountQuotaNotice.tsx'
 import type { AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
+import type { QuotaTopUpActionInjected } from '../src/client/QuotaTopUpAction.tsx'
 
 // FORK DIVERGENCE: the fork's web composition disables ui-settings-general
 // (ui-sdkwork-settings-menu re-declares every settings seat) and account
@@ -61,7 +62,7 @@ const view: AccountView = {
 const stored: AccountView = { ...view, status: 'credential-stored' }
 const profile: AccountDetails['profile'] = { status: 'ready', value: { id: 'account-user' as AccountUserId, name: 'User', contact: null } }
 function operations(c: TestClient): AccountSectionInjected {
-  const injected: object = c.ctx.slots.entries('settings.launcher')[0]!.inject!()
+  const injected: object = c.ctx.slots.entries('settings.launcher')[0].inject!()
   return injected as AccountSectionInjected
 }
 /** The account take-over registered into the Chat-owned frame-wide quota notice chain. */
@@ -92,6 +93,7 @@ it('registers account sign-in in a plain browser without the Desktop-only surfac
     expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(1)
     expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(1)
     expect(quotaNoticeEntry(c)).toBeDefined()
+    expect(c.ctx.slots.entries('conversation.chat.turn-error.top-up')).toHaveLength(1)
     expect(platformHostEntry(c)).toBeUndefined()
     expect(c.ctx.slots.entries('shell.overlay').some(entry => entry.options.id === 'desktop-onboarding')).toBe(false)
     expect(operations(c).hooks.account.getSnapshot().desktopOnboardingVisible).toBe(false)
@@ -103,6 +105,7 @@ withoutAccountAccess('opens no account stream and registers no account surface w
   expect(c.mock.streams.end('account/watch')).toBe(0)
   expect(c.ctx.slots.entries('settings.launcher')).toHaveLength(0)
   expect(quotaNoticeEntry(c)).toBeUndefined()
+  expect(c.ctx.slots.entries('conversation.chat.turn-error.top-up')).toHaveLength(0)
   expect(c.ctx.slots.entries('settings.models.sign-in')).toHaveLength(0)
   expect(c.ctx.slots.entries('settings.section').some(entry => entry.options.id === 'account')).toBe(false)
   // FORK DIVERGENCE: this case boots the plain web roster on its own (the other
@@ -129,7 +132,7 @@ it('shares account actions across seats, publishes dialog ownership, and opens c
   vi.stubGlobal('dshDesktop', {})
   const c = await start()
   const actions = operations(c)
-  expect(c.ctx.slots.entries('settings.models.sign-in')[0]!.inject!()).toBe(actions)
+  expect(c.ctx.slots.entries('settings.models.sign-in')[0].inject!()).toBe(actions)
   // The account UI follows the live theme service through the framework hook channel.
   const theme = c.ctx.get('theme') as ThemeRuntime
   const onTheme = vi.fn()
@@ -254,15 +257,15 @@ it('publishes one avatar load and retries it through the shared Settings refresh
   c.mock.remote.account.getProfile.mockResolvedValue(ok(picture))
   c.mock.streams.push('account/watch', { type: 'snapshot', state: stored })
   await vi.waitFor(() => { expect(images).toHaveLength(1) })
-  images[0]!.dispatchEvent(new Event('error'))
+  images[0].dispatchEvent(new Event('error'))
   expect(actions.hooks.account.getSnapshot().avatar?.status).toBe('failed')
   await actions.refreshAccount()
   await actions.refreshAccount()
   expect(images).toHaveLength(2)
-  images[1]!.dispatchEvent(new Event('error'))
+  images[1].dispatchEvent(new Event('error'))
   await actions.refreshAccount()
   expect(images).toHaveLength(3)
-  images[2]!.dispatchEvent(new Event('load'))
+  images[2].dispatchEvent(new Event('load'))
   expect(actions.hooks.account.getSnapshot().avatar).toEqual({ url: picture.value.avatarUrl, status: 'ready' })
   await actions.refreshAccount()
   expect(images).toHaveLength(3)
@@ -271,14 +274,14 @@ it('publishes one avatar load and retries it through the shared Settings refresh
   expect(actions.hooks.account.getSnapshot().avatar?.status).toBe('failed')
   await actions.refreshAccount()
   expect(images).toHaveLength(4)
-  images[3]!.dispatchEvent(new Event('load'))
+  images[3].dispatchEvent(new Event('load'))
   const successor = actions.hooks.account.getSnapshot().avatar!
   actions.avatarFailed(ready)
   expect(actions.hooks.account.getSnapshot().avatar).toBe(successor)
   c.mock.streams.push('account/watch', { type: 'snapshot', state: view })
   await vi.waitFor(() => { expect(actions.hooks.account.getSnapshot().view).toEqual(view) })
   expect(actions.hooks.account.getSnapshot().avatar).toBeUndefined()
-  expect(images[3]!.getAttribute('src')).toBeNull()
+  expect(images[3].getAttribute('src')).toBeNull()
 }, 60_000)
 
 it('keeps successful account refreshes silent and reports only failed reads', async ({ start }) => {
@@ -408,6 +411,9 @@ it('uses the Desktop stream origin and exposes the native platform bridge', asyn
   expect('platformPages' in actions).toBe(false)
   expect('platformPages' in notice).toBe(false)
   expect(notice.hooks.platformPage.getSnapshot()).toBeNull()
+  const rowTopUp = injectedOf(c.ctx.slots.entries('conversation.chat.turn-error.top-up')[0]) as QuotaTopUpActionInjected
+  expect(typeof rowTopUp.openPlatformPage).toBe('function')
+  expect('platformPages' in rowTopUp).toBe(false)
 
   // One surface requests a page; the viewer returning through the host's own
   // close action retires that owner exactly once and clears the observable.

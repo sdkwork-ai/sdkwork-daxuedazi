@@ -73,9 +73,17 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 
 ### `ctx.actionCards` — `ActionCards`
 
-Kind registry, Session projection, user actions and status notices.
+Kind registry, skill switch, Session projection, user actions and status notices.
 
 ```ts cordis-catalog
+/**
+ * Build a kind's skill provider. It lists the skill while recommendations are enabled.
+ * @param candidate - the skill's catalog entry.
+ * @param get - loads the skill's definition.
+ * @returns the factory the kind passes to `ctx.skills.registerProvider`.
+ */
+skillProvider(candidate: SkillCandidate, get: SkillProvider['get']): (control: SkillProviderControl) => SkillProvider
+
 /**
  * Register one action kind for the caller's lifetime.
  * @param kind - the kind's details schema, verbs and handler.
@@ -88,7 +96,7 @@ register<Details>(kind: ActionCardKind<Details>): () => void
  * Record a card decision in the Session log; the next model request reports it.
  * @param agent - agent whose Session owns the card.
  * @param decision - the card's new state.
- * @throws when no kind ever registered the decision's action with this service, or its phase is one the projection derives.
+ * @throws when no kind ever registered the decision's action with this service.
  */
 record(agent: Agent, decision: ActionCardDecision): void
 
@@ -112,9 +120,9 @@ view(session: Session): ActionCardView
 @Remote act(agent: Agent, cardId: ActionCardId, verb: string, payload?: Record<string, JsonValue>): Promise<ActionCardResult>
 ```
 
-Types: [Agent](core.zh.md) · [Session](session.zh.md)
+Types: [Agent](core.zh.md) · [Session](session.zh.md) · [SkillCandidate](skills.zh.md) · [SkillProvider](skills.zh.md) · [SkillProviderControl](skills.zh.md)
 
-Source: [`packages/experimental/action-cards/src/index.ts`](../../packages/experimental/action-cards/src/index.ts)
+Source: [`packages/interaction/action-cards/src/index.ts`](../../packages/interaction/action-cards/src/index.ts)
 
 <a id="ctxcliaccounts--cliaccounts"></a>
 
@@ -386,7 +394,8 @@ Manage profile files and apply their declared reload lifecycle.
  * find that only SSH can read it. A run
  * that fails, is cancelled, or adds a package without a bundle patch restores
  * `package.json` and `pnpm-lock.yaml` as they were; downloaded files can stay.
- * @param spec One package spec, including local paths relative to the invocation directory.
+ * @param spec One package spec, including local paths and the archive or
+ * Drive forms the manager downloads and unpacks itself.
  * @param options Whether to activate the installed bundle (defaults to true), the request id a cancellation names,
  * the pending build scripts to allow, whether to save an exact dependency, and the registry asked first.
  * @returns Package-manager diagnostics, the registries asked, and the observed activation outcome.
@@ -504,7 +513,7 @@ Catalog lookups for card text and the enabling behind the `enable_official_plugi
 
 Types: [Agent](core.zh.md)
 
-Source: [`packages/experimental/plugin-recommendations/src/index.ts`](../../packages/experimental/plugin-recommendations/src/index.ts)
+Source: [`packages/extensions/plugin-recommendations/src/index.ts`](../../packages/extensions/plugin-recommendations/src/index.ts)
 
 <a id="ctxpluginregistryprobe--pluginregistryprobe"></a>
 

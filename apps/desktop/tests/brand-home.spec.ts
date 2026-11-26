@@ -8,21 +8,23 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
+// The package's `./src/*` subpath keeps this spec on the resolver's source, so it
+// does not need the OEM package's build output to be current.
+import { readOemConfig } from '@deepseek-ai/dsh-sdkwork-oem/src/config.ts'
 import { parseBrandManifest } from '../scripts/brand-manifest.mjs'
 import type { BrandHomeFileSystem } from '../src/brand.ts'
 import { applyBrandBootstrap, applyBrandHome, resolveRuntimeBrand } from '../src/brand.ts'
 
-/** The brand this checkout ships. */
-const SHIPPED = parseBrandManifest({
+/** The shipped brand this repository is packaged as. */
+const BIRDCODER = parseBrandManifest({
   schemaVersion: 1,
-  key: 'daxuedazi',
-  displayName: 'daxuedazi',
+  key: 'birdcoder',
+  displayName: 'BirdCoder',
   companyName: 'SDKWork',
-  home: { dirName: '.daxuedazi' },
+  home: { dirName: '.birdcoder' },
   desktop: {
-    appId: 'com.sdkwork.daxuedazi', releaseRepository: 'sdkwork-ai/sdkwork-daxuedazi', productName: 'daxuedazi',
-    executableName: 'daxuedazi', protocol: 'daxuedazi', commandName: 'daxuedazi', registryKey: 'DaXueDaZi',
-    updaterCacheDirName: 'daxuedazi-updater', artifactPrefix: 'daxuedazi', webPort: 19400,
+    appId: 'com.sdkwork.birdcoder', productName: 'BirdCoder', executableName: 'birdcoder', protocol: 'birdcoder',
+    commandName: 'birdcoder', registryKey: 'BirdCoder', updaterCacheDirName: 'birdcoder-updater', artifactPrefix: 'BirdCoder',
   },
 })
 
@@ -52,10 +54,10 @@ it('keeps an explicit DSH_HOME and creates no home', () => {
   mkdirSync(join(home, '.dsh'))
   const files = recordingFiles()
   const env: Record<string, string | undefined> = { DSH_HOME: join(home, 'elsewhere') }
-  const result = applyBrandHome({ brand: SHIPPED, env, homeDirectory: home, files })
+  const result = applyBrandHome({ brand: BIRDCODER, env, homeDirectory: home, files })
   expect(result).toEqual({ home: join(home, 'elsewhere'), source: 'env' })
   expect(files.created).toEqual([])
-  expect(existsSync(join(home, '.daxuedazi'))).toBe(false)
+  expect(existsSync(join(home, '.birdcoder'))).toBe(false)
 })
 
 it('creates an empty brand home on the first packaged launch and leaves the upstream home alone', () => {
@@ -65,14 +67,14 @@ it('creates an empty brand home on the first packaged launch and leaves the upst
   const warnings: string[] = []
   const env: Record<string, string | undefined> = {}
   const result = applyBrandHome({
-    brand: SHIPPED,
+    brand: BIRDCODER,
     env,
     homeDirectory: home,
     warn: (line) => { warnings.push(line) },
   })
-  expect(result).toEqual({ home: join(home, '.daxuedazi'), source: 'brand' })
-  expect(env.DSH_HOME).toBe(join(home, '.daxuedazi'))
-  expect(readdirSync(join(home, '.daxuedazi'))).toEqual([])
+  expect(result).toEqual({ home: join(home, '.birdcoder'), source: 'brand' })
+  expect(env.DSH_HOME).toBe(join(home, '.birdcoder'))
+  expect(readdirSync(join(home, '.birdcoder'))).toEqual([])
   expect(readdirSync(join(home, '.dsh'))).toEqual(['credentials.yaml'])
   expect(readFileSync(join(home, '.dsh', 'credentials.yaml'), 'utf8')).toBe('upstream')
   expect(warnings).toEqual([])
@@ -80,14 +82,14 @@ it('creates an empty brand home on the first packaged launch and leaves the upst
 
 it('reuses an existing brand home without rewriting it', () => {
   const home = operatingSystemHome()
-  mkdirSync(join(home, '.daxuedazi'))
-  writeFileSync(join(home, '.daxuedazi', 'credentials.yaml'), 'brand')
+  mkdirSync(join(home, '.birdcoder'))
+  writeFileSync(join(home, '.birdcoder', 'credentials.yaml'), 'brand')
   const files = recordingFiles()
   const env: Record<string, string | undefined> = {}
-  const result = applyBrandHome({ brand: SHIPPED, env, homeDirectory: home, files })
-  expect(result).toEqual({ home: join(home, '.daxuedazi'), source: 'brand' })
+  const result = applyBrandHome({ brand: BIRDCODER, env, homeDirectory: home, files })
+  expect(result).toEqual({ home: join(home, '.birdcoder'), source: 'brand' })
   expect(files.created).toEqual([])
-  expect(readFileSync(join(home, '.daxuedazi', 'credentials.yaml'), 'utf8')).toBe('brand')
+  expect(readFileSync(join(home, '.birdcoder', 'credentials.yaml'), 'utf8')).toBe('brand')
 })
 
 it('keeps the brand home when it cannot be created, and reports it', () => {
@@ -95,26 +97,31 @@ it('keeps the brand home when it cannot be created, and reports it', () => {
   const warnings: string[] = []
   const env: Record<string, string | undefined> = {}
   const result = applyBrandHome({
-    brand: SHIPPED,
+    brand: BIRDCODER,
     env,
     homeDirectory: home,
     files: recordingFiles(new Error('EACCES')),
     warn: (line) => { warnings.push(line) },
   })
-  expect(result).toEqual({ home: join(home, '.daxuedazi'), source: 'brand' })
-  expect(env.DSH_HOME).toBe(join(home, '.daxuedazi'))
+  expect(result).toEqual({ home: join(home, '.birdcoder'), source: 'brand' })
+  expect(env.DSH_HOME).toBe(join(home, '.birdcoder'))
   expect(warnings).toHaveLength(1)
   expect(warnings[0]).toContain('could not create')
 })
 
-it('applies nothing outside an installed application or the development launcher', () => {
+it('leaves the home alone outside an installed application or the development launcher', () => {
   const home = operatingSystemHome()
   const env: Record<string, string | undefined> = {}
   const brand = resolveRuntimeBrand({ appPath: 'desktop-test-app', resourcesPath: 'relative-resources', env })
-  expect(brand.key).toBe('daxuedazi')
+  expect(brand.key).toBe('birdcoder')
   expect(applyBrandBootstrap({ brand, packaged: false, env, resourcesPath: 'relative-resources', homeDirectory: home }))
     .toEqual({ brand, home: undefined })
   expect(env.DSH_HOME).toBeUndefined()
+  // The scheme and the reverse-domain id are manifest data, not user data: they
+  // travel even when this launch applies no home, so the Host still resolves
+  // this brand's OAuth identity.
+  expect(env.DSH_BRAND_PROTOCOL).toBe('birdcoder')
+  expect(env.DSH_BRAND_APP_ID).toBe('com.sdkwork.birdcoder')
 })
 
 it('reads a packaged brand manifest, creates its home, and defaults the OEM profile', () => {
@@ -128,8 +135,8 @@ it('reads a packaged brand manifest, creates its home, and defaults the OEM prof
     companyName: 'Acme',
     home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
+      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
     },
   }))
   writeFileSync(join(resources, 'oem.json'), JSON.stringify({ brand: { name: 'Acme' } }))
@@ -142,6 +149,10 @@ it('reads a packaged brand manifest, creates its home, and defaults the OEM prof
   expect(env.DSH_HOME).toBe(join(home, '.acme'))
   expect(existsSync(join(home, '.acme'))).toBe(true)
   expect(env.DSH_OEM_CONFIG).toBe(join(resources, 'oem.json'))
+  // The Host validates the profile's OAuth identity against the brand this shell
+  // registered, so the scheme and the reverse-domain id travel with the launch.
+  expect(env.DSH_BRAND_PROTOCOL).toBe('acme')
+  expect(env.DSH_BRAND_APP_ID).toBe('com.acme.harness')
 })
 
 it('lets a home oem.json win over the shipped profile', () => {  const home = operatingSystemHome()
@@ -152,8 +163,8 @@ it('lets a home oem.json win over the shipped profile', () => {  const home = op
   writeFileSync(join(resources, 'brand.json'), JSON.stringify({
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
+      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
     },
   }))
   writeFileSync(join(resources, 'oem.json'), JSON.stringify({ brand: { name: 'Shipped' } }))
@@ -163,14 +174,59 @@ it('lets a home oem.json win over the shipped profile', () => {  const home = op
   expect(env.DSH_OEM_CONFIG).toBeUndefined()
 })
 
+it('gives each brand its own OAuth login identity and refuses the other brand\'s', () => {
+  const home = operatingSystemHome()
+  const resources = join(home, 'resources')
+  mkdirSync(resources)
+  mkdirSync(join(home, '.daxuedazi'))
+  // A brand that is a derivative of this repository: same sources, own scheme.
+  writeFileSync(join(resources, 'brand.json'), JSON.stringify({
+    schemaVersion: 1, key: 'daxuedazi', displayName: 'DaXueDaZi', companyName: 'SDKWork', home: { dirName: '.daxuedazi' },
+    desktop: {
+      appId: 'com.sdkwork.daxuedazi', productName: 'DaXueDaZi', executableName: 'daxuedazi', protocol: 'daxuedazi',
+      commandName: 'daxuedazi', registryKey: 'DaXueDaZi', updaterCacheDirName: 'daxuedazi-updater',
+      artifactPrefix: 'daxuedazi',
+    },
+  }))
+  const env: Record<string, string | undefined> = { DSH_DESKTOP_DEV_APP: '1' }
+  const brand = resolveRuntimeBrand({ resourcesPath: resources, env })
+  applyBrandBootstrap({ brand, packaged: false, env, resourcesPath: resources, homeDirectory: home })
+  expect(env.DSH_BRAND_PROTOCOL).toBe('daxuedazi')
+  expect(env.DSH_BRAND_APP_ID).toBe('com.sdkwork.daxuedazi')
+
+  // Without a profile of its own the brand resolves its own public client and
+  // callback, so a fork needs no per-brand patch to log in.
+  const profilePath = join(home, '.daxuedazi', 'oem.json')
+  expect(readOemConfig(profilePath, 'production', env.DSH_BRAND_PROTOCOL, env.DSH_BRAND_APP_ID).sdkwork).toMatchObject({
+    iamClientId: 'daxuedazi',
+    iamRedirectUri: 'daxuedazi://auth/callback',
+  })
+
+  // RFC 8252 sections 7.1 and 8.4: the brand's reverse-domain application id is
+  // the interoperable callback scheme, and the profile may name it.
+  writeFileSync(profilePath, JSON.stringify({
+    sdkwork: { iamRedirectUri: 'com.sdkwork.daxuedazi://auth/callback' },
+  }))
+  expect(readOemConfig(profilePath, 'production', env.DSH_BRAND_PROTOCOL, env.DSH_BRAND_APP_ID).sdkwork)
+    .toMatchObject({ iamRedirectUri: 'com.sdkwork.daxuedazi://auth/callback' })
+
+  // The upstream brand's identity in this home fails the launch instead of
+  // opening a login whose deep link this shell can never receive.
+  writeFileSync(profilePath, JSON.stringify({
+    sdkwork: { iamClientId: 'birdcoder', iamRedirectUri: 'birdcoder://auth/callback' },
+  }))
+  expect(() => readOemConfig(profilePath, 'production', env.DSH_BRAND_PROTOCOL, env.DSH_BRAND_APP_ID))
+    .toThrow(/sdkwork\.iamRedirectUri/)
+})
+
 it('renders the installed CLI launchers for a brand command and home', async () => {
   const directory = operatingSystemHome()
   const manifest = join(directory, 'acme.json')
   writeFileSync(manifest, JSON.stringify({
     schemaVersion: 1, key: 'acme', displayName: 'Acme', companyName: 'Acme', home: { dirName: '.acme' },
     desktop: {
-      appId: 'com.acme.harness', releaseRepository: 'acme/harness-releases', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
-      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme', webPort: 19500,
+      appId: 'com.acme.harness', productName: 'Acme Harness', executableName: 'acme', protocol: 'acme',
+      commandName: 'acme', registryKey: 'Acme', updaterCacheDirName: 'acme-updater', artifactPrefix: 'Acme',
     },
   }))
   const { prepareDesktopCli } = await import('../scripts/prepare-cli.ts')
@@ -178,10 +234,14 @@ it('renders the installed CLI launchers for a brand command and home', async () 
   const windows = readFileSync(join(directory, 'bin', 'acme.cmd'), 'utf8')
   expect(windows).toContain('acme.exe')
   expect(windows).toContain('%USERPROFILE%\\.acme')
-  expect(windows).not.toContain('daxuedazi')
+  expect(windows).toContain('set "DSH_BRAND_PROTOCOL=acme"')
+  expect(windows).toContain('set "DSH_BRAND_APP_ID=com.acme.harness"')
+  expect(windows).not.toContain('birdcoder')
 
   prepareDesktopCli(directory, 'darwin', { DSH_BRAND_CONFIG: manifest })
   const unix = readFileSync(join(directory, 'bin', 'acme'), 'utf8')
   expect(unix).toContain('MacOS/acme')
   expect(unix).toContain('DSH_HOME="$HOME/.acme"')
+  expect(unix).toContain('DSH_BRAND_PROTOCOL="acme"')
+  expect(unix).toContain('DSH_BRAND_APP_ID="com.acme.harness"')
 })

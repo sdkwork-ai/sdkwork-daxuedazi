@@ -54,6 +54,7 @@ kind: "package-group"
 | [`ui-sdkwork-drive/`](ui-sdkwork-drive/README.zh.md) | 以独立插件提供 SDKWork 驱动的云盘模式 | — |
 | [`ui-sdkwork-assets/`](ui-sdkwork-assets/README.zh.md) | 以独立模块提供资产模式 | — |
 | [`ui-sdkwork-token-plan/`](ui-sdkwork-token-plan/README.zh.md) | 以独立插件提供 SDKWork 会员与 commerce 模式 | — |
+| [`ui-sdkwork-message-center/`](ui-sdkwork-message-center/README.zh.md) | 以设置上方的模式栏快捷入口及其中间栏页面提供 SDKWork 账户消息中心 | — |
 | [`ui-sdkwork-pptx-preview/`](ui-sdkwork-pptx-preview/README.zh.md) | 用离线 OOXML 渲染器在右侧 Sidebar 的文档 tab 中绘制 `.pptx` 演示文稿 | `ctx.documentPreviews` |
 | [`ui-sdkwork-docx-preview/`](ui-sdkwork-docx-preview/README.zh.md) | 用离线 WordprocessingML 渲染器在右侧 Sidebar 的文档 tab 中绘制 `.docx` 文档 | `ctx.documentPreviews` |
 | [`ui-sdkwork-xlsx-preview/`](ui-sdkwork-xlsx-preview/README.zh.md) | 用离线 SpreadsheetML 渲染器在右侧 Sidebar 的文档 tab 中绘制 `.xlsx` 工作簿 | `ctx.documentPreviews` |
@@ -106,6 +107,9 @@ kind: "package-group"
 | [`ui-entry-customization/`](ui-entry-customization/README.zh.md) | 添加分区域的“更多”菜单，固定或收起插件入口，并开始创建插件的草稿 | — |
 | [`ui-plugin-market/`](ui-plugin-market/README.zh.md) | 为“插件”页面贡献“发现”标签页：浏览市场索引并安装其中的组合包 | — |
 | [`ui-deliverables/`](ui-deliverables/README.zh.md) | 生成改动文件卡片及其对比 tab、交付文件卡片与可点击的最终响应文件引用 | — |
+| [`ui-action-cards/`](ui-action-cards/README.zh.md) | 展示已完成回答下方的卡片框架、种类正文，以及隐藏卡片代码块的层 | — |
+| [`ui-creation-recommendations/`](ui-creation-recommendations/README.zh.md) | 展示个性化页面卡片正文、位置选择和撤销 | — |
+| [`ui-plugin-recommendations/`](ui-plugin-recommendations/README.zh.md) | 展示官方插件卡片正文：目录文本与启用 | — |
 | [`ui-message-feedback/`](ui-message-feedback/README.zh.md) | 提供消息赞踩，以及从赞踩、`/feedback` 或会话标题栏菜单打开的反馈弹窗 | `ctx.feedbackUi` |
 | [`ui-directory-picker-browse/`](ui-directory-picker-browse/README.zh.md) | 面向工作区目录流程的应用内目录浏览界面 | — |
 | [`ui-directory-picker-native/`](ui-directory-picker-native/README.zh.md) | 驱动本地 Desktop 或 Host OS 选择器的原生目录选择界面 | — |

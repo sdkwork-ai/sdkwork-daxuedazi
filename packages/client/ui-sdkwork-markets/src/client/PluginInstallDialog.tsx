@@ -85,9 +85,9 @@ const PENDING: readonly InstallSession['phase'][] = ['installing', 'cancelling',
 /** TerminalBlock's display copy, owned here so the primitive stays locale-free. */
 function terminalLabels(t: PluginInstallDialogProps['t']): TerminalBlockLabels {
   return {
-    signal: signal => `signal ${signal}`,
-    exitCode: code => `exit ${code}`,
-    noExitCode: 'no exit code',
+    signal: signal => t('install.log.signal', { signal: String(signal) }),
+    exitCode: code => t('install.log.exitCode', { code: String(code) }),
+    noExitCode: t('install.log.noExitCode'),
     running: t('install.running'),
     failed: t('install.failed.unknown'),
     done: t('install.done'),
@@ -106,6 +106,10 @@ function terminalLabels(t: PluginInstallDialogProps['t']): TerminalBlockLabels {
 function failureText(detail: string | undefined, t: PluginInstallDialogProps['t']): string {
   if (detail === 'not-running') return t('install.cancel.not-running')
   if (detail === undefined) return t('install.failed.unknown')
+  // A settled run reports the Host's error code; the same code the inspection
+  // screen words is worded here, rather than dropped into the sentence raw.
+  const key = PROBLEM_KEYS[detail as keyof typeof PROBLEM_KEYS]
+  if (key !== undefined) return t(key)
   return t('install.failed', { detail })
 }
 

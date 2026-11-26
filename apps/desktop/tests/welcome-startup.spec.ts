@@ -32,6 +32,7 @@ const state = vi.hoisted(() => ({
   openDevTools: vi.fn(),
   closeWelcome: vi.fn(),
   welcomeLocale: undefined as DesktopLocale | undefined,
+  welcomeContinue: undefined as boolean | undefined,
   preference: 'zh',
   themePreference: 'system',
   hasApiKey: false,
@@ -161,9 +162,16 @@ vi.mock('../src/update-coordinator.ts', () => ({ DesktopUpdateCoordinator: class
   dispose = vi.fn()
 } }))
 vi.mock('../src/welcome-window.ts', () => ({
-  openWelcomeWindow: async (locale: DesktopLocale, operations: WelcomeOperations) => {
+  openWelcomeWindow: async (
+    locale: DesktopLocale,
+    operations: WelcomeOperations,
+    _iamSignIn?: boolean,
+    _showApiKeyEntry?: boolean,
+    continueAvailable?: boolean,
+  ) => {
     state.welcomeLocale = locale
     state.operations = operations
+    state.welcomeContinue = continueAvailable
     await state.beforeWelcome()
     return { once: vi.fn(), close: state.closeWelcome, isDestroyed: () => false,
       show: vi.fn(), focus: vi.fn(), webContents: { send: vi.fn() } }
@@ -220,6 +228,46 @@ it('opens the startup welcome page over a running workspace for a sign-in demand
   expect(state.loadWorkspace).not.toHaveBeenCalled()
   expect(state.showWorkspace).toHaveBeenCalledTimes(2)
   expect(state.focusWorkspace).toHaveBeenCalledOnce()
+})
+
+it.each([false, true])('an IAM sign-out returns the shell to the landing (stored API key: %s)', async (hasApiKey) => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  state.preference = 'zh'
+  state.hasApiKey = true
+  state.operations = undefined
+  state.welcomeLocale = undefined as DesktopLocale | undefined
+  state.welcomeContinue = undefined
+  state.loadWorkspace.mockClear()
+  state.showWorkspace.mockClear()
+  state.closeWelcome.mockClear()
+  vi.useFakeTimers()
+  vi.stubEnv('DSH_CLIENT_VERSION', '1.2.3')
+  vi.stubEnv('DSH_DESKTOP_DEV_PROJECT_DIR', '/development-profile')
+  vi.stubEnv('DSH_DESKTOP_NODE_BINARY', '/runtime/node')
+  vi.stubEnv('DSH_DESKTOP_PNPM_ENTRY', '/runtime/pnpm')
+  vi.stubEnv('DSH_DESKTOP_DSH_DIR', '/runtime/dsh')
+  vi.stubEnv('DSH_DESKTOP_PRIMARY_RUNTIME_DIR', '/runtime/primary-runtime')
+  vi.stubEnv('DSH_DESKTOP_HOST_INSPECT_PORT', undefined)
+  vi.stubEnv('DSH_DESKTOP_OPEN_DEVTOOLS', '0')
+  vi.stubEnv('DSH_DESKTOP_MANDATORY_UPDATE_CONFIG', undefined)
+  vi.stubEnv('DSH_DESKTOP_UPDATE_JOURNAL_DIR', undefined)
+
+  await import('../src/main.ts')
+  // The stored API key let the launch go straight to the workspace.
+  await vi.waitFor(() => { expect(state.showWorkspace).toHaveBeenCalledOnce() })
+  expect(state.operations).toBeUndefined()
+
+  // The workspace ends the signed-in IAM session on the user's confirmation.
+  state.hasApiKey = hasApiKey
+  const contents = state.contents as { mainFrame: { url: string } }
+  const ended = state.handlers.get(DESKTOP_IPC.authSignedOut)!
+  await ended({ sender: contents, senderFrame: contents.mainFrame })
+
+  // The landing always takes over; a stored API key only adds the way back.
+  await vi.waitFor(() => { expect(state.operations).toBeDefined() })
+  expect(state.welcomeLocale?.id).toBe('zh-CN')
+  expect(state.welcomeContinue).toBe(hasApiKey)
 })
 
 it('reloads the preloaded workspace so the startup sign-in request reaches a fresh boot', async () => {
@@ -362,14 +410,20 @@ it.each([false, true])('starts welcome onboarding without carrying update focus 
   state.accountListener!({ ...account, status: 'credential-stored', attempt: null })
   state.accountListener!({ ...account, status: 'signed-out', attempt: null })
   state.expiryListener!()
-  await vi.advanceTimersByTimeAsync(0)
-  expect(state.beforeWelcome).toHaveBeenCalledTimes(welcomeCount)
+  // A sign-out always returns to the landing; the stored key cannot suppress
+  // it, it only adds the "continue without signing in" way back.
+  await vi.waitFor(() => { expect(state.beforeWelcome).toHaveBeenCalledTimes(welcomeCount + 1) })
+  expect(state.welcomeContinue).toBe(true)
   expect(await state.operations!.takeNotice()).toBeUndefined()
+  await state.operations!.skip()
+  state.showWorkspace.mockClear()
+  const keyedWelcomeCount = state.beforeWelcome.mock.calls.length
   state.hasApiKey = false
   state.accountListener!({ ...account, status: 'credential-stored', attempt: null })
   state.accountListener!({ ...account, status: 'signed-out', attempt: null })
   state.expiryListener!()
-  await vi.waitFor(() => { expect(state.beforeWelcome).toHaveBeenCalledTimes(welcomeCount + 1) })
+  await vi.waitFor(() => { expect(state.beforeWelcome).toHaveBeenCalledTimes(keyedWelcomeCount + 1) })
+  expect(state.welcomeContinue).toBe(false)
   expect(await state.operations!.takeNotice()).toBe('session-expired')
   expect(await state.operations!.takeNotice()).toBeUndefined()
   state.accountListener!({ ...account, status: 'signed-out', attempt: null })

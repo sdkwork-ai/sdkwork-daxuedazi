@@ -33,6 +33,28 @@ export interface AcpConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-acp -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-action-cards -->
+<a id="deepseek-aidsh-action-cards"></a>
+
+## `@deepseek-ai/dsh-action-cards`
+
+- `inject`: `agents` · `sessionProjections` · `remoteAccess`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/interaction/action-cards/src/index.ts:21`](../packages/interaction/action-cards/src/index.ts)
+
+```ts config-catalog
+/** The user switch for the skills that offer cards. */
+export interface Config {
+  /**
+   * List the skills that kinds register through `skillProvider` in later skill catalogs; Settings → General edits it.
+   * Off, those skills can be neither listed nor loaded, while a card block the model still writes becomes a card.
+   * Defaults to `true`.
+   */
+  enabled: Volatile<boolean>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-action-cards -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-agent-default-model -->
 <a id="deepseek-aidsh-agent-default-model"></a>
 
@@ -401,7 +423,7 @@ export interface SearchLimits {
 
 ## `@deepseek-ai/dsh-attachment-local`
 
-- `source`: [`packages/attachment/attachment-local/src/index.ts:65`](../packages/attachment/attachment-local/src/index.ts)
+- `source`: [`packages/attachment/attachment-local/src/index.ts:70`](../packages/attachment/attachment-local/src/index.ts)
 
 ```ts config-catalog
 /** Local attachment backend configuration. */
@@ -429,6 +451,10 @@ export interface Config {
   normalizedImageMaxBytes?: number
   /** Maximum simultaneous normalization or request-image transformations in this service instance. */
   imageCompressionConcurrency?: number
+  /** Minimum long-edge shrink divisor after a request image exceeds its hard byte limit; must be greater than one. Default: 1.1. */
+  requestImageMinShrinkFactor?: number
+  /** Fraction of the hard byte limit used to estimate the next request-image size; in (0, 1]. Default: 0.95. */
+  requestImageByteHeadroom?: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-attachment-local -->
@@ -481,6 +507,63 @@ export interface Config {
 export type Config = LocalConfig
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-bash-sandbox -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-birdcoder-account -->
+<a id="deepseek-aidsh-birdcoder-account"></a>
+
+## `@deepseek-ai/dsh-birdcoder-account`
+
+- `inject`: `credentials` · `settings`
+- `source`: [`packages/credentials/birdcoder-account/src/index.ts:47`](../packages/credentials/birdcoder-account/src/index.ts)
+
+```ts config-catalog
+export interface Config {
+  /** Absolute mirrored-session path; defaults to `<DSH_HOME>/iam/session.json`. */
+  sessionFile?: string
+  /** Absolute path of the Host-readable relay credential projection; defaults beside the session. */
+  relaySessionFile?: string
+  /** Absolute ownership-marker path; defaults to the session directory's `birdcoder-account.json`. */
+  stateFile?: string
+  /** Credential reference the relay token is stored under. */
+  credentialRef?: string
+  /**
+   * Credential reference a browser client mirrors the signed-in `authToken`
+   * under. It is a session source, never the relay's own key, so a key the user
+   * stores at {@link credentialRef} still wins.
+   */
+  sessionCredentialRef?: string
+  /** Settings namespace owning the relay profile. */
+  settingsNs?: string
+  /** Session poll interval in milliseconds; `0` disables polling. */
+  pollIntervalMs?: number
+  /**
+   * Whether to load the operator-authored front-end model configuration that
+   * decides which catalog models the relay exposes. Defaults to `true`; the
+   * loader falls back to the build-time seed whenever the document is not
+   * reachable.
+   */
+  modelCatalogEnabled?: boolean
+  /** Absolute app-api URL; defaults to the BirdCoder gateway's front-end configuration path. */
+  modelCatalogEndpoint?: string
+  /**
+   * Absolute path of a pre-fetched configuration document. A shell that holds
+   * the IAM tokens can project the document here so this Host child process
+   * never needs the access token.
+   */
+  modelCatalogDocumentFile?: string
+  /** Product surface whose exposure drives the relay catalog; defaults to `llm`. */
+  modelCatalogChannelCode?: string
+  /** Refresh interval for the remote document; `0` leaves only the start-up load. */
+  modelCatalogPollIntervalMs?: number
+  /** Per-request timeout for the remote document. */
+  modelCatalogTimeoutMs?: number
+  /** Explicit app-api auth token, for a deployment that provisions it. */
+  modelCatalogAuthToken?: string
+  /** Explicit app-api access token, for a deployment that provisions it. */
+  modelCatalogAccessToken?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-birdcoder-account -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-cli-account -->
 <a id="deepseek-aidsh-cli-account"></a>
@@ -583,6 +666,44 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-product-analytics -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-remote-connection -->
+<a id="deepseek-aidsh-client-remote-connection"></a>
+
+## `@deepseek-ai/dsh-client-remote-connection`
+
+- `inject`: `connection` · `connection.authentication` · `credentials` · `webServer` · `webApp`
+- `source`: [`packages/client/remote-connection/src/index.ts:33`](../packages/client/remote-connection/src/index.ts)
+
+```ts config-catalog
+/** Deployment timing and limits for remote browser login. */
+export interface Config {
+  /** Absolute lifetime in days for Remote browser credentials; default 30. */
+  cookieMaxAgeDays: number
+  /** Invitation lifetime in milliseconds; expiry never renews an existing browser session. */
+  ticketLifetimeMs: number
+  /** Interval in milliseconds between the settings panel's status reads. */
+  pollIntervalMs: number
+  /** Limits for anonymous requests and approval delivery. */
+  pairing: {
+    /** Lifetime in milliseconds, including retries of approved delivery. Default: 300000. */
+    requestTtlMs: number
+    /** Maximum retained requests, including terminal requests until expiry. Default: 32. */
+    maxRequests: number
+    /** Minimum interval between anonymous creations across this process. Default: 1000. */
+    requestIntervalMs: number
+    /** Minimum applicant polling interval and periodic approval-list refresh interval. Default: 2000. */
+    pollIntervalMs: number
+    /** Complete anonymous HTTP request timeout in milliseconds. Default: 10000. */
+    requestTimeoutMs: number
+    /** Additional attempts after network, timeout, rate-limit, or server failures. Default: 3. */
+    maxRetries: number
+    /** Maximum exponential retry delay in milliseconds; at least pollIntervalMs. Default: 10000. */
+    retryMaxDelayMs: number
+  }
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-remote-connection -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-shortcuts -->
 <a id="deepseek-aidsh-client-shortcuts"></a>
 
@@ -662,6 +783,375 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-plugin-manager -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-access-token -->
+<a id="deepseek-aidsh-client-ui-sdkwork-access-token"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-access-token`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-access-token/src/index.ts:51`](../packages/client/ui-sdkwork-access-token/src/index.ts)
+
+```ts config-catalog
+/**
+ * Live settings section.
+ *
+ * `accounts` is volatile, which is what lets the browser dialog commit a
+ * remembered login through the configuration form without restarting the
+ * plugin; `directory` stays ordinary configuration because a deployment's file
+ * location is not a user preference.
+ */
+export interface Config {
+  /** Remembered admin/operator logins. */
+  accounts: Volatile<SdkworkAccessTokenAccount[]>
+  /** Projection directory override; empty follows the harness home. */
+  directory?: string
+}
+
+/** One remembered login. It is operator-grade private material, never committed. */
+export interface SdkworkAccessTokenAccount {
+  /** Absolute project directory the login belongs to. */
+  project: string
+  /** Account username or e-mail. */
+  username: string
+  /** Account password, stored only inside the harness home. */
+  password: string
+  /** Gateway origin used by the login. */
+  baseUrl: string
+  /** Public bootstrap token presented as the credential-entry `Access-Token`. */
+  bootstrapAccessToken: string
+  /** Lifecycle preselected for the exchange. */
+  environment: string
+  /** When this row was last written (ISO 8601). */
+  updatedAt: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-access-token -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-image-models -->
+<a id="deepseek-aidsh-client-ui-sdkwork-image-models"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-image-models`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-image-models/src/index.ts:51`](../packages/client/ui-sdkwork-image-models/src/index.ts)
+
+```ts config-catalog
+/**
+ * Live image model configuration. Every field is volatile, which is what makes
+ * the section editable in place: this plugin's own `Config` *is* the durable
+ * section, so the page reads and writes these fields directly.
+ */
+export interface Config {
+  /** Provider used when a call names none. */
+  defaultProviderId: Volatile<string>
+  /** Provider rows: official vendor roots and relay stations. */
+  providers: Volatile<SdkworkImageProvider[]>
+  /** Whether the projected document carries literal API keys. */
+  writeSecrets: Volatile<boolean>
+  /** Directory the projection is written to; empty follows the harness home. */
+  directory?: string
+}
+
+/** One provider row: an official vendor root or a relay station. */
+export interface SdkworkImageProvider {
+  /** Stable local id; unique inside the section. */
+  id: string
+  /** Display name of the connection. */
+  label: string
+  /** Whether this row is the vendor itself or a relay fronting one. */
+  kind: SdkworkImageProviderKind
+  /** sdkwork-models vendor code; empty for a relay that fronts no single vendor. */
+  vendor: string
+  /** Protocol code the base URL speaks (`openai_compatible`, …); empty means vendor-native. */
+  protocol: string
+  /** sdkwork-models region code (`global`, `cn`); free text for a relay. */
+  region: string
+  /** API root every call is issued against. */
+  baseUrl: string
+  /** Credential literal; empty when the key arrives through {@link apiKeyEnv}. */
+  apiKey: string
+  /** Environment variable carrying the credential; it wins over {@link apiKey} when set. */
+  apiKeyEnv: string
+  /** Whether generation may use this provider. */
+  enabled: boolean
+  /** Models this provider offers. */
+  models: SdkworkImageModel[]
+}
+
+/** How a provider row reaches its vendor. */
+export type SdkworkImageProviderKind = 'official' | 'relay'
+
+/** One model row inside a provider. */
+export interface SdkworkImageModel {
+  /** Model id as the provider expects it on the wire. */
+  id: string
+  /** Name the settings page shows; catalog display name for a seeded row. */
+  displayName: string
+  /** sdkwork-models catalog key; empty for a model the catalog does not list. */
+  catalogKey: string
+  /** Whether a generation call may select this model. */
+  enabled: boolean
+  /** Default image size (`1024x1024`); empty leaves the provider's own default. */
+  size: string
+  /** Default quality tier (`high`, `medium`, `low`); empty leaves the provider's own default. */
+  quality: string
+  /** Default number of images per call. */
+  count: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-image-models -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-music-models -->
+<a id="deepseek-aidsh-client-ui-sdkwork-music-models"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-music-models`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-music-models/src/index.ts:51`](../packages/client/ui-sdkwork-music-models/src/index.ts)
+
+```ts config-catalog
+/**
+ * Live music model configuration. Every field is volatile, which is what makes
+ * the section editable in place: this plugin's own `Config` *is* the durable
+ * section, so the page reads and writes these fields directly.
+ */
+export interface Config {
+  /** Provider used when a call names none. */
+  defaultProviderId: Volatile<string>
+  /** Provider rows: official vendor roots and relay stations. */
+  providers: Volatile<SdkworkMusicProvider[]>
+  /** Whether the projected document carries literal API keys. */
+  writeSecrets: Volatile<boolean>
+  /** Directory the projection is written to; empty follows the harness home. */
+  directory?: string
+}
+
+/** One provider row: an official vendor root or a relay station. */
+export interface SdkworkMusicProvider {
+  /** Stable local id; unique inside the section. */
+  id: string
+  /** Display name of the connection. */
+  label: string
+  /** Whether this row is the vendor itself or a relay fronting one. */
+  kind: SdkworkMusicProviderKind
+  /** sdkwork-models vendor code; empty for a relay that fronts no single vendor. */
+  vendor: string
+  /** Protocol code the base URL speaks (`openai_compatible`, …); empty means vendor-native. */
+  protocol: string
+  /** sdkwork-models region code (`global`, `cn`); free text for a relay. */
+  region: string
+  /** API root every call is issued against. */
+  baseUrl: string
+  /** Credential literal; empty when the key arrives through {@link apiKeyEnv}. */
+  apiKey: string
+  /** Environment variable carrying the credential; it wins over {@link apiKey} when set. */
+  apiKeyEnv: string
+  /** Whether generation may use this provider. */
+  enabled: boolean
+  /** Models this provider offers. */
+  models: SdkworkMusicModel[]
+}
+
+/** How a provider row reaches its vendor. */
+export type SdkworkMusicProviderKind = 'official' | 'relay'
+
+/** One model row inside a provider. */
+export interface SdkworkMusicModel {
+  /** Model id as the provider expects it on the wire. */
+  id: string
+  /** Name the settings page shows; catalog display name for a seeded row. */
+  displayName: string
+  /** sdkwork-models catalog key; empty for a model the catalog does not list. */
+  catalogKey: string
+  /** Whether a generation call may select this model. */
+  enabled: boolean
+  /** Whether the generated track is instrumental only. */
+  instrumental: boolean
+  /** Default track length in whole seconds; zero leaves the provider's own default. */
+  durationSeconds: number
+  /** Default audio format (`mp3`, `wav`); empty leaves the provider's own default. */
+  format: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-music-models -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-skills -->
+<a id="deepseek-aidsh-client-ui-sdkwork-skills"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-skills`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-skills/src/index.ts:116`](../packages/client/ui-sdkwork-skills/src/index.ts)
+
+```ts config-catalog
+/** Runtime skill-manager preferences projected into the settings form. */
+export interface Config {
+  /** Skill names suppressed from every catalog this Host serves. */
+  disabledSkills: Volatile<string[]>
+  /** Skill names kept out of the new-session tag strip while staying available. */
+  hiddenSceneTags: Volatile<string[]>
+  /** Skill names added to the new-session tag strip beyond the staged scene's own table. */
+  pinnedSceneTags: Volatile<string[]>
+  /** Whether the new-session tag strip renders at all. */
+  showSceneTags: Volatile<boolean>
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-skills -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-video-models -->
+<a id="deepseek-aidsh-client-ui-sdkwork-video-models"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-video-models`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-video-models/src/index.ts:51`](../packages/client/ui-sdkwork-video-models/src/index.ts)
+
+```ts config-catalog
+/**
+ * Live video model configuration. Every field is volatile, which is what makes
+ * the section editable in place: this plugin's own `Config` *is* the durable
+ * section, so the page reads and writes these fields directly.
+ */
+export interface Config {
+  /** Provider used when a call names none. */
+  defaultProviderId: Volatile<string>
+  /** Provider rows: official vendor roots and relay stations. */
+  providers: Volatile<SdkworkVideoProvider[]>
+  /** Whether the projected document carries literal API keys. */
+  writeSecrets: Volatile<boolean>
+  /** Directory the projection is written to; empty follows the harness home. */
+  directory?: string
+}
+
+/** One provider row: an official vendor root or a relay station. */
+export interface SdkworkVideoProvider {
+  /** Stable local id; unique inside the section. */
+  id: string
+  /** Display name of the connection. */
+  label: string
+  /** Whether this row is the vendor itself or a relay fronting one. */
+  kind: SdkworkVideoProviderKind
+  /** sdkwork-models vendor code; empty for a relay that fronts no single vendor. */
+  vendor: string
+  /** Protocol code the base URL speaks (`openai_compatible`, …); empty means vendor-native. */
+  protocol: string
+  /** sdkwork-models region code (`global`, `cn`); free text for a relay. */
+  region: string
+  /** API root every call is issued against. */
+  baseUrl: string
+  /** Credential literal; empty when the key arrives through {@link apiKeyEnv}. */
+  apiKey: string
+  /** Environment variable carrying the credential; it wins over {@link apiKey} when set. */
+  apiKeyEnv: string
+  /** Whether generation may use this provider. */
+  enabled: boolean
+  /** Models this provider offers. */
+  models: SdkworkVideoModel[]
+}
+
+/** How a provider row reaches its vendor. */
+export type SdkworkVideoProviderKind = 'official' | 'relay'
+
+/** One model row inside a provider. */
+export interface SdkworkVideoModel {
+  /** Model id as the provider expects it on the wire. */
+  id: string
+  /** Name the settings page shows; catalog display name for a seeded row. */
+  displayName: string
+  /** sdkwork-models catalog key; empty for a model the catalog does not list. */
+  catalogKey: string
+  /** Whether a generation call may select this model. */
+  enabled: boolean
+  /** `text_to_video`, `image_to_video`, or `reference_to_video`; empty follows the provider's own default. */
+  generationMode: string
+  /** Default resolution (`720p`); empty follows the provider's own default. */
+  resolution: string
+  /** Default aspect ratio (`16:9`); empty follows the provider's own default. */
+  aspectRatio: string
+  /** Default clip length in seconds; `0` follows the provider's own default. */
+  durationSeconds: number
+  /** Whether the generated clip carries audio. */
+  outputAudio: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-video-models -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-voice-models -->
+<a id="deepseek-aidsh-client-ui-sdkwork-voice-models"></a>
+
+## `@deepseek-ai/dsh-client-ui-sdkwork-voice-models`
+
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/client/ui-sdkwork-voice-models/src/index.ts:51`](../packages/client/ui-sdkwork-voice-models/src/index.ts)
+
+```ts config-catalog
+/**
+ * Live voice model configuration. Every field is volatile, which is what makes
+ * the section editable in place: this plugin's own `Config` *is* the durable
+ * section, so the page reads and writes these fields directly.
+ */
+export interface Config {
+  /** Provider used when a call names none. */
+  defaultProviderId: Volatile<string>
+  /** Provider rows: official vendor roots and relay stations. */
+  providers: Volatile<SdkworkVoiceProvider[]>
+  /** Whether the projected document carries literal API keys. */
+  writeSecrets: Volatile<boolean>
+  /** Directory the projection is written to; empty follows the harness home. */
+  directory?: string
+}
+
+/** One provider row: an official vendor root or a relay station. */
+export interface SdkworkVoiceProvider {
+  /** Stable local id; unique inside the section. */
+  id: string
+  /** Display name of the connection. */
+  label: string
+  /** Whether this row is the vendor itself or a relay fronting one. */
+  kind: SdkworkVoiceProviderKind
+  /** sdkwork-models vendor code; empty for a relay that fronts no single vendor. */
+  vendor: string
+  /** Protocol code the base URL speaks (`openai_compatible`, …); empty means vendor-native. */
+  protocol: string
+  /** sdkwork-models region code (`global`, `cn`); free text for a relay. */
+  region: string
+  /** API root every call is issued against. */
+  baseUrl: string
+  /** Credential literal; empty when the key arrives through {@link apiKeyEnv}. */
+  apiKey: string
+  /** Environment variable carrying the credential; it wins over {@link apiKey} when set. */
+  apiKeyEnv: string
+  /** Whether synthesis and transcription may use this provider. */
+  enabled: boolean
+  /** Models this provider offers. */
+  models: SdkworkVoiceModel[]
+}
+
+/** How a provider row reaches its vendor. */
+export type SdkworkVoiceProviderKind = 'official' | 'relay'
+
+/** One model row inside a provider. */
+export interface SdkworkVoiceModel {
+  /** Model id as the provider expects it on the wire. */
+  id: string
+  /** Name the settings page shows; catalog display name for a seeded row. */
+  displayName: string
+  /** sdkwork-models catalog key; empty for a model the catalog does not list. */
+  catalogKey: string
+  /** Whether a synthesis or transcription call may select this model. */
+  enabled: boolean
+  /** Provider voice identifier for a text-to-speech model (`alloy`); empty leaves the provider's own default. */
+  voiceId: string
+  /** Audio container the provider should return (`mp3`, `wav`); empty leaves the provider's own default. */
+  format: string
+  /** Speaking rate multiplier; the provider's own default is 1. */
+  speed: number
+  /** BCP-47 tag of the language to speak or transcribe (`zh-CN`); empty leaves the voice's own default. */
+  language: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-ui-sdkwork-voice-models -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-ui-settings-account -->
 <a id="deepseek-aidsh-client-ui-settings-account"></a>
@@ -898,7 +1388,7 @@ export interface ToolResultPruneConfig {
 ## `@deepseek-ai/dsh-cordis-host-runner`
 
 - `inject`: `tools`
-- `source`: [`packages/extensions/cordis-host-runner/src/index.ts:106`](../packages/extensions/cordis-host-runner/src/index.ts)
+- `source`: [`packages/extensions/cordis-host-runner/src/index.ts:107`](../packages/extensions/cordis-host-runner/src/index.ts)
 
 ```ts config-catalog
 /** Runner configuration. */
@@ -940,11 +1430,13 @@ export interface Config {
 
 - `inject`: `computerUse` · `tools` · `systemPrompt` · `subprocess` · `agents`
 - `refs`: [`CuaConfig`](../packages/experimental/cua/src/index.ts)
-- `source`: [`packages/experimental/cua-macos/src/index.ts:34`](../packages/experimental/cua-macos/src/index.ts)
+- `source`: [`packages/experimental/cua-macos/src/index.ts:35`](../packages/experimental/cua-macos/src/index.ts)
 
 ```ts config-catalog
 /** Native preparation, source-build signing, operation bounds, and profile-local application grants. */
 export interface Config extends CuaConfig {
+  /** Activity lookback in milliseconds. The literal "off" disables tracking and notices for this connection. */
+  recentActivityWindowMs: number | 'off'
   /** Interval in milliseconds between permission and position checks while the native guide is open. */
   permissionPollIntervalMs: number
   /**
@@ -1037,6 +1529,14 @@ export interface Config {
   inferenceOrigin?: string
   /** Allow HTTP only on loopback for the development Mock. */
   allowLoopbackHttp?: boolean
+  /** FORK DIVERGENCE (OEM): admit plain HTTP service origins in a development launch. */
+  allowInsecureHttp?: boolean
+  /**
+   * FORK DIVERGENCE (OEM): public HTTPS origins this deployment serves the Web
+   * application from. A browser-supplied sign-in callback must match one of
+   * them; loopback remains accepted for local and Desktop use.
+   */
+  applicationOrigins?: string[]
   /** Map authorization and completion pages to platformOrigin for private development proxies. */
   rewriteBrowserOrigin?: boolean
   /** Host-only headers for Platform and notification APIs; account authorization cannot be overridden. */
@@ -1081,6 +1581,29 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-deepseek-chat-import -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-dingtalk -->
+<a id="deepseek-aidsh-dingtalk"></a>
+
+## `@deepseek-ai/dsh-dingtalk`
+
+- `inject`: `cliAccounts` · `skills`
+- `source`: [`packages/connector/dingtalk/src/index.ts:34`](../packages/connector/dingtalk/src/index.ts)
+
+```ts config-catalog
+/** Where dws and its skills come from, and how long one download may take. */
+export interface Config {
+  /** Absolute directory holding the `dws` executable; when set, dws is not downloaded. */
+  binDir?: string
+  /** Directory holding the upstream skills laid out as `multi/` in the release's `dws-skills.zip`; when set, they are not downloaded. */
+  skillsDir?: string
+  /** Release download prefixes tried in order for what `binDir` and `skillsDir` do not provide; each serves `v<version>/<asset name>`. */
+  releaseUrls: string[]
+  /** How long one prefix may take to deliver an asset before the next one is tried. */
+  releaseTimeoutMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-dingtalk -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-experimental-api-speech-to-text -->
 <a id="deepseek-aidsh-experimental-api-speech-to-text"></a>
@@ -1272,13 +1795,22 @@ export interface Config {
    * `testPaths` and before the built-in rules.
    */
   interfacePaths?: string[]
-  /** Most UTF-8 bytes, as JSON, of change request review threads kept in memory for later reads at the same head commit and update time. */
+  /**
+   * Most UTF-8 bytes, as JSON, of change request review threads kept in memory for later reads at the same head commit
+   * and update time, and, counted apart, of viewed marks kept for later reads at the same head commit.
+   */
   maxCachedReviewBytes?: number
   /**
-   * Age in milliseconds at which review threads kept in memory are read from the code host again; a GitHub pull
-   * request's update time does not change when a thread is resolved.
+   * Age in milliseconds at which review threads and viewed marks kept in memory are read from the code host again; a
+   * GitHub pull request's update time does not change when a thread is resolved, and nothing announces a mark changed
+   * on the code host itself.
    */
   reviewRefreshMs?: number
+  /**
+   * Age in milliseconds past which the status of a change request is read at once when a Session's panel or the
+   * review page starts to show it.
+   */
+  statusMaxAgeMs?: number
   /** Deadline in milliseconds for one lens `classify` call. */
   lensTimeoutMs?: number
   /** Most UTF-8 bytes of file text one lens `classify` call may read. */
@@ -1328,18 +1860,18 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-experimental-forge`
 
-- `source`: [`packages/experimental/forge/src/types.ts:767`](../packages/experimental/forge/src/types.ts)
+- `source`: [`packages/experimental/forge/src/types.ts:833`](../packages/experimental/forge/src/types.ts)
 
 ```ts config-catalog
 /** Poll cadence and fetch deadline for watched change requests. */
 export interface Config {
-  /** Poll interval in milliseconds while checks run or mergeability is unknown. */
+  /** Poll interval in milliseconds while checks run, and for one poll after a status first reports an unknown mergeability. */
   activeIntervalMs?: number
   /** Poll interval in milliseconds for a closed request or an open request whose checks have settled. */
   idleIntervalMs?: number
   /** Largest delay in milliseconds between polls after consecutive failures. */
   maxBackoffMs?: number
-  /** Deadline in milliseconds for one provider fetch. */
+  /** Deadline in milliseconds for one provider fetch: one polling call, or one read of complete checks. */
   fetchTimeoutMs?: number
 }
 ```
@@ -1369,6 +1901,13 @@ export interface Config {
    * one review read, which reports itself truncated past it.
    */
   maxReviewThreads?: number
+  /**
+   * Most pull requests one snapshot query reads. The forge registry polls that many pull requests of a host per call,
+   * each call within its own fetch deadline; a read of more pull requests on one host sends several queries in turn.
+   */
+  snapshotBatchSize?: number
+  /** The same bound for one brief query. */
+  briefBatchSize?: number
   /** Most commits one pull request commit listing returns; GitHub lists at most 250 commits of a pull request. */
   maxCommits?: number
   /** Most files whose viewed marks one read lists; GitHub lists at most 3,000 files of a pull request. */
@@ -1668,6 +2207,23 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-worktree -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-feishu -->
+<a id="deepseek-aidsh-feishu"></a>
+
+## `@deepseek-ai/dsh-feishu`
+
+- `inject`: `cliAccounts` · `skills`
+- `source`: [`packages/connector/feishu/src/index.ts:30`](../packages/connector/feishu/src/index.ts)
+
+```ts config-catalog
+/** Where lark-cli is. */
+export interface Config {
+  /** Absolute directory holding the `lark-cli` executable; defaults to the installed `@larksuite/cli` package. */
+  binDir?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-feishu -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 <a id="deepseek-aidsh-file-reference-local"></a>
 
@@ -1780,6 +2336,27 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-goal -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-harness-dev-context -->
+<a id="deepseek-aidsh-harness-dev-context"></a>
+
+## `@deepseek-ai/dsh-harness-dev-context`
+
+- `inject`: `systemPrompt` · `sessionProjections` · `webApp`
+- `source`: [`packages/context/harness-dev-context/src/index.ts:130`](../packages/context/harness-dev-context/src/index.ts)
+
+```ts config-catalog
+/** Deployment-varying registration choices. */
+export interface Config {
+  /**
+   * Register the URL-bearing web-surface section and its context line. The
+   * desktop composition turns this off: its shell has no server URL, and
+   * `app:desktop-surface` (order −98) replaces the web-surface orientation.
+   */
+  webSurface: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-harness-dev-context -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-headless -->
 <a id="deepseek-aidsh-headless"></a>
 
@@ -1812,7 +2389,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-hmr`
 
 - `refs`: `ChokidarOptions` (`chokidar`)
-- `source`: [`packages/boot/hmr/src/index.ts:56`](../packages/boot/hmr/src/index.ts)
+- `source`: [`packages/boot/hmr/src/index.ts:62`](../packages/boot/hmr/src/index.ts)
 
 ```ts config-catalog
 /** Module roots and watcher timing, with Chokidar deployment options. */
@@ -1896,6 +2473,41 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-hooks-codex -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-host-apiproxy -->
+<a id="deepseek-aidsh-host-apiproxy"></a>
+
+## `@deepseek-ai/dsh-host-apiproxy`
+
+- `inject`: `agentDefaultModel` · `agents` · `attachments` · `directoryPicker` · `llm` · `sessions` · `subagents` · `sessionQuery` · `tools` · `userQuestions` · `workspaceRegistry`
+- `source`: [`packages/host/apiproxy/src/index.ts:41`](../packages/host/apiproxy/src/index.ts)
+
+```ts config-catalog
+/** Gateway plugin configuration. */
+export interface Config {
+  /**
+   * Whether this deployment can hand paths to a native desktop opener — the
+   * `hasDocument` capability `settings.describe` reports. Absent, the platform
+   * is asked (macOS/Windows/WSL yes; Linux only with a display server); set it
+   * explicitly where detection misleads, e.g. `false` in a container whose
+   * DISPLAY points nowhere a user can see.
+   */
+  nativeOpen?: boolean
+  /**
+   * DEFLATE level for every session-log ZIP entry: `0` stores without
+   * compression, `1` favors CPU/latency, and `9` favors archive size.
+   * @default 6
+   */
+  sessionExportCompressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  /**
+   * Maximum physical size of a cold Session artifact eligible for blankness
+   * verification. Zero disables probes.
+   * @default 1024
+   */
+  coldBlankProbeMaxBytes?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-host-apiproxy -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-host-authentication-desktop -->
 <a id="deepseek-aidsh-host-authentication-desktop"></a>
 
@@ -1935,13 +2547,15 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-host-directory-picker-browse`
 
-- `source`: [`packages/host/directory-picker-browse/src/index.ts:181`](../packages/host/directory-picker-browse/src/index.ts)
+- `source`: [`packages/host/directory-picker-browse/src/index.ts:182`](../packages/host/directory-picker-browse/src/index.ts)
 
 ```ts config-catalog
 /** Validated plugin configuration. */
 export interface Config {
   /** Complete-result bound of one listing level; see {@link BrowseDirectoryPicker.Config}. */
   maxEntries: number
+  /** Text byte bound of one governed config read/write; see {@link BrowseDirectoryPicker.Config}. */
+  maxTextBytes: number
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-host-directory-picker-browse -->
@@ -2176,7 +2790,7 @@ export interface Config extends ProtocolConfig, ModelListingConfig {
 
 - `inject`: `llm`
 - `refs`: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/llm/llm-pi-ai/src/config.ts:251`](../packages/llm/llm-pi-ai/src/config.ts)
+- `source`: [`packages/llm/llm-pi-ai/src/config.ts:258`](../packages/llm/llm-pi-ai/src/config.ts)
 
 ```ts config-catalog
 /** Plugin configuration: the provider routes this instance owns. */
@@ -2284,11 +2898,16 @@ export interface PiAiProviderProfile {
    * steps rewrite the request prefix less often.
    */
   imageOffloadCountQuantum?: number
+  /** Fixed divisor of maxRequestImageBytes when allocating hard per-image budgets; independent of current image count. Default: 20. */
+  requestImageBudgetCount?: number
   /** Total-pixel budget for each deterministic inline request version. */
   requestImagePixelBudget?: number
+  /** Maximum width and height for each request image; omission uses the selected pi-ai model's resize limits. */
+  requestImageMaxDimension?: number
   /**
-   * Raw encoded-byte target for each deterministic inline request version;
-   * the smallest quality-ladder output is used when no quality fits.
+   * Hard per-image encoded-byte cap overriding the selected model's base64 budget.
+   * The effective cap is the smaller of this value and the route's equal share of maxRequestImageBytes.
+   * Omission uses the catalog budget converted to raw bytes, or 1 MiB without catalog metadata.
    */
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
@@ -2905,7 +3524,7 @@ export interface PresetSpec {
 ## `@deepseek-ai/dsh-persona`
 
 - `inject`: `systemPrompt`
-- `source`: [`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/src/index.ts)
+- `source`: [`packages/preset/persona/src/index.ts:23`](../packages/preset/persona/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the persona text this composition contributes. */
@@ -2953,7 +3572,7 @@ export interface PlanModeConfig {
 
 - `inject`: `loader` · `profileContext`
 - `refs`: [`NpmFileSource`](subsystems/boot.md)
-- `source`: [`packages/boot/plugin-manager/src/index.ts:56`](../packages/boot/plugin-manager/src/index.ts)
+- `source`: [`packages/boot/plugin-manager/src/index.ts:70`](../packages/boot/plugin-manager/src/index.ts)
 
 ```ts config-catalog
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
@@ -3066,7 +3685,7 @@ export interface Config {
 export interface Config {
   /** Worker invocation in the subprocess world; omitted selects the local carrier. */
   launch?: LaunchConfig
-  /** per-call uses fresh async function bodies; vm-script uses VM contexts; persistent-in-memory retains a REPL per owner. */
+  /** persistent-in-memory, the default, retains a REPL per owner; per-call uses fresh async function bodies; vm-script uses VM contexts. */
   executionMode?: 'per-call' | 'persistent-in-memory' | 'vm-script'
   /** Retain a Script process and context per stateOwner; only supported with executionMode: vm-script. */
   scriptPersistence?: boolean
@@ -3330,7 +3949,7 @@ export interface Config {
 
 - `inject`: `agents` · `workingDirectory`
 - `refs`: `Readable` (`node:stream`) · `Writable` (`node:stream`)
-- `source`: [`packages/sdk/server/src/index.ts:24`](../packages/sdk/server/src/index.ts)
+- `source`: [`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
 
 ```ts config-catalog
 /** JSON-RPC deployment config plus runtime-only test hooks. */
@@ -3343,9 +3962,73 @@ export interface JsonRpcConfig {
   output?: Writable
   /** Process-exit override; production uses `process.exit`. */
   exit?: (code: number) => void
+  /** Process-event override; production uses `process`. */
+  processEvents?: RuntimeProcessEvents
+}
+
+/** The slice of `process` this module observes; `node:events` emitters satisfy it. */
+export interface RuntimeProcessEvents {
+  listenerCount(event: string): number
+  prependListener(event: string, listener: (...args: unknown[]) => void): unknown
+  off(event: string, listener: (...args: unknown[]) => void): unknown
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-sdk-jsonrpc-server -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-desktop-carrier -->
+<a id="deepseek-aidsh-sdkwork-desktop-carrier"></a>
+
+## `@deepseek-ai/dsh-sdkwork-desktop-carrier`
+
+- `source`: [`packages/host/sdkwork-desktop-carrier/src/index.ts:58`](../packages/host/sdkwork-desktop-carrier/src/index.ts)
+
+```ts config-catalog
+/** Gateway config, mirroring the web carrier: the listen address the web composition reads. */
+export interface Config {
+  /** Loopback or all-interfaces literal; the desktop shell never binds, the value is informational. */
+  host: '127.0.0.1' | '0.0.0.0'
+  /** Informational port (the desktop shell opens no socket). */
+  port: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-desktop-carrier -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-oem -->
+<a id="deepseek-aidsh-sdkwork-oem"></a>
+
+## `@deepseek-ai/dsh-sdkwork-oem`
+
+- `source`: [`packages/host/sdkwork-oem/src/index.ts:18`](../packages/host/sdkwork-oem/src/index.ts)
+
+```ts config-catalog
+/** Loader entry configuration. */
+export interface Config {
+  /** Absolute OEM profile path; omitted reads the Harness home's `oem.json`. */
+  configFile?: string
+  /** Lifecycle override; omitted resolves `SDKWORK_*` then the dev flags. */
+  environment?: OemEnvironment
+}
+
+/** Deployment lifecycle whose domains the shipped profile follows. */
+export type OemEnvironment = 'development' | 'testing' | 'staging' | 'production'
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-oem -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-scaffold-install -->
+<a id="deepseek-aidsh-sdkwork-scaffold-install"></a>
+
+## `@deepseek-ai/dsh-sdkwork-scaffold-install`
+
+- `source`: [`packages/host/sdkwork-scaffold-install/src/index.ts:122`](../packages/host/sdkwork-scaffold-install/src/index.ts)
+
+```ts config-catalog
+/** Composition config for the scaffold-install capability. */
+export interface SdkworkScaffoldInstallConfig {
+  /** Inclusive per-file ceiling; tests shrink it, the deployment default is {@link MAX_FILE_BYTES}. */
+  readonly maxFileBytes?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-sdkwork-scaffold-install -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-session-log-deepseek -->
 <a id="deepseek-aidsh-session-log-deepseek"></a>
@@ -3726,20 +4409,20 @@ export interface Config {
 ## `@deepseek-ai/dsh-skill-office`
 
 - `inject`: `skills`
-- `source`: [`packages/skill/skill-office/src/index.ts:34`](../packages/skill/skill-office/src/index.ts)
+- `source`: [`packages/skill/skill-office/src/index.ts:33`](../packages/skill/skill-office/src/index.ts)
 
 ```ts config-catalog
 /** Configuration after schema defaults apply. */
 export interface ResolvedConfig extends Config {
-  /** Python environment named in the Python authoring and verification skills. */
+  /** Python environment named at the end of the `office` skill. */
   pythonEnvironment: PythonEnvironment
 }
 
 /** Office skill resources and Python environment. */
 export interface Config {
-  /** Absolute assets directory containing skill folders; defaults to packaged assets. */
+  /** Absolute assets directory containing the `office` skill folder; defaults to packaged assets. */
   assetRoot?: string
-  /** Python environment named in the Python authoring and verification skills. @default 'workspace-dependencies' */
+  /** Python environment named at the end of the `office` skill. @default 'workspace-dependencies' */
   pythonEnvironment?: PythonEnvironment
 }
 
@@ -3940,7 +4623,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 - `inject`: `workingDirectory` · `sessionProjections`
 - `refs`: `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/subagent/subagent/src/index.ts:186`](../packages/subagent/subagent/src/index.ts)
+- `source`: [`packages/subagent/subagent/src/index.ts:188`](../packages/subagent/subagent/src/index.ts)
 
 ```ts config-catalog
 /** Host configuration for continuable subagent capacity. */
@@ -4156,7 +4839,8 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-system-prompt`
 
-- `source`: [`packages/core/system-prompt/src/index.ts:266`](../packages/core/system-prompt/src/index.ts)
+- `inject`: `sessionProjections`
+- `source`: [`packages/core/system-prompt/src/index.ts:316`](../packages/core/system-prompt/src/index.ts)
 
 ```ts config-catalog
 /** Plugin config: the deployment-authored fragment of the system prompt (see {@link Config.personaPrefix} for its contract). */
@@ -4166,13 +4850,13 @@ export interface Config {
   /** Include optional runtime-context snapshots in model history (default true); required context remains. */
   includeRuntimeContext?: boolean
   /**
-   * Deployment-wide persona prefix template before first-party guidance. A scoped section named
-   * `deployment:persona-prefix` shadows it; `{{variable}}` references are strict.
+   * Deployment-wide persona prefix template before first-party guidance. A section
+   * named {@link PERSONA_PREFIX_SECTION} can override it; `{{variable}}` references are strict.
    */
   personaPrefix?: string
   /**
-   * Persona suffix template after first-party guidance. A scoped `deployment:persona-suffix`
-   * section shadows it; `{{variable}}` references are strict. Defaults to empty.
+   * Persona suffix template after first-party guidance. A section named
+   * {@link PERSONA_SUFFIX_SECTION} can override it; `{{variable}}` references are strict. Defaults to empty.
    */
   personaSuffix?: string
   /**
@@ -4184,6 +4868,44 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-system-prompt -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-tencent-docs -->
+<a id="deepseek-aidsh-tencent-docs"></a>
+
+## `@deepseek-ai/dsh-tencent-docs`
+
+- `inject`: `mcpManager` · `systemPrompt`
+- `source`: [`packages/connector/tencent-docs/src/index.ts:30`](../packages/connector/tencent-docs/src/index.ts)
+
+```ts config-catalog
+/** Tencent Docs MCP endpoint and tool loading for the managed server entry. */
+export interface Config {
+  /** Streamable HTTP MCP endpoint; defaults to Tencent Docs' hosted server. */
+  url: string
+  /** `on-demand` (default) keeps Tencent Docs' tools hidden from each agent until it loads them; `eager` sends all of them. */
+  toolLoading: 'eager' | 'on-demand'
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-tencent-docs -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-tencent-meeting -->
+<a id="deepseek-aidsh-tencent-meeting"></a>
+
+## `@deepseek-ai/dsh-tencent-meeting`
+
+- `inject`: `cliAccounts` · `upstreamSkills`
+- `source`: [`packages/connector/tencent-meeting/src/index.ts:28`](../packages/connector/tencent-meeting/src/index.ts)
+
+```ts config-catalog
+/** Where tmeet and the upstream guide are. */
+export interface Config {
+  /** Absolute directory holding the `tmeet` executable; defaults to the installed `@tencentcloud/tmeet` executable for this platform. */
+  binDir?: string
+  /** Absolute directory holding the upstream guide at its repository paths; when set, nothing is downloaded. */
+  skillsDir?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-tencent-meeting -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-terminal-bash -->
 <a id="deepseek-aidsh-terminal-bash"></a>
@@ -4387,7 +5109,7 @@ export interface Config {
   reportReasoningEffort?: string
 }
 
-/** A fixed output language or the app preference. */
+/** A fixed output language, the app preference, or the language the agent chooses from the chat. */
 export type Language = (typeof languages)[number]
 
 /** One language supported for Timeline model output. */
@@ -4835,6 +5557,8 @@ export interface Config {
 export interface Config {
   /** Maximum normalized description length rendered in the session catalog; minimum 3. */
   catalogDescriptionMaxLength?: number
+  /** Exact skill names omitted from this tool's catalog, named loads and user invocations. */
+  excludedSkills?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-tool-skill -->
@@ -5079,7 +5803,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-upstream-skills`
 
 - `inject`: `skills`
-- `source`: [`packages/connector/upstream-skills/src/index.ts:32`](../packages/connector/upstream-skills/src/index.ts)
+- `source`: [`packages/connector/upstream-skills/src/index.ts:35`](../packages/connector/upstream-skills/src/index.ts)
 
 ```ts config-catalog
 /** Where every registered plugin's upstream files are downloaded from. */
@@ -5318,6 +6042,25 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-webhook-github -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-wecom -->
+<a id="deepseek-aidsh-wecom"></a>
+
+## `@deepseek-ai/dsh-wecom`
+
+- `inject`: `cliAccounts` · `upstreamSkills`
+- `source`: [`packages/connector/wecom/src/index.ts:28`](../packages/connector/wecom/src/index.ts)
+
+```ts config-catalog
+/** Where wecom-cli and the upstream guides are. */
+export interface Config {
+  /** Absolute directory holding the `wecom-cli` executable; defaults to the installed platform package of `@wecom/cli`. */
+  binDir?: string
+  /** Absolute directory holding the upstream guides at their repository paths; when set, nothing is downloaded. */
+  skillsDir?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-wecom -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-workflow-ptc -->
 <a id="deepseek-aidsh-workflow-ptc"></a>
 
@@ -5396,10 +6139,12 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `package` | `inject` | `source` |
 | --- | --- | --- |
 | `@deepseek-ai/dsh-acp-app` | `cmdlineArgs` | [`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts) |
-| `@deepseek-ai/dsh-action-cards` | `agents` · `sessionProjections` · `remoteAccess` | [`packages/experimental/action-cards/src/index.ts`](../packages/experimental/action-cards/src/index.ts) |
 | `@deepseek-ai/dsh-agent` | `sessionProjections` | [`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts) |
 | `@deepseek-ai/dsh-api-remote-access` | — | [`packages/api/remote-access/src/index.ts`](../packages/api/remote-access/src/index.ts) |
 | `@deepseek-ai/dsh-api-remotes` | `typertGateway` | [`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts) |
+| `@deepseek-ai/dsh-api-sdkwork-app-build-controller` | `sdkworkAppBuild` | [`packages/api/sdkwork-app-build-controller/src/index.ts`](../packages/api/sdkwork-app-build-controller/src/index.ts) |
+| `@deepseek-ai/dsh-api-sdkwork-git-controller` | `sdkworkGit` | [`packages/api/sdkwork-git-controller/src/index.ts`](../packages/api/sdkwork-git-controller/src/index.ts) |
+| `@deepseek-ai/dsh-api-sdkwork-scaffold-install-controller` | `sdkworkScaffoldInstall` | [`packages/api/sdkwork-scaffold-install-controller/src/index.ts`](../packages/api/sdkwork-scaffold-install-controller/src/index.ts) |
 | `@deepseek-ai/dsh-authorization` | `credentials` | [`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts) |
 | `@deepseek-ai/dsh-browser-use` | — | [`packages/browser-use/browser-use/src/index.ts`](../packages/browser-use/browser-use/src/index.ts) |
 | `@deepseek-ai/dsh-client-config` | — | [`packages/client/config/src/index.ts`](../packages/client/config/src/index.ts) |
@@ -5407,9 +6152,10 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-locale` | — | [`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts) |
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
+| `@deepseek-ai/dsh-client-runtime` | — | [`packages/client/runtime/src/index.ts`](../packages/client/runtime/src/index.ts) |
 | `@deepseek-ai/dsh-client-script-realm` | — | [`packages/client/script-realm/src/index.ts`](../packages/client/script-realm/src/index.ts) |
 | `@deepseek-ai/dsh-client-script-realm-iframe` | — | [`packages/client/script-realm-iframe/src/index.ts`](../packages/client/script-realm-iframe/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-action-cards` | — | [`packages/experimental/client-ui-action-cards/src/index.ts`](../packages/experimental/client-ui-action-cards/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-action-cards` | — | [`packages/client/ui-action-cards/src/index.ts`](../packages/client/ui-action-cards/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-team` | — | [`packages/client/ui-agent-team/src/index.ts`](../packages/client/ui-agent-team/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
@@ -5420,7 +6166,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-connector-account` | — | [`packages/client/ui-connector-account/src/index.ts`](../packages/client/ui-connector-account/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-conversation` | — | [`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-cordis` | — | [`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-creation-recommendations` | — | [`packages/experimental/client-ui-creation-recommendations/src/index.ts`](../packages/experimental/client-ui-creation-recommendations/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-creation-recommendations` | — | [`packages/client/ui-creation-recommendations/src/index.ts`](../packages/client/ui-creation-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-deliverables` | `connection` · `sessionQuery` · `sessionController` · `workspaceFiles` · `fs` · `sandboxPolicy` · `workspaceChanges` | [`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-directory-picker-browse` | — | [`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-directory-picker-native` | — | [`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts) |
@@ -5437,10 +6183,64 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-permission-presets` | — | [`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-plan` | — | [`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-plugin-market` | — | [`packages/client/ui-plugin-market/src/index.ts`](../packages/client/ui-plugin-market/src/index.ts) |
-| `@deepseek-ai/dsh-client-ui-plugin-recommendations` | — | [`packages/experimental/client-ui-plugin-recommendations/src/index.ts`](../packages/experimental/client-ui-plugin-recommendations/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-plugin-recommendations` | — | [`packages/client/ui-plugin-recommendations/src/index.ts`](../packages/client/ui-plugin-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-reference` | — | [`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-renderer` | — | [`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-schedule` | — | [`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-about` | — | [`packages/client/ui-sdkwork-about/src/index.ts`](../packages/client/ui-sdkwork-about/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-apikey` | — | [`packages/client/ui-sdkwork-apikey/src/index.ts`](../packages/client/ui-sdkwork-apikey/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-app-modes` | — | [`packages/client/ui-sdkwork-app-modes/src/index.ts`](../packages/client/ui-sdkwork-app-modes/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-appstore` | — | [`packages/client/ui-sdkwork-appstore/src/index.ts`](../packages/client/ui-sdkwork-appstore/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-assets` | — | [`packages/client/ui-sdkwork-assets/src/index.ts`](../packages/client/ui-sdkwork-assets/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-assistant` | — | [`packages/client/ui-sdkwork-assistant/src/index.ts`](../packages/client/ui-sdkwork-assistant/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-audio-preview` | — | [`packages/client/ui-sdkwork-audio-preview/src/index.ts`](../packages/client/ui-sdkwork-audio-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-automation` | — | [`packages/client/ui-sdkwork-automation/src/index.ts`](../packages/client/ui-sdkwork-automation/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-capabilities` | — | [`packages/client/ui-sdkwork-capabilities/src/index.ts`](../packages/client/ui-sdkwork-capabilities/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-certificate` | — | [`packages/client/ui-sdkwork-certificate/src/index.ts`](../packages/client/ui-sdkwork-certificate/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-common-app-header` | — | [`packages/client/ui-sdkwork-common-app-header/src/index.ts`](../packages/client/ui-sdkwork-common-app-header/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-conversation-header` | — | [`packages/client/ui-sdkwork-conversation-header/src/index.ts`](../packages/client/ui-sdkwork-conversation-header/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-course` | — | [`packages/client/ui-sdkwork-course/src/index.ts`](../packages/client/ui-sdkwork-course/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-demand-hall` | — | [`packages/client/ui-sdkwork-demand-hall/src/index.ts`](../packages/client/ui-sdkwork-demand-hall/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-deploy` | — | [`packages/client/ui-sdkwork-deploy/src/index.ts`](../packages/client/ui-sdkwork-deploy/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-dns` | — | [`packages/client/ui-sdkwork-dns/src/index.ts`](../packages/client/ui-sdkwork-dns/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-docx-preview` | — | [`packages/client/ui-sdkwork-docx-preview/src/index.ts`](../packages/client/ui-sdkwork-docx-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-drive` | — | [`packages/client/ui-sdkwork-drive/src/index.ts`](../packages/client/ui-sdkwork-drive/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-env` | — | [`packages/client/ui-sdkwork-env/src/index.ts`](../packages/client/ui-sdkwork-env/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-feedback` | — | [`packages/client/ui-sdkwork-feedback/src/index.ts`](../packages/client/ui-sdkwork-feedback/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-generations-assets` | — | [`packages/client/ui-sdkwork-generations-assets/src/index.ts`](../packages/client/ui-sdkwork-generations-assets/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-generations-image` | — | [`packages/client/ui-sdkwork-generations-image/src/index.ts`](../packages/client/ui-sdkwork-generations-image/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-generations-video` | — | [`packages/client/ui-sdkwork-generations-video/src/index.ts`](../packages/client/ui-sdkwork-generations-video/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-git` | — | [`packages/client/ui-sdkwork-git/src/index.ts`](../packages/client/ui-sdkwork-git/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-git-pullrequest` | — | [`packages/client/ui-sdkwork-git-pullrequest/src/index.ts`](../packages/client/ui-sdkwork-git-pullrequest/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-iam` | — | [`packages/client/ui-sdkwork-iam/src/index.ts`](../packages/client/ui-sdkwork-iam/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-im` | — | [`packages/client/ui-sdkwork-im/src/index.ts`](../packages/client/ui-sdkwork-im/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-im-chat` | — | [`packages/client/ui-sdkwork-im-chat/src/index.ts`](../packages/client/ui-sdkwork-im-chat/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-im-connector` | — | [`packages/client/ui-sdkwork-im-connector/src/index.ts`](../packages/client/ui-sdkwork-im-connector/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-im-contacts` | — | [`packages/client/ui-sdkwork-im-contacts/src/index.ts`](../packages/client/ui-sdkwork-im-contacts/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-im-conversations` | — | [`packages/client/ui-sdkwork-im-conversations/src/index.ts`](../packages/client/ui-sdkwork-im-conversations/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-image-preview` | — | [`packages/client/ui-sdkwork-image-preview/src/index.ts`](../packages/client/ui-sdkwork-image-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-input-history` | — | [`packages/client/ui-sdkwork-input-history/src/index.ts`](../packages/client/ui-sdkwork-input-history/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-knowledge` | — | [`packages/client/ui-sdkwork-knowledge/src/index.ts`](../packages/client/ui-sdkwork-knowledge/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-markets` | — | [`packages/client/ui-sdkwork-markets/src/index.ts`](../packages/client/ui-sdkwork-markets/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-mini-program-accounts` | — | [`packages/client/ui-sdkwork-mini-program-accounts/src/index.ts`](../packages/client/ui-sdkwork-mini-program-accounts/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-mobile-simulator` | — | [`packages/client/ui-sdkwork-mobile-simulator/src/index.ts`](../packages/client/ui-sdkwork-mobile-simulator/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-model-price-group` | — | [`packages/client/ui-sdkwork-model-price-group/src/index.ts`](../packages/client/ui-sdkwork-model-price-group/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-new-chat` | — | [`packages/client/ui-sdkwork-new-chat/src/index.ts`](../packages/client/ui-sdkwork-new-chat/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-oem` | — | [`packages/client/ui-sdkwork-oem/src/index.ts`](../packages/client/ui-sdkwork-oem/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-official-accounts` | — | [`packages/client/ui-sdkwork-official-accounts/src/index.ts`](../packages/client/ui-sdkwork-official-accounts/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-pdf-preview` | — | [`packages/client/ui-sdkwork-pdf-preview/src/index.ts`](../packages/client/ui-sdkwork-pdf-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-persona` | — | [`packages/client/ui-sdkwork-persona/src/index.ts`](../packages/client/ui-sdkwork-persona/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-pptx-preview` | — | [`packages/client/ui-sdkwork-pptx-preview/src/index.ts`](../packages/client/ui-sdkwork-pptx-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-profile` | — | [`packages/client/ui-sdkwork-profile/src/index.ts`](../packages/client/ui-sdkwork-profile/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-search` | — | [`packages/client/ui-sdkwork-search/src/index.ts`](../packages/client/ui-sdkwork-search/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-settings-menu` | — | [`packages/client/ui-sdkwork-settings-menu/src/index.ts`](../packages/client/ui-sdkwork-settings-menu/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-share` | — | [`packages/client/ui-sdkwork-share/src/index.ts`](../packages/client/ui-sdkwork-share/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-sidebar` | — | [`packages/client/ui-sdkwork-sidebar/src/index.ts`](../packages/client/ui-sdkwork-sidebar/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-token-plan` | — | [`packages/client/ui-sdkwork-token-plan/src/index.ts`](../packages/client/ui-sdkwork-token-plan/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-updater` | — | [`packages/client/ui-sdkwork-updater/src/index.ts`](../packages/client/ui-sdkwork-updater/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-video-preview` | — | [`packages/client/ui-sdkwork-video-preview/src/index.ts`](../packages/client/ui-sdkwork-video-preview/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-workspace-row-menus` | — | [`packages/client/ui-sdkwork-workspace-row-menus/src/index.ts`](../packages/client/ui-sdkwork-workspace-row-menus/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-sdkwork-xlsx-preview` | — | [`packages/client/ui-sdkwork-xlsx-preview/src/index.ts`](../packages/client/ui-sdkwork-xlsx-preview/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-secret-mask` | — | [`packages/client/ui-secret-mask/src/index.ts`](../packages/client/ui-secret-mask/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-session` | — | [`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-session-panel` | — | [`packages/client/ui-session-panel/src/index.ts`](../packages/client/ui-session-panel/src/index.ts) |
@@ -5472,7 +6272,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-computer-use` | — | [`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts) |
 | `@deepseek-ai/dsh-config-editor` | `loader` · `profileContext` | [`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts) |
 | `@deepseek-ai/dsh-cordis-client-runner` | — | [`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts) |
-| `@deepseek-ai/dsh-creation-recommendations` | `tools` · `pluginManager` · `agents` · `subagents` · `profileContext` · `skills` · `actionCards` | [`packages/experimental/creation-recommendations/src/index.ts`](../packages/experimental/creation-recommendations/src/index.ts) |
+| `@deepseek-ai/dsh-creation-recommendations` | `tools` · `pluginManager` · `agents` · `subagents` · `profileContext` · `skills` · `actionCards` | [`packages/extensions/creation-recommendations/src/index.ts`](../packages/extensions/creation-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-cua` | — | [`packages/experimental/cua/src/index.ts`](../packages/experimental/cua/src/index.ts) |
 | `@deepseek-ai/dsh-deepseek-auth` | — | [`packages/account/deepseek-auth/src/index.ts`](../packages/account/deepseek-auth/src/index.ts) |
 | `@deepseek-ai/dsh-deepseek-llm-api-extensions` | — | [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts) |
@@ -5487,7 +6287,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-fs-observation-policy` | — | [`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts) |
 | `@deepseek-ai/dsh-fs-ssh` | `ssh` · `sandboxPolicy` | [`packages/ssh/fs-ssh/src/index.ts`](../packages/ssh/fs-ssh/src/index.ts) |
 | `@deepseek-ai/dsh-goal-round-driver` | `agents` · `goals` · `sessions` | [`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts) |
-| `@deepseek-ai/dsh-harness-dev-context` | `systemPrompt` · `sessionProjections` · `webApp` | [`packages/context/harness-dev-context/src/index.ts`](../packages/context/harness-dev-context/src/index.ts) |
 | `@deepseek-ai/dsh-host-directory-picker-auto` | `webServer` · `connection` · `loader` | [`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts) |
 | `@deepseek-ai/dsh-host-directory-picker-native` | — | [`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts) |
 | `@deepseek-ai/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
@@ -5497,8 +6296,15 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
 | `@deepseek-ai/dsh-message-quotes` | — | [`packages/session/message-quotes/src/index.ts`](../packages/session/message-quotes/src/index.ts) |
 | `@deepseek-ai/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |
-| `@deepseek-ai/dsh-plugin-recommendations` | `pluginManager` · `agents` · `skills` · `actionCards` | [`packages/experimental/plugin-recommendations/src/index.ts`](../packages/experimental/plugin-recommendations/src/index.ts) |
+| `@deepseek-ai/dsh-plugin-recommendations` | `pluginManager` · `agents` · `skills` · `actionCards` | [`packages/extensions/plugin-recommendations/src/index.ts`](../packages/extensions/plugin-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-sandbox-ssh` | `ssh` | [`packages/ssh/sandbox-ssh/src/index.ts`](../packages/ssh/sandbox-ssh/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-api-gateway` | — | [`packages/host/sdkwork-api-gateway/src/index.ts`](../packages/host/sdkwork-api-gateway/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-app-build` | — | [`packages/host/sdkwork-app-build/src/index.ts`](../packages/host/sdkwork-app-build/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-builtin-skills` | `skills` | [`packages/skill/sdkwork-builtin-skills/src/index.ts`](../packages/skill/sdkwork-builtin-skills/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-desktop-app` | — | [`packages/bundle/sdkwork-desktop-app/src/index.ts`](../packages/bundle/sdkwork-desktop-app/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-directory-picker-auto` | `webServer` · `connection` · `loader` | [`packages/host/sdkwork-directory-picker-auto/src/index.ts`](../packages/host/sdkwork-directory-picker-auto/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-directory-picker-composed` | — | [`packages/host/sdkwork-directory-picker-composed/src/index.ts`](../packages/host/sdkwork-directory-picker-composed/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-git` | — | [`packages/host/sdkwork-git/src/index.ts`](../packages/host/sdkwork-git/src/index.ts) |
 | `@deepseek-ai/dsh-session` | — | [`packages/core/session/src/index.ts`](../packages/core/session/src/index.ts) |
 | `@deepseek-ai/dsh-session-checkpoint-policy` | `llm` · `sessionPersistence` · `sessions` · `tools` | [`packages/session/session-checkpoint-policy/src/index.ts`](../packages/session/session-checkpoint-policy/src/index.ts) |
 | `@deepseek-ai/dsh-session-projection` | — | [`packages/session/session-projection/src/index.ts`](../packages/session/session-projection/src/index.ts) |
@@ -5514,6 +6320,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-tool-cordis` | `tools` · `cordisInspect` | [`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts) |
 | `@deepseek-ai/dsh-tool-executor-native` | `tools` | [`packages/core/tool-executor-native/src/index.ts`](../packages/core/tool-executor-native/src/index.ts) |
 | `@deepseek-ai/dsh-tool-schedule` | `tools` · `systemPrompt` | [`packages/schedule/tool-schedule/src/index.ts`](../packages/schedule/tool-schedule/src/index.ts) |
+| `@deepseek-ai/dsh-tool-session-control` | `tools` · `sessionController` · `workspaceRegistry` | [`packages/session/tool-session-control/src/index.ts`](../packages/session/tool-session-control/src/index.ts) |
 | `@deepseek-ai/dsh-tool-session-list` | `tools` · `sessions` · `sessionQuery` · `workspaceRegistry` · `sessionProjections` | [`packages/session-query/tool-session-list/src/index.ts`](../packages/session-query/tool-session-list/src/index.ts) |
 | `@deepseek-ai/dsh-tools` | `systemPrompt` | [`packages/core/tools/src/index.ts`](../packages/core/tools/src/index.ts) |
 | `@deepseek-ai/dsh-user-questions` | — | [`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts) |
@@ -5559,6 +6366,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-base` | — | [`packages/bundle/base/src/index.ts`](../packages/bundle/base/src/index.ts) |
 | `@deepseek-ai/dsh-brand` | — | [`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts) |
 | `@deepseek-ai/dsh-chunked-list` | — | [`packages/util/chunked-list/src/index.ts`](../packages/util/chunked-list/src/index.ts) |
+| `@deepseek-ai/dsh-client-sdkwork-office` | — | [`packages/client/sdkwork-office/src/index.ts`](../packages/client/sdkwork-office/src/index.ts) |
 | `@deepseek-ai/dsh-client-store` | — | [`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts) |
 | `@deepseek-ai/dsh-client-test-runtime` | — | [`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-dockkit` | — | [`packages/client/ui-dockkit/src/index.ts`](../packages/client/ui-dockkit/src/index.ts) |
@@ -5597,7 +6405,6 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-official-bundles` | — | [`packages/util/official-bundles/src/index.ts`](../packages/util/official-bundles/src/index.ts) |
 | `@deepseek-ai/dsh-output-retention` | — | [`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts) |
 | `@deepseek-ai/dsh-package-manifest` | — | [`packages/util/package-manifest/src/index.ts`](../packages/util/package-manifest/src/index.ts) |
-| `@deepseek-ai/dsh-personalized-recommendations` | — | [`packages/experimental/personalized-recommendations/src/index.ts`](../packages/experimental/personalized-recommendations/src/index.ts) |
 | `@deepseek-ai/dsh-plugin-detail` | — | [`packages/util/plugin-detail/src/index.ts`](../packages/util/plugin-detail/src/index.ts) |
 | `@deepseek-ai/dsh-plugin-market-index` | — | [`packages/util/plugin-market-index/src/index.ts`](../packages/util/plugin-market-index/src/index.ts) |
 | `@deepseek-ai/dsh-remote-mock` | — | [`packages/test-support/remote-mock/src/index.ts`](../packages/test-support/remote-mock/src/index.ts) |
@@ -5606,6 +6413,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-sdk-client` | — | [`packages/sdk/client/src/index.ts`](../packages/sdk/client/src/index.ts) |
 | `@deepseek-ai/dsh-sdk-minimal` | — | [`packages/bundle/sdk-minimal/src/index.ts`](../packages/bundle/sdk-minimal/src/index.ts) |
 | `@deepseek-ai/dsh-sdk-protocol` | — | [`packages/sdk/protocol/src/index.ts`](../packages/sdk/protocol/src/index.ts) |
+| `@deepseek-ai/dsh-sdkwork-env-bootstrap` | — | [`packages/boot/sdkwork-env-bootstrap/src/index.ts`](../packages/boot/sdkwork-env-bootstrap/src/index.ts) |
 | `@deepseek-ai/dsh-session-format` | — | [`packages/session/session-format/src/index.ts`](../packages/session/session-format/src/index.ts) |
 | `@deepseek-ai/dsh-session-format-catalog` | — | [`packages/session/session-format-catalog/src/index.ts`](../packages/session/session-format-catalog/src/index.ts) |
 | `@deepseek-ai/dsh-session-format-v0-to-v1` | — | [`packages/session/session-format-v0-to-v1/src/index.ts`](../packages/session/session-format-v0-to-v1/src/index.ts) |

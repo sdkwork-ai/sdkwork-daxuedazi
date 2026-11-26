@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
-import { SessionRowMenu, WorkspaceRowMenu } from '../src/client/RowMenus.tsx'
-import type { RowContextMenuChannel } from '../src/client/RowMenus.tsx'
-import { RowMenusEntry } from '../src/client/RowMenusEntry.tsx'
+import { SessionRowMenu, WorkspaceRowMenu } from '../src/client/appBuild/RowMenus.tsx'
+import type { RowContextMenuChannel } from '../src/client/appBuild/RowMenus.tsx'
+import { RowMenusEntry } from '../src/client/appBuild/RowMenusEntry.tsx'
 import { WorkspaceContextMenu } from '../src/client/WorkspaceContextMenu.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -137,7 +137,7 @@ describe('RowMenusEntry (the list-slot dispatch component)', () => {
     const onRename = vi.fn()
     render(
       <RowMenusEntry
-        sessionId={'s9' as never}
+        sessionId={'s9'}
         title="Nine"
         onRename={onRename}
         onFork={vi.fn()}
@@ -347,7 +347,7 @@ describe('right-click command channel (contextMenu.open)', () => {
     )
     act(() => { channel.open(50, 60) })
     expect(screen.getAllByRole('menuitem', { name: '分叉会话' }).length).toBeGreaterThanOrEqual(1)
-    fireEvent.click(screen.getAllByRole('menuitem', { name: '分叉会话' })[0]!)
+    fireEvent.click(screen.getAllByRole('menuitem', { name: '分叉会话' })[0])
     expect(onFork).toHaveBeenCalledWith('s1')
   })
 
@@ -553,7 +553,7 @@ describe('SDKWork path/export actions in the row menus', () => {
       )
       fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
       fireEvent.click(screen.getByRole('menuitem', { name: '复制路径' }))
-      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('/w/alpha'))
+      await vi.waitFor(() =>{  expect(writeText).toHaveBeenCalledWith('/w/alpha') })
     } finally {
       vi.unstubAllGlobals()
     }
@@ -586,10 +586,10 @@ describe('SDKWork path/export actions in the row menus', () => {
       )
       fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
       fireEvent.click(screen.getByRole('menuitem', { name: '复制会话ID' }))
-      await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith('s1'))
+      await vi.waitFor(() =>{  expect(writeText).toHaveBeenCalledWith('s1') })
       fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
       fireEvent.click(screen.getByRole('menuitem', { name: '导出会话日志' }))
-      await vi.waitFor(() => expect(download).toHaveBeenCalledWith('s1'))
+      await vi.waitFor(() =>{  expect(download).toHaveBeenCalledWith('s1') })
     } finally {
       vi.unstubAllGlobals()
     }
@@ -633,9 +633,9 @@ describe('SDKWork path/export actions in the row menus', () => {
 
   it('opens the independent publish and install dialogs with the row cwd', () => {
     const open = vi.fn()
-    const openPublishTemplate = vi.fn()
-    const openInstallTemplate = vi.fn()
-    const deployPublish = { open, openPublishTemplate, openInstallTemplate }
+    const openPublishScaffold = vi.fn()
+    const openInstallScaffold = vi.fn()
+    const deployPublish = { open, openPublishScaffold, openInstallScaffold }
     render(
       <div>
         <WorkspaceRowMenu
@@ -649,13 +649,13 @@ describe('SDKWork path/export actions in the row menus', () => {
       </div>,
     )
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '发布为模板' }))
-    expect(openPublishTemplate).toHaveBeenCalledWith({ defaultDirectory: '/w/alpha' })
-    expect(openInstallTemplate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: '发布为脚手架' }))
+    expect(openPublishScaffold).toHaveBeenCalledWith({ defaultDirectory: '/w/alpha' })
+    expect(openInstallScaffold).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '从模板安装' }))
-    expect(openInstallTemplate).toHaveBeenCalledWith({ defaultDirectory: '/w/alpha' })
-    expect(openPublishTemplate).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('menuitem', { name: '从脚手架安装' }))
+    expect(openInstallScaffold).toHaveBeenCalledWith({ defaultDirectory: '/w/alpha' })
+    expect(openPublishScaffold).toHaveBeenCalledTimes(1)
     expect(open).not.toHaveBeenCalled()
   })
 
@@ -673,15 +673,15 @@ describe('SDKWork path/export actions in the row menus', () => {
       </div>,
     )
     fireEvent.click(screen.getByRole('button', { name: '工作区“Project”的操作' }))
-    expect(screen.queryByRole('menuitem', { name: '发布为模板' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: '从模板安装' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '发布为脚手架' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '从脚手架安装' })).toBeNull()
     // The publish row itself is unaffected by the narrower provider.
     expect(screen.getByRole('menuitem', { name: '发布应用' })).toBeTruthy()
   })
 
   it('opens the independent template dialogs from the session menu with the session cwd', () => {
-    const openPublishTemplate = vi.fn()
-    const openInstallTemplate = vi.fn()
+    const openPublishScaffold = vi.fn()
+    const openInstallScaffold = vi.fn()
     render(
       <div>
         <SessionRowMenu
@@ -696,17 +696,17 @@ describe('SDKWork path/export actions in the row menus', () => {
           pinned={false}
           archived={false}
           iconButtonClassName={TRIGGER}
-          deployPublish={{ open: vi.fn(), openPublishTemplate, openInstallTemplate }}
+          deployPublish={{ open: vi.fn(), openPublishScaffold, openInstallScaffold }}
           t={t}
         />
       </div>,
     )
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '发布为模板' }))
-    expect(openPublishTemplate).toHaveBeenCalledWith({ defaultDirectory: '/w/beta' })
+    fireEvent.click(screen.getByRole('menuitem', { name: '发布为脚手架' }))
+    expect(openPublishScaffold).toHaveBeenCalledWith({ defaultDirectory: '/w/beta' })
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '从模板安装' }))
-    expect(openInstallTemplate).toHaveBeenCalledWith({ defaultDirectory: '/w/beta' })
+    fireEvent.click(screen.getByRole('menuitem', { name: '从脚手架安装' }))
+    expect(openInstallScaffold).toHaveBeenCalledWith({ defaultDirectory: '/w/beta' })
   })
 
   it('hides both session template rows when the service exposes neither dialog', () => {
@@ -730,8 +730,8 @@ describe('SDKWork path/export actions in the row menus', () => {
       </div>,
     )
     fireEvent.click(screen.getByRole('button', { name: '会话“One”的操作' }))
-    expect(screen.queryByRole('menuitem', { name: '发布为模板' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: '从模板安装' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '发布为脚手架' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '从脚手架安装' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: '发布应用' })).toBeTruthy()
   })
 })

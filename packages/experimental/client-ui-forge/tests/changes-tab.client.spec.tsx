@@ -445,7 +445,7 @@ describe('ChangesTab keyboard file navigation', () => {
     const m = mount({ source })
     await settle()
     const { viewport, nodes } = fileViewport(m)
-    const destination = nodes[2]!
+    const destination = nodes[2]
     fireEvent.click(within(destination).getByRole('button', { name: /^Collapse / }))
     viewport.scrollTop = 250
     fireEvent.scroll(viewport)
@@ -801,7 +801,7 @@ describe('ChangesTab local reads', () => {
   it('aborts an in-flight diff when the tab becomes hidden and retries it on return', async () => {
     const pending = deferred<RemoteResult<ForgeLocalDiff>>()
     const m = mount({ setup: (faces) => { faces.localDiff.mockReturnValueOnce(pending.promise) } })
-    const signal = m.faces.localDiff.mock.calls[0]![1]
+    const signal = m.faces.localDiff.mock.calls[0][1]
     act(() => { m.visibility.set(false) })
     expect(signal.aborted).toBe(true)
     pending.settle(ok(LOCAL))
@@ -1002,7 +1002,7 @@ describe('ChangesTab drawing work', () => {
     const m = mount()
     await settle()
     const drawn = draw.mock.calls.length
-    fireEvent.change(m.view.getAllByRole('textbox', { name: 'Filter files…' })[0]!, { target: { value: 'app' } })
+    fireEvent.change(m.view.getAllByRole('textbox', { name: 'Filter files…' })[0], { target: { value: 'app' } })
     await settle()
     expect(draw.mock.calls.length).toBe(drawn)
   })
@@ -1259,7 +1259,7 @@ describe('ChangesTab unchanged lines', () => {
 
   it('never draws the text of the last change when a refresh brings the same lines with other content', async () => {
     // The same lines as APP, but line 11 of the new side reads differently, so the file is another change.
-    const changed: ForgeDiffFile = { ...APP, digest: 'changed', hunks: [APP.hunks[0]!, { ...APP.hunks[1]!, lines: [' const a10 = 110', '-const w = 12'] }] }
+    const changed: ForgeDiffFile = { ...APP, digest: 'changed', hunks: [APP.hunks[0], { ...APP.hunks[1], lines: [' const a10 = 110', '-const w = 12'] }] }
     const m = mount({
       source: { kind: 'change', url: URL7 },
       setup: (faces) => {
@@ -1552,6 +1552,19 @@ describe('ChangesTab change requests', () => {
     await settle()
     expect(failed.faces.changeRequestDiff).toHaveBeenCalledOnce()
     expect(within(failed.view.container).getByRole('status').textContent).toBe(`${en['diff.error']}${en.retry}${en['diff.viewInBrowser']}`)
+  })
+
+  it('waits for the first status of a change request whose entry shows a snapshot kept from an earlier panel stream', async () => {
+    const m = mount({ source, state: ready({ changeRequests: [{ ...entry(7, null), snapshot: snapshot(7) }] }) })
+    await settle()
+    expect(m.faces.changeRequestDiff).not.toHaveBeenCalled()
+    expect(m.faces.changeRequestReview).not.toHaveBeenCalled()
+    expect(reading(m.view)).toBe(true)
+
+    act(() => { m.panel.set({ state: ready({ changeRequests: [entry(7, snapshot(7))] }), disconnected: false }) })
+    await settle()
+    expect(m.faces.changeRequestDiff).toHaveBeenCalledOnce()
+    expect(m.faces.changeRequestReview).toHaveBeenCalledOnce()
   })
 
   it('names a change request without a snapshot by its URL and the number the URL ends in', async () => {
@@ -2127,7 +2140,7 @@ describe('ChangesTab viewed marks the host keeps', () => {
       faces.setFileViewed.mockReturnValueOnce(saved.promise)
     } })
     await settle()
-    expect(m.faces.changeRequestViewed).toHaveBeenCalledWith(URL7, HEAD, expect.any(AbortSignal))
+    expect(m.faces.changeRequestViewed).toHaveBeenCalledWith(URL7, HEAD, false, expect.any(AbortSignal))
     expect(marks(m)).toEqual([['docs/gone.txt', 'unviewed', 'open'], ['docs/notes.txt', 'changed', 'open'], ['src/app.ts', 'viewed', 'closed']])
     expect(m.view.getByRole('progressbar').getAttribute('aria-valuetext')).toBe('1 / 3 viewed')
 
@@ -2209,6 +2222,27 @@ describe('ChangesTab viewed marks the host keeps', () => {
     expect(m.paths()).toEqual(['docs/gone.txt', 'docs/notes.txt', 'src/app.ts'])
   })
 
+  it('skips the marks the host keeps for the read a refresh starts, until that read finished', async () => {
+    const refreshed = Promise.withResolvers<ReturnType<typeof hosted>>()
+    const m = mount({ source, setup: (faces) => { faces.changeRequestViewed.mockResolvedValue(hosted({})) } })
+    await settle()
+    const fresh = (): boolean[] => m.faces.changeRequestViewed.mock.calls.map(call => call[2])
+    expect(fresh()).toEqual([false])
+
+    m.faces.changeRequestViewed.mockReturnValueOnce(refreshed.promise)
+    fireEvent.click(m.view.getByRole('button', { name: en['diff.refresh'] }))
+    await settle()
+    // A review change that arrives during the refresh starts the read again, which still skips the kept marks.
+    act(() => { m.panel.set({ state: ready({ changeRequests: [entry(7, snapshot(7), { reviewRevision: 1 })] }), disconnected: false }) })
+    await settle()
+    expect(fresh()).toEqual([false, true, true])
+
+    await act(async () => { refreshed.resolve(hosted({})); await Promise.resolve() })
+    act(() => { m.panel.set({ state: ready({ changeRequests: [entry(7, snapshot(7), { reviewRevision: 2 })] }), disconnected: false }) })
+    await settle()
+    expect(fresh()).toEqual([false, true, true, false])
+  })
+
   it('keeps the marks of chosen commits in the browser without reading the host', async () => {
     const m = mount({ source, setup: (faces) => { faces.changeRequestViewed.mockResolvedValue(hosted({ 'src/app.ts': 'viewed' })) } })
     await settle()
@@ -2285,7 +2319,7 @@ describe('ChangesTab viewed marks the host keeps', () => {
     const status = { ...polled, update: { ...polled.update!, fetchedAt: 2 } }
     act(() => { m.panel.set({ state: ready({ changeRequests: [status] }), disconnected: false }) })
     await settle()
-    expect(m.faces.changeRequestViewed).toHaveBeenLastCalledWith(URL7, moved, expect.any(AbortSignal))
+    expect(m.faces.changeRequestViewed).toHaveBeenLastCalledWith(URL7, moved, false, expect.any(AbortSignal))
     expect(marks(m)[2]?.[1]).toBe('unviewed')
     expect(box(m, 'src/app.ts', 'app.ts').disabled).toBe(false)
     // A write at the new head is in flight when the earlier one settles, which leaves it and its lock alone.
@@ -2400,14 +2434,14 @@ describe('ChangesTab viewed files', () => {
     const m = mount()
     await settle()
     const { viewport, nodes } = fileViewport(m)
-    fireEvent.keyDown(within(nodes[2]!).getByRole('button', { name: /^Collapse / }), { key: 'v' })
+    fireEvent.keyDown(within(nodes[2]).getByRole('button', { name: /^Collapse / }), { key: 'v' })
     expect(nodes.map(node => node.getAttribute('data-viewed'))).toEqual(['unviewed', 'unviewed', 'viewed', 'unviewed', 'unviewed', 'unviewed'])
     const code = document.createTreeWalker(m.section('src/app.ts').querySelector('[data-review-code]')!, NodeFilter.SHOW_TEXT).nextNode()
     expect(code?.nodeType).toBe(Node.TEXT_NODE)
     window.getSelection()?.collapse(code, 0)
     fireEvent.keyDown(viewport, { key: 'v' })
     expect(m.section('src/app.ts').getAttribute('data-viewed')).toBe('viewed')
-    window.getSelection()?.collapse(nodes[3]!, 0)
+    window.getSelection()?.collapse(nodes[3], 0)
     fireEvent.keyDown(viewport, { key: 'v' })
     expect(nodes[3]?.getAttribute('data-viewed')).toBe('viewed')
     // Without a cursor, the file at the top of the view toggles.

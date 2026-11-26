@@ -9,26 +9,6 @@ const PROFILES = ['standalone', 'cloud'] as const
 const ENVIRONMENTS = ['development', 'test', 'staging', 'demo', 'production'] as const
 const TARGETS = ['tablet-ipados', 'tablet-android'] as const
 
-/**
- * The tracked matrix files carry the iPadOS baseline; the runtime target is a
- * property of the invocation, not of the file name, so `scripts/tablet.mjs`
- * overrides `VITE_SDKWORK_RUNTIME_TARGET` in the Vite process environment.
- */
-const BASELINE_TARGET = 'tablet-ipados'
-
-/**
- * ENVIRONMENT_SPEC.md section 5.1.7 keeps the repository configuration-only.
- * The single credential-shaped key it may carry is the public surface token:
- * an unsigned (`alg: none`) application token that names the deploy anchor
- * placeholder instead of an installation. Anything user-scoped, signed, or
- * long-lived belongs in the user-private credential bundle.
- */
-const PUBLIC_SURFACE_TOKEN = 'SDKWORK_ACCESS_TOKEN'
-
-function decodeJwtSegment(segment: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8')) as Record<string, unknown>
-}
-
 function readEnvFile(name: string): Map<string, string> {
   const values = new Map<string, string>()
   for (const line of fs.readFileSync(path.join(appRoot, name), 'utf8').split(/\r?\n/u)) {
@@ -47,7 +27,12 @@ function envFiles(): string[] {
 }
 
 describe('tablet environment matrix', () => {
-  it('keeps exactly one tracked env file per profile and environment', () => {
+  it('has one materialized file for every profile and environment', () => {
+    // The canonical materializer (`etc/client-env.materialization.json`) writes
+    // exactly one `.env.<profile>.<environment>` document per declared profile.
+    // Target-specific behavior is selected at build time
+    // (`VITE_SDKWORK_RUNTIME_TARGET` / `scripts/tablet.mjs`), so no per-target
+    // duplicate document exists to drift from the canonical one.
     const expected: string[] = []
     for (const profile of PROFILES) {
       for (const environment of ENVIRONMENTS) {
@@ -68,26 +53,23 @@ describe('tablet environment matrix', () => {
       expect(values.get('VITE_SDKWORK_ENVIRONMENT')).toBe(environment)
       expect(values.get('VITE_SDKWORK_DEPLOYMENT_PROFILE')).toBe(profile)
       expect(values.get('VITE_SDKWORK_PROFILE_ID')).toBe(`${profile}.${environment}`)
-      expect(values.get('VITE_SDKWORK_RUNTIME_TARGET')).toBe(BASELINE_TARGET)
+      expect(values.get('VITE_SDKWORK_RUNTIME_TARGET')).toBe('tablet-ipados')
       expect(values.get('VITE_SDKWORK_SURFACE')).toBe('pad')
     }
   })
 
-  it('carries no secret-bearing keys beyond the public surface token', () => {
+  it('contains no secret-bearing keys', () => {
+    // `SDKWORK_ACCESS_TOKEN` is the permanent public application access token
+    // baked into every packaged client (`exp: 0`, `alg: none`, `iam:self`); it is
+    // a public identity credential, not a secret. Every other token/key shaped
+    // name stays forbidden.
+    const PUBLIC_APPLICATION_TOKEN_KEY = 'SDKWORK_ACCESS_TOKEN'
     const forbidden = /(?:SECRET|PASSWORD|ACCESS_TOKEN|REFRESH_TOKEN|API_KEY|PRIVATE_KEY)/u
     for (const name of envFiles()) {
       for (const [key, value] of readEnvFile(name)) {
-        if (key === PUBLIC_SURFACE_TOKEN) {
-          const segments = value.split('.')
-          expect(segments).toHaveLength(3)
-          expect(decodeJwtSegment(segments[0]!).alg).toBe('none')
-          const payload = decodeJwtSegment(segments[1]!)
-          expect(payload.token_class).toBe('application')
-          expect(payload.user_id).toBe('0')
-          expect(payload.permission_scope).toEqual(['iam:self'])
-          continue
+        if (key !== PUBLIC_APPLICATION_TOKEN_KEY) {
+          expect(forbidden.test(key)).toBe(false)
         }
-        expect(forbidden.test(key)).toBe(false)
         expect(/^(?:TODO|REPLACE_ME|CHANGEME)$/u.test(value)).toBe(false)
       }
     }

@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SdkworkDesktopBridgeShape } from '@sdkwork/iam-desktop-auth'
+import { SdkworkDesktopAuthError } from '@sdkwork/iam-desktop-auth'
 
 const desktop = {
   begin: vi.fn(async () => {}),
   cancel: vi.fn(async () => {}),
   isWaiting: vi.fn(() => false),
+  authorizeUrl: vi.fn((): string | undefined => 'https://platform.example/iam/oauth/authorize?state=s'),
+  resumePendingLoopback: vi.fn(async () => false),
   subscribe: vi.fn(() => () => {}),
   completePendingCallbackFromLaunch: vi.fn(async () => false),
   dispose: vi.fn(),
@@ -70,13 +73,56 @@ function scopeOf(initial: Partial<UiIamSettings> = {}): SettingsScope<UiIamSetti
 }
 
 /**
+ * A settings scope that starts `loading`, as it does when the welcome hand-off
+ * runs at apply time, and resolves when the Host document arrives.
+ * @returns the scope and the resolver that publishes the first section.
+ */
+function deferredScope(): {
+  scope: SettingsScope<UiIamSettings>
+  resolve(initial: Partial<UiIamSettings>): void
+} {
+  let snapshot: ReturnType<SettingsScope<UiIamSettings>['getSnapshot']> = {
+    status: 'loading' as const,
+    value: undefined,
+    base: undefined,
+    user: undefined,
+    revision: undefined,
+    writable: true,
+    mode: 'host' as const,
+  }
+  const listeners = new Set<() => void>()
+  return {
+    scope: {
+      getSnapshot: () => snapshot,
+      subscribe: (listener) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+      set: vi.fn(async () => {}),
+      unset: vi.fn(async () => {}),
+    },
+    resolve: (initial) => {
+      snapshot = {
+        ...snapshot,
+        status: 'ready' as const,
+        value: { ...DEFAULT_UI_IAM_SETTINGS, ...initial },
+        revision: 1,
+      }
+      for (const listener of [...listeners]) listener()
+    },
+  }
+}
+
+/**
  * Environment service stand-in: the base class resolves the profile from a
  * settings scope, so the spec overrides only the active-profile reads it
  * exercises. A structural stub would need a cast past EnvService's private
  * state, which the repository forbids for new code.
  */
 class StubEnvService extends EnvService {
-  constructor(private readonly configuredBaseUrl: string) {
+  private readonly envListeners = new Set<() => void>()
+
+  constructor(private configuredBaseUrl: string) {
     super({
       getSnapshot: () => ({
         status: 'unavailable' as const,
@@ -91,6 +137,22 @@ class StubEnvService extends EnvService {
       set: async () => false,
       unset: async () => false,
     })
+  }
+
+  /**
+   * Point the active profile at another IAM app-api origin, mid-session.
+   *
+   * The base class only emits on its own scope, which this stub keeps empty, so
+   * the profile move is announced here for the watchers that wait for it.
+   */
+  useBaseUrl(apiBaseUrl: string): void {
+    this.configuredBaseUrl = apiBaseUrl
+    for (const listener of [...this.envListeners]) listener()
+  }
+
+  override subscribe(listener: () => void): () => void {
+    this.envListeners.add(listener)
+    return () => { this.envListeners.delete(listener) }
   }
 
   override isConfigured(): boolean {
@@ -127,6 +189,11 @@ afterEach(() => {
   Reflect.deleteProperty(globalThis, '__DSH_OEM__')
   Reflect.deleteProperty(globalThis, '__DSH_IAM_SIGN_IN__')
   vi.clearAllMocks()
+  // Restore the stub login the shared factory returns, so a test that flips
+  // `isWaiting` cannot change the next test's start.
+  desktop.isWaiting.mockReturnValue(false)
+  desktop.resumePendingLoopback.mockResolvedValue(false)
+  desktop.authorizeUrl.mockReturnValue('https://platform.example/iam/oauth/authorize?state=s')
 })
 
 describe('IamService desktop browser login', () => {
@@ -149,21 +216,150 @@ describe('IamService desktop browser login', () => {
     expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBeUndefined()
   })
 
-  it('holds the welcome request until the sign-in host mounts, then opens the hand-off', async () => {
+  it('starts the welcome browser hand-off before the sign-in host mounts, then presents the card', async () => {
     Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
     Reflect.set(globalThis, '__DSH_IAM_SIGN_IN__', true)
     const service = new IamService(scopeOf({ signInMethod: 'browser' }), envOf('https://api.example'), layoutOf())
     await service.startPendingSignIn()
-    // Before the overlay renders there is no store to open; consuming the
-    // one-shot request here would lose the login it carries.
-    expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBe(true)
-    expect(desktop.begin).not.toHaveBeenCalled()
-    const openBrowser = vi.fn()
-    service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
-    await service.startPendingSignIn()
-    expect(openBrowser).toHaveBeenCalledTimes(1)
+    // The hosted page is the login surface; the in-app card only reports it.
+    // A surface that mounts late must not be able to block the gesture.
     expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBeUndefined()
     await vi.waitFor(() => { expect(desktop.begin).toHaveBeenCalledTimes(1) })
+    expect(desktop.begin).toHaveBeenCalledTimes(1)
+    // The waiting attempt's authorize URL is what the card offers for manual
+    // opening when the browser window never appeared.
+    expect(service.browserSignInUrl()).toBe('https://platform.example/iam/oauth/authorize?state=s')
+
+    // The mount catches up with the attempt already in flight: it raises the
+    // waiting card instead of leaving the login invisible.
+    const openBrowser = vi.fn()
+    desktop.isWaiting.mockReturnValue(true)
+    service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
+    expect(openBrowser).toHaveBeenCalledTimes(1)
+    desktop.isWaiting.mockReturnValue(false)
+  })
+
+  it('holds the welcome request for the in-app form until its host mounts', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    Reflect.set(globalThis, '__DSH_IAM_SIGN_IN__', true)
+    const service = new IamService(scopeOf({ signInMethod: 'modal' }), envOf('https://api.example'), layoutOf())
+    await service.startPendingSignIn()
+    // The account form only exists inside the host: consuming the one-shot
+    // request without a surface would silently drop the login it carries.
+    expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBe(true)
+    const openLogin = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin, openBrowser: vi.fn(), close: vi.fn() })
+    await service.startPendingSignIn()
+    expect(openLogin).toHaveBeenCalledTimes(1)
+    expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBeUndefined()
+    expect(desktop.begin).not.toHaveBeenCalled()
+  })
+
+  it('abandons a pending browser attempt when the login identity changes', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    const env = new StubEnvService('https://api.example')
+    const service = new IamService(scopeOf(), env, layoutOf())
+    await service.beginBrowserSignIn()
+    desktop.cancel.mockClear()
+    desktop.dispose.mockClear()
+
+    // Switching the deployment origin replaces the desktop login runtime. The
+    // old attempt's code was issued by another authorization server, so its
+    // durable flow must not stay redeemable against the new one (RFC 8252
+    // section 8.10 binds a code to the redirect of its authorization server,
+    // and this application registers one callback for every tier).
+    env.useBaseUrl('https://api-2.example')
+    await service.beginBrowserSignIn()
+    expect(desktop.cancel).toHaveBeenCalledTimes(1)
+    expect(desktop.dispose).toHaveBeenCalledTimes(1)
+    expect(desktop.begin).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for the IAM settings before choosing the welcome gesture', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    Reflect.set(globalThis, '__DSH_IAM_SIGN_IN__', true)
+    const deferred = deferredScope()
+    const service = new IamService(deferred.scope, envOf('https://api.example'), layoutOf())
+    const openLogin = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin, openBrowser: vi.fn(), close: vi.fn() })
+    const started = service.startPendingSignIn()
+    await Promise.resolve()
+    // The defaults would start the browser hand-off; the request waits for the
+    // section that decides the gesture instead.
+    expect(desktop.begin).not.toHaveBeenCalled()
+    expect(openLogin).not.toHaveBeenCalled()
+
+    deferred.resolve({ signInMethod: 'modal' })
+    await started
+    expect(openLogin).toHaveBeenCalledTimes(1)
+    expect(desktop.begin).not.toHaveBeenCalled()
+    expect(Reflect.get(globalThis, '__DSH_IAM_SIGN_IN__')).toBeUndefined()
+  })
+
+  it('starts the welcome gesture with the defaults when the IAM settings never resolve', async () => {
+    vi.useFakeTimers()
+    try {
+      Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+      Reflect.set(globalThis, '__DSH_IAM_SIGN_IN__', true)
+      const deferred = deferredScope()
+      const service = new IamService(deferred.scope, envOf('https://api.example'), layoutOf())
+      const openBrowser = vi.fn()
+      service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
+      const started = service.startPendingSignIn()
+      // A settings document that never arrives must not hold the login: the
+      // bounded wait falls back to the shipped gesture.
+      await vi.advanceTimersByTimeAsync(2_000)
+      await started
+      expect(openBrowser).toHaveBeenCalledTimes(1)
+      expect(desktop.begin).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('survives a throwing credential listener', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    const service = new IamService(scopeOf(), envOf('https://api.example'), layoutOf())
+    const reported = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const off = service.onAuthToken(() => { throw new Error('listener failed') })
+    await service.beginBrowserSignIn()
+    const options = vi.mocked(createIamDesktopLogin).mock.calls.at(-1)?.[0]
+    await options?.onSession({ accessToken: 'a', authToken: 'b', refreshToken: 'r' })
+    // One broken observer must not stop the credential publication every SDK
+    // client depends on.
+    expect(reported).toHaveBeenCalledWith('ui-sdkwork-iam: auth-token listener failed', expect.any(Error))
+    off()
+    reported.mockRestore()
+  })
+
+  it('reports a committed session whose IAM origin disappeared', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    const env = new StubEnvService('https://api.example')
+    const service = new IamService(scopeOf(), env, layoutOf())
+    await service.beginBrowserSignIn()
+    const options = vi.mocked(createIamDesktopLogin).mock.calls.at(-1)?.[0]
+    // The profile moved to no IAM origin while the browser login was out.
+    env.useBaseUrl('')
+    await expect(options?.onSession({ accessToken: 'a', authToken: 'b' }))
+      .rejects.toThrow('IAM baseUrl is not configured')
+    expect(service.isSignedIn()).toBe(false)
+  })
+
+  it('waits for the environment origin the welcome hand-off needs', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    Reflect.set(globalThis, '__DSH_IAM_SIGN_IN__', true)
+    const env = new StubEnvService('')
+    const service = new IamService(scopeOf(), env, layoutOf())
+    const openBrowser = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
+    const started = service.startPendingSignIn()
+    await Promise.resolve()
+    expect(openBrowser).not.toHaveBeenCalled()
+
+    env.useBaseUrl('https://api.example')
+    await started
+    expect(openBrowser).toHaveBeenCalledTimes(1)
+    expect(desktop.begin).toHaveBeenCalledTimes(1)
   })
 
   it('skips the sign-in surface when a session is already restored', async () => {
@@ -358,9 +554,17 @@ describe('IamService desktop browser login', () => {
     await options.onSession({ accessToken: 'access', authToken: 'auth' })
     expect(service.isSignedIn()).toBe(true)
     expect(close).toHaveBeenCalledTimes(1)
+    // The committed session is announced, so a login finished while the dialog
+    // was closed still shows a result.
+    expect(service.signInNotice()).toMatchObject({ kind: 'signed-in', accountName: 'A User' })
+    const noticeId = service.signInNotice()?.id
+    service.dismissSignInNotice(-1)
+    expect(service.signInNotice()?.id).toBe(noticeId)
+    service.dismissSignInNotice(noticeId ?? -1)
+    expect(service.signInNotice()).toBeUndefined()
   })
 
-  it('abandons a waiting hand-off when the user closes the card', async () => {
+  it('keeps the browser hand-off waiting when the user closes the card', async () => {
     Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
     const service = new IamService(scopeOf(), envOf('https://api.example'), layoutOf())
     const close = vi.fn()
@@ -370,8 +574,56 @@ describe('IamService desktop browser login', () => {
     vi.spyOn(service, 'browserSignInWaiting').mockReturnValue(true)
 
     service.dismissSignIn()
-    expect(desktop.cancel).toHaveBeenCalledTimes(1)
+    // Hiding the card is not abandoning the login: the system browser can still
+    // finish, and that outcome must reach the user.
+    expect(desktop.cancel).not.toHaveBeenCalled()
     expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('raises the failure card for a hand-off that fails after the card was closed', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    const service = new IamService(scopeOf(), envOf('https://api.example'), layoutOf())
+    const openBrowser = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
+    service.startBrowserSignIn()
+    await vi.waitFor(() => { expect(desktop.begin).toHaveBeenCalledTimes(1) })
+    service.dismissSignIn()
+    openBrowser.mockClear()
+
+    const options = vi.mocked(createIamDesktopLogin).mock.calls.at(-1)?.[0]
+    options?.onError?.(new SdkworkDesktopAuthError(
+      'exchange-failed',
+      'The desktop session exchange failed. Start the browser login again.',
+      'authorization code is invalid or expired',
+    ))
+
+    expect(service.browserSignInFailed()).toBe(true)
+    expect(service.browserSignInFailure()).toMatchObject({ code: 'exchange-failed' })
+    // The user closed the card earlier; a real failure from the browser must not
+    // pass silently, so the recovery surface comes back.
+    expect(openBrowser).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not raise the card for a hand-off that simply expired while closed', async () => {
+    Reflect.set(globalThis, 'sdkworkDesktop', BRIDGE)
+    const service = new IamService(scopeOf(), envOf('https://api.example'), layoutOf())
+    const openBrowser = vi.fn()
+    service.attachModal({ openEntry: vi.fn(), openLogin: vi.fn(), openBrowser, close: vi.fn() })
+    service.startBrowserSignIn()
+    await vi.waitFor(() => { expect(desktop.begin).toHaveBeenCalledTimes(1) })
+    service.dismissSignIn()
+    openBrowser.mockClear()
+
+    const options = vi.mocked(createIamDesktopLogin).mock.calls.at(-1)?.[0]
+    options?.onError?.(new SdkworkDesktopAuthError(
+      'flow-expired',
+      'The browser login window expired; start the login again.',
+    ))
+
+    // A timeout after the user walked away is not an outcome to interrupt them
+    // with minutes later.
+    expect(openBrowser).not.toHaveBeenCalled()
+    expect(service.browserSignInFailure()).toMatchObject({ code: 'flow-expired' })
   })
 
   it('abandons a waiting hand-off when the user picks the in-app form', async () => {
@@ -421,7 +673,7 @@ describe('IamService desktop account replacement', () => {
       accessToken: 'b-access',
       authToken: 'b-auth',
       context: { tenantId: 'tenant', userId: 'user-b' },
-    } as never)
+    })
 
     // A's local session was reset before B's record was written, so B's
     // durable copy cannot inherit A's cached identity.
@@ -455,7 +707,7 @@ describe('IamService desktop account replacement', () => {
       authToken: 'a-auth-2',
       context: { tenantId: 'tenant', userId: 'user-a' },
       user: { id: 'user-a', displayName: 'A User' },
-    } as never)
+    })
 
     // Same identity: a token rotation must not sign the page out first.
     expect(reset).not.toHaveBeenCalled()
@@ -484,7 +736,7 @@ describe('IamService desktop account replacement', () => {
       accessToken: 'b-access',
       authToken: 'b-auth',
       context: { tenantId: 'tenant', userId: 'user-b' },
-    } as never)
+    })
 
     // The page is signed out (A's state was reset) and B was never committed.
     expect(service.isSignedIn()).toBe(false)
@@ -512,7 +764,7 @@ describe('IamService desktop account replacement', () => {
       accessToken: 'b-access',
       authToken: 'b-auth',
       context: { tenantId: 'tenant', userId: 'user-b' },
-    } as never)
+    })
 
     expect(reset).toHaveBeenCalledTimes(1)
     expect(service.controller.getState().session?.accessToken).toBe('b-access')

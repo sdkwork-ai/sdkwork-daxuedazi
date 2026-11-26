@@ -2,7 +2,14 @@ import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveSdkworkLaunchProfile, type SdkworkLaunchProfile } from '@deepseek-ai/dsh-sdkwork-env-bootstrap'
+import {
+  DEPLOY_APPLICATION_ID_ENV,
+  foldSdkworkSurfaceIdentity,
+  resolveDeployApplicationIdentity,
+  resolveSdkworkLaunchProfile,
+  withDeployApplicationId,
+  type SdkworkLaunchProfile,
+} from '@deepseek-ai/dsh-sdkwork-env-bootstrap'
 import { createLaunchEnvironmentSnapshot } from '@deepseek-ai/dsh-launch-environment'
 import { SDKWORK_ENV_BOOT_GLOBAL, projectSdkworkEnvBase } from '@deepseek-ai/dsh-client-ui-sdkwork-env'
 import { defineConfig, loadEnv } from 'vite'
@@ -10,8 +17,7 @@ import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { clientBuildEnvironmentDefines } from '../../scripts/client-build-environment.ts'
-import { webBuildEnvironment, writeWebBuildEnvironment } from '../../scripts/web-build-environment.ts'
-import { resolveBrandDisplayName, shippedBrand } from '../desktop/scripts/brand-manifest.mjs'
+import { resolveBuildTitle, replaceDocumentTitle, retitleManifest } from './scripts/build-brand.ts'
 import { WEB_SOURCE_ALIASES } from './vite-source-aliases.ts'
 import { productWebBundleIsolation } from './product-isolation.ts'
 import { katexWoff2Fonts } from './katex-fonts.ts'
@@ -21,42 +27,33 @@ const repoRoot = src('../..')
 const STANDALONE_ERROR = 'apps/web is not a standalone application: bare Vite cannot inject window.__DSH_BOOT__. '
   + 'From a repository checkout, run `pnpm dsh web`; an installed package uses `dsh web`. '
   + 'For client-plugin HMR, run `pnpm run dev:web`, which starts `dsh web` and the rebuild watchers together.'
-/** Page global carrying the brand manifest's per-locale installed application names. */
-const APP_NAMES_BOOT_GLOBAL = '__DSH_APP_NAMES__'
-
-/** Escape build-time text before placing it in the HTML title element. */
-function escapeHtmlText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
 
 /**
- * Project the installed application's name into the initial HTML document.
+ * Project the build-time brand identity into the document title and the
+ * installed PWA name.
  *
- * FORK DIVERGENCE: the startup page paints before client plugins (and therefore
- * before the OEM brand projection) load, so the name has to be in the document
- * itself. `brands/<key>.json` owns both the title and the per-locale map, which
- * `boot-brand.ts` and `ui-primitives/oem-brand.ts` read from this one global.
- * The old `<title>DSH Local Build</title>` anchor had already been renamed, so
- * the replacement had silently become a no-op; match the element instead.
+ * Both ship with the build, so they follow the selected brand manifest instead
+ * of a literal: the checked-in document carries the shipped brand only as a
+ * fallback for builds that select none.
+ * @returns the HTML-title plugin.
  */
-function clientBrandIdentity(): Plugin {
-  const brand = shippedBrand()
-  const title = escapeHtmlText(process.env.DSH_CLIENT_TITLE ?? resolveBrandDisplayName(brand, undefined))
-  // `<` cannot appear in a JSON string here, but escaping keeps a future brand
-  // name from terminating the inline script element.
-  const names = JSON.stringify(brand.displayNames).replace(/</gu, '\\u003c')
-  // The element above carries the default name so a page without scripting still
-  // reads the product; this keeps the tab in step with the browser language
-  // before the SPA (and its locale registry) can load.
-  const localizeTitle = `(function(){var n=window.${APP_NAMES_BOOT_GLOBAL}||{};`
-    + "var l=((navigator.languages&&navigator.languages[0])||navigator.language||'').toLowerCase().replace(/_/g,'-').split('-')[0];"
-    + "var t=n[(l==='zh'?'zh-CN':l)]||n['default'];if(t)document.title=t})()"
+function clientDocumentTitle(): Plugin {
+  const title = resolveBuildTitle(process.env, src('../../brands'))
   return {
-    name: 'dsh-client-brand-identity',
+    name: 'dsh-client-document-title',
     transformIndexHtml(html) {
-      return html
-        .replace(/<title>[^<]*<\/title>/u, `<title>${title}</title>`)
-        .replace('</head>', `    <script>window.${APP_NAMES_BOOT_GLOBAL}=${names};${localizeTitle}</script>\n  </head>`)
+      if (title === undefined) return html
+      // Replace whatever title the checked-in document carries: a literal
+      // target rots the moment the shell's own title changes.
+      return replaceDocumentTitle(html, title)
+    },
+    async writeBundle(options) {
+      if (title === undefined) return
+      const dir = options.dir ?? (options.file === undefined ? undefined : dirname(options.file))
+      if (dir === undefined) return
+      const file = join(dir, 'manifest.webmanifest')
+      if (!existsSync(file)) return
+      await writeFile(file, retitleManifest(await readFile(file, 'utf8'), title), 'utf8')
     },
   }
 }
@@ -242,9 +239,9 @@ const SURFACE_ORIGIN_KEYS = [
   'SDKWORK_BIRDCODER_IM_EMBED_URL',
   'SDKWORK_IM_API_BASE_URL',
   'SDKWORK_IM_EMBED_URL',
-  // The hosted SDKWork auth surface (sign-out page) a desktop sign-out opens in
-  // the browser: a packaged build must point at a deployment portal, never the
-  // packaging host's loopback server.
+  // The CloudRouter console origin the 个人主页 section links to: a packaged
+  // build must point at a deployment portal, never the packaging host's
+  // loopback server.
   'SDKWORK_CLOUDROUTER_PUBLIC_HTTP_URL',
   'SDKWORK_CLOUDROUTER_ROUTER_APPLICATION_PUBLIC_HTTP_URL',
   'SDKWORK_BIRDCODER_CLOUDROUTER_URL',
@@ -253,55 +250,26 @@ const SURFACE_ORIGIN_KEYS = [
 /** A loopback origin, which a non-development build must never bake. */
 const LOOPBACK_ORIGIN = /^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?(?:\/|$)/iu
 
-/** Placeholder the committed root profiles carry until a build supplies the anchor. */
-const PENDING_DEPLOY_APPLICATION_ID = '__SDKWORK_DEPLOY_APPLICATION_ID__'
-
-/** Build-environment variable carrying this installation's deploy application id. */
-const DEPLOY_APPLICATION_ID_ENV = 'SDKWORK_DEPLOY_APPLICATION_ID'
-
-/**
- * Re-anchor one committed public application access token on the deploy
- * application id a build injects.
- *
- * The public token is deterministic material: `app_id`/`aud` (and the
- * `session_id` derived from them) are its only installation-scoped claims, so
- * replacing them reproduces exactly the token the SDKWork materializer writes for
- * that anchor. The committed profiles carry the placeholder instead, because a
- * repository cannot know a deployment's id (APP_ACCESS_TOKEN_SPEC.md section
- * 3.1.1).
- * @param token - committed token, anchored on the placeholder or a real id.
- * @param appId - deploy application id the build injects.
- * @returns the token bound to `appId`.
- */
-function withDeployApplicationId(token: string, appId: string): string {
-  const parts = token.split('.')
-  if (parts.length !== 3) {
-    throw new Error(`apps/web: SDKWORK_ACCESS_TOKEN must be a three-part public application token; got ${parts.length} segment(s)`)
-  }
-  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>
-  const previous = String(payload.app_id ?? '')
-  payload.app_id = appId
-  payload.aud = appId
-  if (typeof payload.session_id === 'string' && previous !== '') {
-    payload.session_id = payload.session_id.split(previous).join(appId)
-  }
-  return `${parts[0]}.${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')}.${parts[2]}`
-}
-
 /**
  * Bind the deployment identity into the values this build bakes into the page.
  *
+ * The identity comes from the first layer that names it: the build's
+ * `SDKWORK_DEPLOY_APPLICATION_ID` anchor, the profile's `SDKWORK_APP_ID`, or a
+ * token a materializer already anchored. A profile that carries the placeholder
+ * token and no anchor still fails, because that page would ship a credential
+ * IAM suppresses.
  * @param loaded - values read from the selected `.env.<profile>` document and
- *   from the repository `.env` layer.
+ *   from the surface `.env.local` layer.
  * @param anchor - `SDKWORK_DEPLOY_APPLICATION_ID`, exported by the build
- *   environment or recorded in the repository `.env` layer.
- * @throws When the profile still carries the placeholder and neither source
- *   supplies an anchor: the page would ship a credential IAM suppresses, so the
- *   build fails and names the variable instead.
+ *   environment or recorded in an env layer.
+ * @throws When no layer names this installation, and the profile carries no
+ *   anchored token: the build fails and names the variable instead.
  */
 function materializeDeployIdentity(loaded: Record<string, string>, anchor: string): void {
   const declared = (loaded.SDKWORK_APP_ID ?? '').trim()
-  if (anchor === '' && (declared === '' || declared === PENDING_DEPLOY_APPLICATION_ID)) {
+  const token = (loaded.SDKWORK_ACCESS_TOKEN ?? '').trim()
+  const identity = resolveDeployApplicationIdentity({ declaredAppId: declared, accessToken: token, anchor })
+  if (identity === undefined) {
     throw new Error(
       `${DEPLOY_APPLICATION_ID_ENV} is required to build apps/web: the committed profile carries `
       + `SDKWORK_APP_ID=${declared === '' ? '(empty)' : declared}, so this build must inject the installation's `
@@ -309,11 +277,9 @@ function materializeDeployIdentity(loaded: Record<string, string>, anchor: strin
       + 'SDKWork materializer for this profile with it set.',
     )
   }
-  const appId = anchor === '' ? declared : anchor
-  loaded.SDKWORK_APP_ID = appId
-  const token = (loaded.SDKWORK_ACCESS_TOKEN ?? '').trim()
+  loaded.SDKWORK_APP_ID = identity.appId
   // An empty token defers to interactive IAM login and stays empty.
-  if (token !== '') loaded.SDKWORK_ACCESS_TOKEN = withDeployApplicationId(token, appId)
+  if (token !== '') loaded.SDKWORK_ACCESS_TOKEN = withDeployApplicationId(token, identity.appId)
 }
 
 /**
@@ -365,8 +331,11 @@ function sdkworkEnvInjection(deploymentProfile: DeploymentProfile, environment: 
     const profileId = `${deploymentProfile}.${environment}`
     // The Web application owns its own surface env (`apps/web/.env.<profile>`);
     // the repository-root file remains the fallback for a checkout that has not
-    // materialized the Web surface yet. Desktop packaging exports its own anchor,
-    // which still outranks the file and re-anchors the token to the Desktop app.
+    // materialized the Web surface yet. `loadEnv` reads the selected directory,
+    // so a materialized surface also keeps its anchor in `apps/web/.env.local`
+    // (written by `admin:bootstrap:app`). Desktop packaging exports its own
+    // anchor, which still outranks the file and re-anchors the token to the
+    // Desktop app.
     const surfaceEnv = join(fileURLToPath(new URL('.', import.meta.url)), `.env.${profileId}`)
     const tracked = existsSync(surfaceEnv)
       ? surfaceEnv
@@ -388,10 +357,11 @@ function sdkworkEnvInjection(deploymentProfile: DeploymentProfile, environment: 
     if (!name.startsWith('DSH_WEB_SDKWORK_') || value === undefined || value.trim() === '') continue
     loaded[name.slice('DSH_WEB_'.length)] = value
   }
+  foldSdkworkSurfaceIdentity(loaded)
   // The committed profiles carry the placeholder; a build must inject the anchor
   // (or a real local token) before the page can rely on this deployment identity.
   // An exported anchor outranks the explicit `DSH_WEB_SDKWORK_*` channel, which
-  // outranks the repository `.env` layer.
+  // outranks the surface `.env.local` layer the anchor is recorded in.
   const fileAnchor = (loaded[DEPLOY_APPLICATION_ID_ENV] ?? '').trim()
   materializeDeployIdentity(loaded, exportedAnchor === '' ? fileAnchor : exportedAnchor)
   if (environment !== 'development') {
@@ -411,27 +381,6 @@ function sdkworkEnvInjection(deploymentProfile: DeploymentProfile, environment: 
   }
 }
 
-/**
- * Record the deployment one Web build baked.
- *
- * The built page is the only carrier of its SDKWork deployment, and the same
- * `dist/` directory serves the development lane, the online-debug lane, and the
- * release. Each of those consumers proves this record before launching or
- * packaging the page, so a lane can never reuse another environment's bundle.
- * @param deploymentProfile - profile the build reads.
- * @param environment - lifecycle the build mode selected.
- * @returns the plugin that writes the record after a successful bundle.
- */
-function webBuildRecord(deploymentProfile: DeploymentProfile, environment: SdkworkLaunchProfile): Plugin {
-  return {
-    name: 'dsh-web-build-environment',
-    apply: 'build',
-    writeBundle() {
-      writeWebBuildEnvironment(repoRoot, webBuildEnvironment(deploymentProfile, environment))
-    },
-  }
-}
-
 export default defineConfig(({ mode }) => {
   const environment = resolveSdkworkBuildProfile(process.env.DSH_WEB_BUILD_MODE?.trim() || mode)
   const deploymentProfile = resolveDeploymentProfile(process.env.DSH_WEB_DEPLOYMENT_PROFILE)
@@ -440,9 +389,8 @@ export default defineConfig(({ mode }) => {
   // directory, and the served index resolves identically from the site root.
   base: './',
   plugins: [
-    rejectStandaloneServe(), clientBrandIdentity(), brandFontLicense(), katexWoff2Fonts(), react(), tailwindcss(), emitPreviewPage(),
+    rejectStandaloneServe(), clientDocumentTitle(), brandFontLicense(), katexWoff2Fonts(), react(), tailwindcss(), emitPreviewPage(),
     sdkworkEnvInjection(deploymentProfile, environment),
-    webBuildRecord(deploymentProfile, environment),
     productWebBundleIsolation(src('../..'), src('.')),
   ],
   build: {

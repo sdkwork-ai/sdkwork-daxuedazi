@@ -128,7 +128,7 @@ function scopeOf(): SettingsScope<UiIamSettings> {
     subscribe: () => () => {},
     set: vi.fn(async () => {}),
     unset: vi.fn(async () => {}),
-  } as unknown as SettingsScope<UiIamSettings>
+  }
 }
 
 function envOf(): EnvService {
@@ -156,7 +156,7 @@ function layoutOf(): ILayout {
 async function loginThroughDeepLink(): Promise<IamService> {
   const service = new IamService(scopeOf(), envOf(), layoutOf())
   await service.beginBrowserSignIn()
-  const authorizeUrl = new URL(openedUrls[0]!)
+  const authorizeUrl = new URL(openedUrls[0])
   const state = authorizeUrl.searchParams.get('state')!
   expect(authorizeUrl.searchParams.get('code_challenge')).toBeTruthy()
   emitDeepLink(`${REDIRECT}?code=sdkwork-oauth_code-e2e&state=${state}`)
@@ -179,13 +179,13 @@ beforeEach(() => {
     clear: () => { storage.clear() },
     key: () => null,
     length: 0,
-  } as Storage
+  }
   installDesktopBridge()
   installNetwork()
 })
 
 afterEach(() => {
-  Reflect.deleteProperty(globalThis as Record<string, unknown>, 'sdkworkDesktop')
+  Reflect.deleteProperty(globalThis, 'sdkworkDesktop')
   vi.unstubAllGlobals()
   vi.clearAllMocks()
 })
@@ -220,7 +220,7 @@ describe('post-login SDK access', () => {
     await pluginClient.iam.users.current.retrieve()
 
     expect(captured).toHaveLength(1)
-    const request = captured[0]!
+    const request = captured[0]
     expect(request.url).toBe(`${BASE_URL}/app/v3/api/iam/users/current`)
     expect(request.method).toBe('GET')
     // app-api requires `Authorization: Bearer <authToken>` and accepts the
@@ -243,7 +243,7 @@ describe('post-login SDK access', () => {
   it('does not report a login whose credentials the gateway refuses', async () => {
     const service = new IamService(scopeOf(), envOf(), layoutOf())
     await service.beginBrowserSignIn()
-    const state = new URL(openedUrls[0]!).searchParams.get('state')
+    const state = new URL(openedUrls[0]).searchParams.get('state')
     refuseProfile = true
     emitDeepLink(`${REDIRECT}?code=sdkwork-oauth_code-refused&state=${state}`)
 

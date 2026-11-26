@@ -228,9 +228,7 @@ const command = (over: Partial<CommandNode> = {}): CommandNode => ({
   ...over,
 })
 const compaction = (over: Partial<CompactionSummaryNode> = {}): CompactionSummaryNode => ({
-  kind: 'compaction', seq: 8, time: 8_000,
-  summary: '## 压缩摘要\n\n保留的事实。',
-  summaryEventSeq: 7,
+  kind: 'compaction', seq: 8, summaryEventSeq: 7, time: 8_000,
   shadowedItemCount: 16,
   shadowedTokenCount: 11_309,
   ...over,
@@ -323,13 +321,14 @@ function HarnessUserOrigin({ useRenderer, owner, options }: {
 }
 
 function HarnessChatNode({
-  standard, owner, hookContext, usePerformanceUsage, toolOwners, fallback, renderAssistantSlot, renderUserChain,
+  standard, owner, hookContext, compaction, usePerformanceUsage, toolOwners, fallback, renderAssistantSlot, renderUserChain,
   renderTurnErrorFix = renderTurnErrorFixStub,
 }: {
   readonly standard: HarnessStandardProps
   readonly owner: RoutedChatNodeOwner
   readonly hookContext: ChatNodeHookContext
   readonly usePerformanceUsage: React.ComponentProps<typeof TurnTailNodeView>['usePerformanceUsage']
+  readonly compaction: Pick<React.ComponentProps<typeof CompactionNodeView>, 'openCompaction' | 'useCompactionPreview'>
   readonly toolOwners: ToolOwner[]
   readonly fallback: React.ReactNode
   readonly renderAssistantSlot: React.ComponentProps<typeof AssistantNodeView>['renderSlot']
@@ -355,9 +354,9 @@ function HarnessChatNode({
     case 'command':
       return <CommandNodeView {...nodeProps} node={owner.node} renderSlot={renderCommandSlot} />
     case 'manual-compaction':
-      return <ManualCompactionNodeView {...nodeProps} node={owner.node} />
+      return <ManualCompactionNodeView {...nodeProps} {...compaction} node={owner.node} />
     case 'compaction':
-      return <CompactionNodeView {...nodeProps} node={owner.node} />
+      return <CompactionNodeView {...nodeProps} {...compaction} node={owner.node} />
     case 'model-retry':
       return <RetryNodeView {...nodeProps} node={owner.node} />
     case 'turn-error':
@@ -463,6 +462,9 @@ function makeHarness(
     read: () => savedScroll,
   }
   const forkAt = vi.fn()
+  const openCompaction = vi.fn<(seq: number, signal: AbortSignal) => Promise<string | null>>(async () => null)
+  const compactionPreview = createSnapshotStore(true)
+  const compaction = { openCompaction, useCompactionPreview: bindSnapshotSelector(compactionPreview) }
   // Rows and the harness must observe the same chat-store instance.
   const chat = createChatStore().create()
   const transcriptView = createSnapshotStore<TranscriptViewMode>('compact')
@@ -478,7 +480,11 @@ function makeHarness(
   let imageSlotOverride: ImageRenderer | undefined
   let turnErrorFixRender: ((name: string, owner: TurnErrorRepairOwnerProps) => React.ReactNode) | undefined
   const renderTurnErrorFix: TurnErrorFixRenderer = (name, owner, opts) => {
-    if (name !== 'conversation.chat.turn-error.sign-in' && name !== 'conversation.chat.turn-error.model-settings') {
+    if (
+      name !== 'conversation.chat.turn-error.sign-in'
+      && name !== 'conversation.chat.turn-error.model-settings'
+      && name !== 'conversation.chat.turn-error.top-up'
+    ) {
       throw new Error(`Undeclared turn-error child: ${name}`)
     }
     return turnErrorFixRender?.(name, owner) ?? opts?.fallback ?? null
@@ -493,7 +499,7 @@ function makeHarness(
     name === 'conversation.chat.message.images' ? renderImages(name, owner, options) : renderReasoningSlot(name, owner, options)
   const renderNodeSlot: NodeRenderer = (key, owner, opts) => {
     if (nodeSlotOverride !== undefined) return nodeSlotOverride(key, owner, opts)
-    return <HarnessChatNode standard={props} owner={owner}
+    return <HarnessChatNode compaction={compaction} standard={props} owner={owner}
       hookContext={opts.hookContext} usePerformanceUsage={usePerformanceUsage}
       toolOwners={toolOwners} fallback={opts.fallback} renderAssistantSlot={renderAssistantSlot}
       renderUserChain={renderUserChain} renderTurnErrorFix={renderTurnErrorFix} />
@@ -629,7 +635,8 @@ function makeHarness(
     setConnection: (state: ConnectionState) => { connection.set(state) },
     openFile, openUserFile, loadOlder, consumeOlder, prepareOlder, loadThrough, openView,
     setOutline: (value: unknown) => { outlineValue = value },
-    chatScroll, forkAt, toolOwners, fenceCalls, asideRenders,
+    chatScroll, forkAt, openCompaction, toolOwners, fenceCalls, asideRenders,
+    setCompactionPreview: (available: boolean) => { compactionPreview.set(available) },
     setPerformanceUsage: (mode: 'compact' | 'detailed') => { performanceUsage.set(mode) },
     setGrouped: (value: ConversationGroupedView<ProcessGroupData> | undefined) => {
       grouped = value
@@ -1007,7 +1014,7 @@ describe('ChatView', () => {
     const bodies = roots.map(root => root.querySelector<HTMLElement>('[data-step-process-body]')!)
     expect(roots).toHaveLength(3)
     expect(bodies.map(body => body.hasAttribute('hidden'))).toEqual([true, true, true])
-    fireEvent.click(headers[0]!)
+    fireEvent.click(headers[0])
 
     for (const mode of ['standard', 'detailed', 'compact', 'detailed'] as const) {
       act(() => { h.setTranscriptView(mode) })
@@ -1020,11 +1027,11 @@ describe('ChatView', () => {
     const control = view.container.querySelector<HTMLButtonElement>('[data-turn-process="2"]')!
     expect(control.getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(control)
-    expect(roots[2]!.closest('[hidden]')).toBeNull()
-    expect(headers[2]!.closest('[hidden]')).toBeNull()
-    expect(bodies[2]!.hasAttribute('hidden')).toBe(true)
-    expect(bodies[0]!.hasAttribute('hidden')).toBe(false)
-    expect(bodies[1]!.hasAttribute('hidden')).toBe(true)
+    expect(roots[2].closest('[hidden]')).toBeNull()
+    expect(headers[2].closest('[hidden]')).toBeNull()
+    expect(bodies[2].hasAttribute('hidden')).toBe(true)
+    expect(bodies[0].hasAttribute('hidden')).toBe(false)
+    expect(bodies[1].hasAttribute('hidden')).toBe(true)
 
     act(() => { h.setTranscriptView('verbose') })
     expect(roots.every(root => root.closest('[hidden]') === null)).toBe(true)
@@ -1066,11 +1073,11 @@ describe('ChatView', () => {
       expect(view.container.querySelector('[data-chat-flow][data-chat-motion]')).not.toBeNull()
       act(() => { h.complete() })
       expect([...view.container.querySelectorAll('[data-chat-group-key]')]).toEqual(roots)
-      expect(roots[0]!.hasAttribute('hidden')).toBe(mode !== 'verbose')
-      expect(roots[1]!.closest('[hidden]')).toBeNull()
+      expect(roots[0].hasAttribute('hidden')).toBe(mode !== 'verbose')
+      expect(roots[1].closest('[hidden]')).toBeNull()
       const grouped = mode === 'compact' || mode === 'standard'
-      expect(roots[1]!.querySelector('[data-step-process-body]')?.hasAttribute('hidden')).toBe(grouped)
-      expect(roots[1]!.querySelector('[data-process-activity]')?.closest('[hidden]') !== null).toBe(!grouped)
+      expect(roots[1].querySelector('[data-step-process-body]')?.hasAttribute('hidden')).toBe(grouped)
+      expect(roots[1].querySelector('[data-process-activity]')?.closest('[hidden]') !== null).toBe(!grouped)
       const control = view.container.querySelector<HTMLButtonElement>('[data-turn-process="2"]')!
       expect(control.disabled).toBe(mode === 'verbose')
       if (mode !== 'verbose') expect(control.getAttribute('aria-expanded')).toBe('true')
@@ -1361,7 +1368,7 @@ describe('ChatView', () => {
       expect(allHeaders[40]?.textContent).toBe(mode === 'compact' ? liveLabel
         : `${liveLabel}${h.props.t('message.turnProcess.separator')}pwd`)
     }
-    const running = groups[40]!
+    const running = groups[40]
     act(() => {
       groupStore.prepareAndInstall({ groups: { kind: 'apply', removes: [], upserts: [{
         ...running, data: { ...running.data, closed: true },
@@ -1415,7 +1422,7 @@ describe('ChatView', () => {
     const builder = new ChatSnapshotBuilder()
     const replacement = builder.replace({ nodes: snapshot.nodes.values(), timeline: snapshot.timeline })
     act(() => { h.set({ chat: replacement }) })
-    const current = replacement.nodes.get(members[0]!.key) as ChatNode<'user'>
+    const current = replacement.nodes.get(members[0].key) as ChatNode<'user'>
     act(() => {
       builder.apply({
         upserts: [{ ...current, data: { ...current.data, content: [{ type: 'text', text: 'after rebuild' }] } }],
@@ -1994,7 +2001,7 @@ describe('ChatView', () => {
       await historyFrame()
       expect(h.consumeOlder).toHaveBeenCalledOnce()
       expect(scroller.scrollTop).toBe(500)
-      expect(rows[0]!.getBoundingClientRect().top).toBe(20)
+      expect(rows[0].getBoundingClientRect().top).toBe(20)
       expect(h.chatScroll.read()?.anchorKey).toBe('fixture:user:20')
     } finally {
       if (originalHitTest !== undefined) {
@@ -2157,8 +2164,8 @@ describe('ChatView', () => {
     // steering bubble's placement in the Chat list.
     const branchButtons = view.getAllByRole('button', { name: '在新对话中分支' })
     expect(branchButtons).toHaveLength(1)
-    expect(branchButtons[0]!.getAttribute('aria-disabled')).toBeNull()
-    fireEvent.click(branchButtons[0]!)
+    expect(branchButtons[0].getAttribute('aria-disabled')).toBeNull()
+    fireEvent.click(branchButtons[0])
     // The branch action sends the real turn/end seq (the exact inclusive
     // Host boundary), not the assistant node seq.
     expect(h.forkAt).toHaveBeenCalledWith(3)
@@ -2401,15 +2408,15 @@ describe('ChatView', () => {
     // The claim logs both steering rows before its prompt. The remaining echoes
     // follow the running Turn's empty control, which has no height; the
     // stylesheet keeps them at the input gap (turn-tail-spacing spec).
-    act(() => { h.setChat({ nodes: [durableSteering(2, steers[0]!)] }) })
+    act(() => { h.setChat({ nodes: [durableSteering(2, steers[0])] }) })
     expect(flow()).toEqual(['s1', 'title', 's2*', 'next*', 'status'])
-    act(() => { h.setChat({ nodes: [durableSteering(2, steers[0]!), durableSteering(3, steers[1]!)] }) })
+    act(() => { h.setChat({ nodes: [durableSteering(2, steers[0]), durableSteering(3, steers[1])] }) })
     expect(flow()).toEqual(['s1', 's2', 'title', 'next*', 'status'])
     const prompt: UserMessageNode & { turn: number } = {
       ...user(4, next.text), turn: 1, source: { kind: 'user', rpcId: next.requestId },
     }
     act(() => {
-      h.setChat({ nodes: [durableSteering(2, steers[0]!), durableSteering(3, steers[1]!), prompt] })
+      h.setChat({ nodes: [durableSteering(2, steers[0]), durableSteering(3, steers[1]), prompt] })
     })
     expect(flow()).toEqual(['s1', 's2', 'next', 'title', 'status'])
   })
@@ -2465,14 +2472,14 @@ describe('ChatView', () => {
       expect(view.getAllByText('steer first')).toHaveLength(1)
 
       act(() => { h.setChat({ nodes: [assistant(1, 'working'), {
-        ...steering(2, 'steer first', 1), source: pending[0]!.source,
+        ...steering(2, 'steer first', 1), source: pending[0].source,
       }] }) })
       expect(view.getAllByText('steer first')).toHaveLength(1)
       expect(view.getByText('steer first').closest('[data-pending-steering]')).toBeNull()
       expect(view.getByText('steer second').closest('[data-submission-echo]')).toBe(second)
 
-      act(() => { h.setSession({ testInbox: { 'next-turn': [], 'next-step': [pending[1]!] } }) })
-      act(() => { h.setSession({ pendingSubmissions: [submissions[1]!] }) })
+      act(() => { h.setSession({ testInbox: { 'next-turn': [], 'next-step': [pending[1]] } }) })
+      act(() => { h.setSession({ pendingSubmissions: [submissions[1]] }) })
       expect(view.getAllByText('steer first')).toHaveLength(1)
       expect(view.getByText('steer second').closest('[data-submission-echo]')).toBe(second)
     },
@@ -2728,11 +2735,35 @@ describe('ChatView', () => {
       '任务已停止DSH 进程在本轮完成前退出（例如被强制结束、崩溃或关闭超时），重新启动后本轮已中止。未完成的工具调用结果未知。',
       '本轮运行失败缺少模型凭据：请先登录账号（登录后可使用官方配置的模型），或在 设置 → 模型 中填写该提供方的 API 密钥。MISSING_CREDENTIAL',
     ])
-    // The transient notice is the frame-wide host's job; the failure row keeps
-    // neither a recharge affordance nor a toast of its own.
+    // The transient notice is the frame-wide host's job. The row itself offers
+    // no repair here because no feature fills its top-up seat.
     expect(view.queryByRole('alert')).toBeNull()
     expect(view.queryByRole('dialog')).toBeNull()
     expect(view.queryByRole('button', { name: '去充值' })).toBeNull()
+  })
+
+  it('appends the registered top-up gesture to each quota failure row', () => {
+    const h = makeHarness({ nodes: [
+      user(1, 'try'), turnError(2, 'AUTH'), turnError(3, 'QUOTA'), turnError(4, 'ACCOUNT_QUOTA'),
+    ] })
+    const seen: Array<{ name: string; code: string | undefined; label: string }> = []
+    h.setTurnErrorFix((name, owner) => {
+      seen.push({ name, code: owner.code, label: owner.label })
+      return <button type="button">{owner.label}</button>
+    })
+    const view = render(<h.ChatView {...h.props} />)
+    // Both quota codes reach the seat; the non-quota failure gives it nothing.
+    expect(seen).toEqual([
+      { name: 'conversation.chat.turn-error.top-up', code: 'QUOTA', label: '去充值' },
+      { name: 'conversation.chat.turn-error.top-up', code: 'ACCOUNT_QUOTA', label: '去充值' },
+    ])
+    const actions = view.getAllByRole('button', { name: '去充值' })
+    expect(actions).toHaveLength(2)
+    for (const action of actions) {
+      // The action rides in the failure row, not in a separate strip.
+      expect(action.closest('[role="status"]')?.textContent).toContain('当前请求的额度已用尽')
+    }
+    expect(view.getByText('AUTH').closest('[role="status"]')?.textContent).toBe('本轮运行失败API 密钥无效AUTH')
   })
 
   it('embeds the registered repairs inside the missing-credential sentence', () => {
@@ -2845,7 +2876,7 @@ describe('ChatView', () => {
     // Replies alone leave nothing to fold.
     expect(third?.disabled).toBe(true)
 
-    fireEvent.click(first!)
+    fireEvent.click(first)
     expect(visible('inspect the repository')).toBe(true)
   })
 
@@ -2926,7 +2957,7 @@ describe('ChatView', () => {
 
     fireEvent.click(toggle)
     expect(members.map(member => member.getAttribute('hidden'))).toEqual(['until-found', 'until-found'])
-    fireEvent(members[0]!, new Event('beforematch'))
+    fireEvent(members[0], new Event('beforematch'))
     expect(toggle.getAttribute('aria-expanded')).toBe('true')
     expect(members.map(member => member.getAttribute('hidden'))).toEqual([null, null])
 
@@ -2958,7 +2989,7 @@ describe('ChatView', () => {
 
     expect(members.map(member => member.dataset.chatFlowKind)).toEqual(['context', 'assistant-step', 'tool-call'])
     expect(members.map(member => member.getAttribute('hidden'))).toEqual(['until-found', 'until-found', 'until-found'])
-    fireEvent(members[0]!, new Event('beforematch'))
+    fireEvent(members[0], new Event('beforematch'))
     expect(turnProcessControl(view.container)?.getAttribute('aria-expanded')).toBe('true')
     expect(members.map(member => member.getAttribute('hidden'))).toEqual([null, null, null])
   })
@@ -3099,12 +3130,12 @@ describe('ChatView', () => {
         expect([...view.container.querySelectorAll('[data-chat-group-key]')]).toEqual(roots)
       }
       act(() => { h.setTranscriptView('compact') })
-      fireEvent.click(headers[1]!)
+      fireEvent.click(headers[1])
       expect(headers.map(header => header.getAttribute('aria-expanded'))).toEqual(['false', 'true', 'false'])
-      expect(roots[1]!.querySelector('[data-step-process-body]')?.hasAttribute('hidden')).toBe(false)
-      expect(roots[1]!.querySelector('[data-turn-process-member]')?.hasAttribute('hidden')).toBe(false)
+      expect(roots[1].querySelector('[data-step-process-body]')?.hasAttribute('hidden')).toBe(false)
+      expect(roots[1].querySelector('[data-turn-process-member]')?.hasAttribute('hidden')).toBe(false)
       expect(visibleOrder()).toEqual(order)
-      fireEvent.click(headers[1]!)
+      fireEvent.click(headers[1])
       expect(headers.map(header => header.getAttribute('aria-expanded'))).toEqual(['false', 'false', 'false'])
       expect(visibleOrder()).toEqual(order)
     },
@@ -3770,8 +3801,8 @@ describe('ChatView', () => {
     // The user bubble offers no branch; the settled answer's is live.
     const buttons = view.getAllByRole('button', { name: '在新对话中分支' })
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.getAttribute('aria-disabled')).toBeNull()
-    fireEvent.click(buttons[0]!)
+    expect(buttons[0].getAttribute('aria-disabled')).toBeNull()
+    fireEvent.click(buttons[0])
     expect(h.forkAt.mock.calls).toEqual([[3]])
   })
 
@@ -3833,8 +3864,8 @@ describe('ChatView', () => {
     expect(view.getAllByRole('button', { name: '复制' })).toHaveLength(2)
     const buttons = view.getAllByRole('button', { name: '在新对话中分支' })
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.getAttribute('aria-disabled')).toBe('true')
-    fireEvent.click(buttons[0]!)
+    expect(buttons[0].getAttribute('aria-disabled')).toBe('true')
+    fireEvent.click(buttons[0])
     expect(h.forkAt).not.toHaveBeenCalled()
   })
 
@@ -4114,7 +4145,7 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [toolResult(3, 'a')] })
     h.props.openFile = openFile
     render(<h.ChatView {...h.props} />)
-    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await act(async () => { h.toolOwners[0].openFile('src/a.ts') })
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件' })).toBeTruthy()
     })
@@ -4134,7 +4165,7 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [toolResult(3, 'a')] })
     h.props.openFile = openFile
     render(<h.ChatView {...h.props} />)
-    await act(async () => { h.toolOwners[0]!.openFile('notes.md') })
+    await act(async () => { h.toolOwners[0].openFile('notes.md') })
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('permission denied')
     })
@@ -4149,7 +4180,7 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [toolResult(3, 'a')] })
     h.props.openFile = openFile
     render(<h.ChatView {...h.props} />)
-    await act(async () => { h.toolOwners[0]!.openFile('empty.ts') })
+    await act(async () => { h.toolOwners[0].openFile('empty.ts') })
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('无法打开此文件')
     })
@@ -4165,7 +4196,7 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [toolResult(3, 'a')] })
     h.props.openFile = openFile
     render(<h.ChatView {...h.props} />)
-    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await act(async () => { h.toolOwners[0].openFile('src/a.ts') })
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('first refusal')
     })
@@ -4186,7 +4217,7 @@ describe('ChatView', () => {
     const h = makeHarness({ nodes: [toolResult(3, 'a')] })
     h.props.openFile = openFile
     render(<h.ChatView {...h.props} />)
-    await act(async () => { h.toolOwners[0]!.openFile('src/a.ts') })
+    await act(async () => { h.toolOwners[0].openFile('src/a.ts') })
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件' }).textContent).toContain('first refusal')
     })
@@ -4876,7 +4907,7 @@ describe('ChatView', () => {
     expect(ov.getByText('已完成')).toBeTruthy()
   })
 
-  it('renders /compact as one stateful disclosure from running through completion', () => {
+  it('renders /compact as one row from running through a completed checkpoint that opens in the Sidebar', () => {
     const running = command({
       commandId: 'cmd-compact' as CommandNode['commandId'],
       name: 'compact',
@@ -4903,15 +4934,29 @@ describe('ChatView', () => {
     expect(view.queryByText('正在压缩…')).toBeNull()
     expect(view.queryByText('上下文已压缩')).toBeNull()
     expect(view.getByText('已压缩 16 条历史记录（约 11309 tokens）')).toBeTruthy()
-    const row = view.getByRole('button', { name: /compact/ })
-    expect(row.getAttribute('aria-expanded')).toBe('false')
+    const row = view.getByRole('button', { name: /compact.*在侧栏查看压缩摘要/ })
+    expect(row.getAttribute('aria-expanded')).toBeNull()
+    expect(row.getAttribute('data-compaction-seq')).toBe('8')
     expect(row.querySelector('[data-compaction-icon="context"]')).not.toBeNull()
-    expect(row.querySelector('[data-compaction-disclosure="collapsed"]')).not.toBeNull()
-    expect(view.queryByText('保留的事实。')).toBeNull()
+    expect(row.querySelector('[data-compaction-icon="open"]')).not.toBeNull()
     fireEvent.click(row)
-    expect(row.getAttribute('aria-expanded')).toBe('true')
-    expect(row.querySelector('[data-compaction-disclosure="expanded"]')).not.toBeNull()
-    expect(view.getByRole('heading', { name: '压缩摘要' })).toBeTruthy()
+    expect(h.openCompaction).toHaveBeenCalledExactlyOnceWith(7, expect.any(AbortSignal))
+    expect(view.container.querySelector('[class*="compactionBody"]')).toBeNull()
+  })
+
+  it('disables compaction rows while no Sidebar tab type opens checkpoints and enables them live', () => {
+    const h = makeHarness({ nodes: [compaction({ seq: 12, summaryEventSeq: 11 })] })
+    h.setCompactionPreview(false)
+    const view = render(<h.ChatView {...h.props} />)
+    const row = view.getByRole('button', { name: /上下文已压缩/ })
+    expect(row).toHaveProperty('disabled', true)
+    expect(row.textContent).not.toContain('在侧栏查看压缩摘要')
+    fireEvent.click(row)
+    expect(h.openCompaction).not.toHaveBeenCalled()
+    act(() => { h.setCompactionPreview(true) })
+    expect(row).toHaveProperty('disabled', false)
+    fireEvent.click(row)
+    expect(h.openCompaction).toHaveBeenCalledExactlyOnceWith(11, expect.any(AbortSignal))
   })
 
   it('keeps /compact no-history and error settlements on the generic command row', () => {

@@ -75,9 +75,8 @@ export interface ModelListEditorProps {
   /** Installed provider whose catalog supplies defaults without endpoint I/O. */
   catalogProvider?: string | undefined
   /**
-   * Reasoning levels a hand-declared route's rows may declare in
-   * `reasoningEfforts`, in escalation order; absent or empty shows no
-   * reasoning control, leaving a catalog model's levels to the catalog.
+   * Reasoning levels the rows may declare in `reasoningEfforts`, in
+   * escalation order; absent or empty shows no reasoning control.
    */
   reasoningLevels?: readonly string[] | undefined
   /** Whether the route's protocol accepts only {@link reasoningLevels}, each sent under its own name. */
@@ -176,6 +175,14 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
   }, [catalogProvider, operations, probe.settingsNs])
   const catalog = inheritedCatalog?.provider === catalogProvider ? inheritedCatalog?.models : undefined
   const inputDefaults = useMemo(() => new Map(catalog?.map(model => [model.id, model.inputModalities])), [catalog])
+  // The catalog a route without a user-owned array serves. It is not
+  // configuration, so it is shown row by row but never written: an edit
+  // materializes the user layer, which is what the fetch and add actions do.
+  const inheritedDrafts = useMemo(() => (catalog ?? []).map(adopt), [catalog])
+  const inheritedRows = useModelRows(inheritedDrafts, () => {
+    // Read-only: the inherited catalogue has no writable array to change.
+  }, true)
+  const listsInherited = props.overridden === false && models.length === 0 && inheritedDrafts.length > 0
   const [candidates, setCandidates] = useState<readonly LlmDiscoveredModel[] | undefined>(undefined)
   // Candidates whose checkbox the user flipped from its default. The default
   // is read from the list at render, so a row drafted while the fetch was in
@@ -346,8 +353,49 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
           {busy ? t('fetching') : t('fetchModels')}
         </button>
       </div>
-      {models.length === 0 ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
-      <AnimatedRows className={styles['modelList'] as string} rowKeys={rowState.rows.map(row => String(row.key))} ready resetKey="">
+      {models.length === 0 && !listsInherited ? <p className={styles['modelEmpty']}>{t('modelsEmpty')}</p> : null}
+      {listsInherited
+        ? (
+          <AnimatedRows
+            className={styles['modelList']}
+            rowKeys={inheritedRows.rows.map(row => `inherited-${String(row.key)}`)}
+            ready
+            resetKey=""
+          >
+            {inheritedRows.rows.map(({ model, key, expanded, order }, index) => (
+              <ModelRow
+                key={key}
+                rowKey={key}
+                order={order}
+                model={model}
+                position={index + 1}
+                inputField="input"
+                inputFallback={inputDefaults.get(textOf(model, 'id')) ?? props.defaultInput}
+                reasoningLevels={props.reasoningLevels}
+                reasoningLevelsOnly={props.reasoningLevelsOnly}
+                expanded={expanded}
+                disabled
+                t={t}
+                contextWindow={{
+                  value: capacitySpelling(numberOf(model, 'contextWindow')),
+                  placeholder: CAPACITY_HINT.contextWindow,
+                  onChange: () => {},
+                }}
+                maxTokens={{
+                  value: capacitySpelling(numberOf(model, 'maxTokens')),
+                  placeholder: CAPACITY_HINT.maxTokens,
+                  onChange: () => {},
+                }}
+                onFieldChange={() => {}}
+                onChange={() => {}}
+                onToggle={() => { inheritedRows.toggle(index) }}
+                onRemove={() => {}}
+              />
+            ))}
+          </AnimatedRows>
+        )
+        : null}
+      <AnimatedRows className={styles['modelList']} rowKeys={rowState.rows.map(row => String(row.key))} ready resetKey="">
         {rowState.rows.map(({ model, key, expanded, order }, index) => (
           <ModelRow
             key={key}
@@ -399,7 +447,7 @@ export function ModelListEditor(props: ModelListEditorProps): ReactNode {
         title={t('fetchTitle')}
         closeLabel={t('close')}
         description={t('fetchDescription')}
-        className={styles['fetchDialog'] as string}
+        className={styles['fetchDialog']}
         footer={(
           <>
             <Button variant="outline" onClick={closePicker}>{t('cancel')}</Button>

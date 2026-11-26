@@ -43,6 +43,8 @@ const SESSION = {
 }
 
 const exchangeCalls: unknown[] = []
+/** What the diagnostics probe of the hosted bootstrap answers; defaults to success. */
+let authorizationBootstrapError: unknown
 /** Token snapshot each account-profile read observed, to prove the read is authenticated. */
 const profileCalls: Array<{ accessToken?: string; authToken?: string; refreshToken?: string }> = []
 /** What the account endpoint reports, richer than the exchange payload. */
@@ -62,6 +64,10 @@ const client = {
   // exchange fake the assertions observe.
   http: {
     request: vi.fn(async (path: string, options: { body?: unknown }) => {
+      if (path === '/app/v3/api/oauth/authorizations') {
+        if (authorizationBootstrapError !== undefined) throw authorizationBootstrapError
+        return { item: { authorizationStateId: 'diagnostics-state-1' } }
+      }
       if (path !== '/app/v3/api/oauth/desktop_sessions') throw new Error(`unexpected request: ${path}`)
       return client.oauth.desktopSessions.create(options.body)
     }),
@@ -222,6 +228,7 @@ describe('deeplink login end to end', () => {
     durableRecord = null
     loopbackHandlers = []
     loopbackCanceled = 0
+    authorizationBootstrapError = undefined
     client.oauth.desktopSessions.create.mockClear()
     client.http.request.mockClear()
     client.iam.users.current.retrieve.mockClear()
@@ -232,13 +239,13 @@ describe('deeplink login end to end', () => {
       clear: () => { storage.clear() },
       key: () => null,
       length: 0,
-    } as Storage
+    }
     installDesktopBridge()
   })
 
   afterEach(() => {
-    Reflect.deleteProperty(globalThis as Record<string, unknown>, 'sdkworkDesktop')
-    Reflect.deleteProperty(globalThis as Record<string, unknown>, 'dshDesktop')
+    Reflect.deleteProperty(globalThis, 'sdkworkDesktop')
+    Reflect.deleteProperty(globalThis, 'dshDesktop')
     vi.clearAllMocks()
   })
 
@@ -341,6 +348,9 @@ describe('deeplink login end to end', () => {
     // 7. The settings-menu account row and a held backend call both see the login.
     expect(createIamAccountSource(service).getSnapshot()).toEqual({ signedIn: true, username: 'Bird Profile' })
     expect(service.browserSignInFailure()).toBeUndefined()
+    // 8. The deep link is the outcome of a login the user may have left running
+    //    after closing the card, so it is announced rather than left silent.
+    expect(service.signInNotice()).toMatchObject({ kind: 'signed-in', accountName: 'Bird Profile' })
   })
 
   it('uses a per-process loopback redirect and redeems its callback', async () => {
@@ -418,7 +428,11 @@ describe('deeplink login end to end', () => {
       const authorizeUrl = new URL(openedUrls[0])
       expect(authorizeUrl.searchParams.get('redirect_uri')).toBe(redirectUri)
       const state = authorizeUrl.searchParams.get('state')
-      await fetch(`${redirectUri}?code=http-loopback&state=${state}`)
+      // The authorization server's redirect is a top-level document navigation;
+      // the listener rejects programmatic callers.
+      await fetch(`${redirectUri}?code=http-loopback&state=${state}`, {
+        headers: { 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' },
+      })
       await vi.waitFor(() => { expect(service.isSignedIn()).toBe(true) })
       expect(exchangeCalls[0]).toMatchObject({ authorizationCode: 'http-loopback', redirectUri })
     } finally {
@@ -494,6 +508,74 @@ describe('deeplink login end to end', () => {
     expect(client.iam.users.current.retrieve).not.toHaveBeenCalled()
   })
 
+  it('asks the IAM server for the report a failed hosted authorization did not forward', async () => {
+    const problem = {
+      type: 'https://docs.sdkwork.com/problems/40001',
+      title: 'Validation failed',
+      status: 400,
+      code: 40001,
+      detail: 'OAuth client birdcoder is registered on an installation that is not bound to a deploy application',
+      traceId: 'trace-hosted-1',
+      instance: 'POST /app/v3/api/oauth/authorizations',
+      operationId: 'authorizations.create',
+    }
+    authorizationBootstrapError = Object.assign(new Error(problem.detail), {
+      httpStatus: 400,
+      code: 'VALIDATION_ERROR',
+      traceId: problem.traceId,
+      problem,
+    })
+    const service = new IamService(scopeOf(), envOf(), layoutOf())
+    await service.beginBrowserSignIn()
+    const state = new URL(openedUrls[0]).searchParams.get('state')
+    emitDeepLink(
+      `${REDIRECT}?error=server_error&error_description=The hosted authorization could not be started.&state=${state}`,
+    )
+
+    // The page's own sentence arrives first; the probe fills in the server's
+    // answer for the same attempt, so the details view never shows a bare
+    // `server_error`.
+    await vi.waitFor(() => {
+      expect(service.browserSignInFailure()?.response).toMatchObject({
+        status: 400,
+        code: '40001',
+        traceId: 'trace-hosted-1',
+      })
+    })
+    expect(service.browserSignInFailure()).toMatchObject({ code: 'provider-denied', detail: 'server_error' })
+    expect(service.browserSignInFailure()?.response?.body).toContain('not bound to a deploy application')
+    expect(service.browserSignInFailure()?.response?.body).toContain('authorizations.create')
+
+    // The probe repeats the page's own anonymous bootstrap request: same client
+    // and callback, a throwaway state and S256 challenge, no credentials.
+    const probe = client.http.request.mock.calls.find(([path]) => path === '/app/v3/api/oauth/authorizations')
+    expect(probe).toBeDefined()
+    const probeOptions = probe?.[1] as { method?: string; skipAuth?: boolean; body?: Record<string, string> }
+    expect(probeOptions.method).toBe('POST')
+    expect(probeOptions.skipAuth).toBe(true)
+    expect(probeOptions.body).toMatchObject({
+      clientId: 'birdcoder',
+      responseType: 'code',
+      redirectUri: REDIRECT,
+      codeChallengeMethod: 'S256',
+    })
+    expect(probeOptions.body?.codeChallenge).toMatch(/^[A-Za-z0-9\-._~]{43,128}$/u)
+    expect(service.isSignedIn()).toBe(false)
+    expect(durableRecord).toBeNull()
+  })
+
+  it('does not ask the server to explain a consent the user refused', async () => {
+    const service = new IamService(scopeOf(), envOf(), layoutOf())
+    await service.beginBrowserSignIn()
+    const state = new URL(openedUrls[0]).searchParams.get('state')
+    emitDeepLink(`${REDIRECT}?error=access_denied&error_description=The user refused&state=${state}`)
+
+    await vi.waitFor(() => { expect(service.browserSignInFailed()).toBe(true) })
+    expect(service.browserSignInFailure()).toMatchObject({ code: 'provider-denied', detail: 'access_denied' })
+    expect(client.http.request.mock.calls.some(([path]) => path === '/app/v3/api/oauth/authorizations')).toBe(false)
+    expect(service.browserSignInFailure()?.response).toBeUndefined()
+  })
+
   it('reports a rejected code exchange and leaves the app signed out', async () => {
     const service = new IamService(scopeOf(), envOf(), layoutOf())
     await service.beginBrowserSignIn()
@@ -506,6 +588,36 @@ describe('deeplink login end to end', () => {
     expect(service.browserSignInFailure()).toMatchObject({ code: 'exchange-failed' })
     expect(durableRecord).toBeNull()
     expect(getSdkworkGlobalTokenManager().getTokens()?.authToken).toBeUndefined()
+  })
+
+  it('keeps the server report of a rejected code exchange for the details view', async () => {
+    const service = new IamService(scopeOf(), envOf(), layoutOf())
+    await service.beginBrowserSignIn()
+    const state = new URL(openedUrls[0]).searchParams.get('state')
+    // The generated transport rejects with the IAM endpoint's problem document;
+    // the desktop runtime keeps only the message, so the card's details view
+    // depends on the redeem leg reporting the rest itself.
+    const problem = {
+      type: 'https://docs.sdkwork.com/problems/40002',
+      title: 'Validation failed',
+      status: 400,
+      code: 40002,
+      detail: 'installation is not bound to a deploy application (安装未绑定部署应用)',
+      traceId: 'trace-exchange-1',
+    }
+    client.oauth.desktopSessions.create.mockRejectedValueOnce(Object.assign(
+      new Error(problem.detail),
+      { httpStatus: 400, code: 'VALIDATION_ERROR', traceId: problem.traceId, problem },
+    ))
+    emitDeepLink(`${REDIRECT}?code=code-4c&state=${state}`)
+
+    await vi.waitFor(() => { expect(service.browserSignInFailed()).toBe(true) })
+    const failure = service.browserSignInFailure()
+    expect(failure).toMatchObject({ code: 'exchange-failed' })
+    expect(failure?.response).toMatchObject({ status: 400, code: '40002', traceId: 'trace-exchange-1' })
+    expect(failure?.response?.body).toContain('installation is not bound to a deploy application')
+    expect(service.isSignedIn()).toBe(false)
+    expect(durableRecord).toBeNull()
   })
 
   it('discards a committed session the account endpoint refuses', async () => {
@@ -589,6 +701,32 @@ describe('deeplink login end to end', () => {
     await service.controller.signOut()
     expect(getSdkworkGlobalTokenManager().getTokens().authToken).toBeUndefined()
   }, 30_000)
+
+  it('completes a login whose deep-link event never reached the page, by taking it from the shell', async () => {
+    vi.useFakeTimers()
+    try {
+      // The shell accepted the callback, but the renderer that owns the pending
+      // flow had no listener when the event fired (a reloading document or a
+      // plugin that had not bootstrapped). Only the shell's take still knows it.
+      let pendingUrl: string | null = null
+      const bridge = (globalThis as { sdkworkDesktop?: Record<string, unknown> }).sdkworkDesktop
+      const deepLinks = bridge?.deepLinks as { getInitialUrl: unknown }
+      deepLinks.getInitialUrl = async () => pendingUrl
+
+      const service = new IamService(scopeOf(), envOf(), layoutOf())
+      await service.beginBrowserSignIn()
+      const state = new URL(openedUrls[0]).searchParams.get('state')
+      pendingUrl = `${REDIRECT}?code=code-recovered&state=${state}`
+      // No deep-link event is emitted anywhere: the waiting flow has to ask.
+      await vi.advanceTimersByTimeAsync(2_000)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(service.isSignedIn()).toBe(true)
+      expect(exchangeCalls[0]).toMatchObject({ authorizationCode: 'code-recovered', redirectUri: REDIRECT })
+      expect(durableRecord).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 
   it('ignores a repeated callback after the login already completed', async () => {
     const service = new IamService(scopeOf(), envOf(), layoutOf())

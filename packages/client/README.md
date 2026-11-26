@@ -54,6 +54,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-sdkwork-drive/`](ui-sdkwork-drive/README.md) | Provides the SDKWork-backed Drive mode as an independent plugin | — |
 | [`ui-sdkwork-assets/`](ui-sdkwork-assets/README.md) | Provides the Assets mode as an independent module | — |
 | [`ui-sdkwork-token-plan/`](ui-sdkwork-token-plan/README.md) | Provides the SDKWork membership and commerce mode as an independent plugin | — |
+| [`ui-sdkwork-message-center/`](ui-sdkwork-message-center/README.md) | Provides the SDKWork account message center as the rail shortcut above Settings and its center-column page | — |
 | [`ui-sdkwork-pptx-preview/`](ui-sdkwork-pptx-preview/README.md) | Draws `.pptx` presentations in the right Sidebar's document tab with an offline OOXML renderer | `ctx.documentPreviews` |
 | [`ui-sdkwork-docx-preview/`](ui-sdkwork-docx-preview/README.md) | Draws `.docx` documents in the right Sidebar's document tab with an offline WordprocessingML renderer | `ctx.documentPreviews` |
 | [`ui-sdkwork-xlsx-preview/`](ui-sdkwork-xlsx-preview/README.md) | Draws `.xlsx` workbooks in the right Sidebar's document tab with an offline SpreadsheetML renderer | `ctx.documentPreviews` |
@@ -106,6 +107,9 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-entry-customization/`](ui-entry-customization/README.md) | Adds region-local More menus that pin or unpin plugin launchers and start a plugin draft | — |
 | [`ui-plugin-market/`](ui-plugin-market/README.md) | Contributes the Discover tab to the Plugins page: browse market indexes and install their bundles | — |
 | [`ui-deliverables/`](ui-deliverables/README.md) | Produces the changed-files card with its comparison tabs, delivery cards, and clickable final-response file references | — |
+| [`ui-action-cards/`](ui-action-cards/README.md) | Shows the card frame below completed answers, kind bodies and the layer that hides card blocks | — |
+| [`ui-creation-recommendations/`](ui-creation-recommendations/README.md) | Shows the personalized page card body with location selection and undo | — |
+| [`ui-plugin-recommendations/`](ui-plugin-recommendations/README.md) | Shows the official plugin card body with catalog text and enabling | — |
 | [`ui-message-feedback/`](ui-message-feedback/README.md) | Provides message ratings and feedback dialogs opened from ratings, `/feedback`, or the Session Header menu | `ctx.feedbackUi` |
 | [`ui-directory-picker-browse/`](ui-directory-picker-browse/README.md) | In-app directory browsing surface for the workspace directory flow | — |
 | [`ui-directory-picker-native/`](ui-directory-picker-native/README.md) | Native directory-picker surface driving the local Desktop or Host OS chooser | — |

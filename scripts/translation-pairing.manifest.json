@@ -17,13 +17,8 @@
     "docs/i18n/terminology.md",
     "docs/i18n/translation-prompt.md",
     "docs/runbooks/",
-    "plugins/dsh-better-sidebar/",
-    "plugins/dsh-im/",
-    "plugins/dsh-mcp-connector/",
-    "plugins/dsh-skill-market/",
-    "plugins/dsh-ui-usage-billing/",
     "sdks/sdkwork-birdcoder2-app-sdk/",
-    "plugins/sdkwork-deepseekbot/",
-    "plugins/sdkwork-dsh-agents/"
+    "plugins/README.md",
+    "plugins/sdkwork-deepseekbot/"
   ]
 }

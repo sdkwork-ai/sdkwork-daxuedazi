@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-birdcoder-account` turns a signed-in SDKWork IAM session into a ready-to-use BirdCoder relay. BirdCoder accepts the IAM `authToken` as its API key on its OpenAI-compatible `/v1` face, so a signed-in user needs no separate credential. The plugin reads that token from the credentials the session reaches the Host through — the desktop shell's plaintext projection beside its encrypted durable session, or the `BIRDCODER_AUTH_TOKEN` reference a browser client writes through the Host credential plane — stores it under `BIRDCODER_API_KEY`, and declares the `birdcoder` profile over `openai-completions` when settings have none. The Models page then shows a configured provider and its models, model discovery and dispatch authenticate with the token, and a user-stored key always wins. Sign-out removes only the writes this plugin made and restores the previous default model.
+`dsh-birdcoder-account` turns a signed-in SDKWork IAM session into a ready-to-use BirdCoder relay. BirdCoder accepts the IAM `authToken` as its API key on its OpenAI-compatible `/v1` face, so a signed-in user needs no separate credential. The plugin reads that token from the credentials the session reaches the Host through, stores it under `BIRDCODER_API_KEY`, and declares the `birdcoder` profile over `openai-completions` when settings have none. Sign-out removes only the writes this plugin made and restores the previous default model.
 
 ## Table of Contents
 
@@ -37,9 +37,19 @@ The Web/Desktop bundle ships the same `birdcoder` profile and sets `agent-defaul
     sessionCredentialRef: BIRDCODER_AUTH_TOKEN
     settingsNs: llm-pi-ai
     pollIntervalMs: 2000
+    # Operator-authored front-end model surface projected onto the relay catalog.
+    modelCatalogEnabled: true
+    modelCatalogEndpoint: https://api.birdcoder.com/app/v3/api/ai/frontend_config
+    # Empty means frontend-model-config.json beside the session (shell projection).
+    modelCatalogDocumentFile: ""
+    modelCatalogChannelCode: llm
+    modelCatalogPollIntervalMs: 300000
+    modelCatalogTimeoutMs: 10000
+    modelCatalogAuthToken: ""
+    modelCatalogAccessToken: ""
 ```
 
-`sessionFile` defaults to `<DSH_HOME>/iam/session.json`, `relaySessionFile` to `relay-session.json` beside it, `stateFile` to `birdcoder-account.json` beside it, `credentialRef` to `BIRDCODER_API_KEY`, `sessionCredentialRef` to `BIRDCODER_AUTH_TOKEN`, and `settingsNs` to the bundled `llm-pi-ai` entry. `pollIntervalMs: 0` disables polling and leaves the mount-time reconciliation plus the credential-event reconciliation.
+`sessionFile` defaults to `<DSH_HOME>/iam/session.json`, `relaySessionFile` to `relay-session.json` beside it, `stateFile` to `birdcoder-account.json` beside it, `credentialRef` to `BIRDCODER_API_KEY`, `sessionCredentialRef` to `BIRDCODER_AUTH_TOKEN`, and `settingsNs` to the bundled `llm-pi-ai` entry. `pollIntervalMs: 0` disables polling and leaves the mount-time reconciliation plus the credential-event reconciliation. The `modelCatalog*` fields control the remote surface described below; set `modelCatalogEnabled: false` to keep the build-time seed only.
 
 ### Signed-in behavior
 
@@ -64,6 +74,8 @@ A launch with no desktop shell — the browser product, or a deployment that shi
 
 Polling is deliberate: the desktop shell writes the session atomically, and a small `stat`-free re-read per interval is cheaper to own than a cross-platform watcher whose teardown must be exact. The interval bounds how long after a shell-written login the relay becomes available and how long after sign-out it goes away; the client reference path is event-driven and needs no poll.
 
+The token comes from the desktop shell's plaintext projection beside its encrypted durable session, or from the `BIRDCODER_AUTH_TOKEN` reference a browser client writes through the Host credential plane. The Models page then shows a configured provider and its models, model discovery and dispatch authenticate with the token, and a user-stored key always wins.
+
 <a id="model-experience"></a>
 ## Model Experience
 
@@ -72,6 +84,18 @@ None, as the package configures relay credentials and provider settings; it adds
 #### KV Cache effect
 
 No prompt bytes change. When the plugin selects the BirdCoder default, the next request targets a different provider route, so provider-side prefix reuse does not carry across that switch.
+
+### Remote front-end model surface
+
+The relay does not seed only from the build-time catalog. Operators author which catalog models each product surface exposes in the models backend (`/admin/model/frontend`), and this plugin projects that document onto the relay catalog: the visible models of the `llm` surface become the ordered allow-list, a model a vendor retired disappears from the picker, and a model published after this build appears as a minimal relay entry instead of waiting for a release.
+
+The document is read from the first source available:
+
+1. `<DSH_HOME>/iam/frontend-model-config.json` — the desktop shell fetches the app-api document with the IAM session's dual tokens and projects it here, so no token ever reaches the Host child process;
+2. the app-api `GET /app/v3/api/ai/frontend_config` directly, when this process can read a complete (plaintext) session or the deployment provisions `modelCatalogAuthToken` / `modelCatalogAccessToken`;
+3. the build-time seed, when neither is reachable.
+
+A refresh never wipes the last known surface: an unreachable endpoint, a rejected credential, or an invalid document keeps the previous exposure, and the seed is the final offline fallback. The loader persists the last accepted document beside the account marker, bounds document sizes, validates the shape, honours `ETag`/304, times out, retries transient failures, and re-publishes on `llm/adapters-updated` so load order cannot lose a policy published before the adapter mounted. A changed exposure emits `llm/models-updated`, so the Models page and open pickers reload without a restart. An empty or disabled `llm` surface is an explicit empty exposure, not a fallback to the seed.
 
 ## Known Limitations and Deferred Work
 

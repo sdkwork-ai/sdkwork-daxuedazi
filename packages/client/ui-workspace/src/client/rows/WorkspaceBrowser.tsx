@@ -397,7 +397,7 @@ function SessionTree({
   )
   useEffect(() => {
     for (let key = revealGroup; key !== undefined; key = parents.get(key)) {
-      if (groupExpansion[key] === false || (key === revealGroup && groupExpansion[key] !== true)) {
+      if (!groupExpansion[key] || (key === revealGroup && ! groupExpansion[key])) {
         setGroupExpanded(key, true)
       }
     }
@@ -631,8 +631,8 @@ function SessionTree({
               if (drag === null) return
               commitSessionDrag(drag, { id: node.id, half: normalizeHalf(half) })
             },
-            end: () => {
-              if (drag?.over !== null && drag?.over !== undefined) commitSessionDrag(drag, drag.over)
+            end: (claimed: boolean) => {
+              if (!claimed && drag?.over !== null && drag?.over !== undefined) commitSessionDrag(drag, drag.over)
               else setDrag(null)
               sessionDropCommitted.current = false
             },
@@ -816,8 +816,8 @@ function FlatList({
                 drop: (half) => {
                   if (drag !== null) commitDrag(drag, { id: node.id, half: normalizeHalf(half) })
                 },
-                end: () => {
-                  if (drag?.over !== null && drag?.over !== undefined) commitDrag(drag, drag.over)
+                end: (claimed) => {
+                  if (!claimed && drag?.over !== null && drag?.over !== undefined) commitDrag(drag, drag.over)
                   else setDrag(null)
                   dropCommitted.current = false
                 },
@@ -1051,7 +1051,7 @@ export function WorkspaceBrowser({
   const workspaceReady = workspacePhase === 'ready' && workspaceStreamState !== 'loading'
   const mainSessionId = Object.values(list.byId)
     .find(session => (session.retainedBy.mainView ?? 0) > 0)?.id
-  const currentBlank = mainSessionId !== undefined && list.byId[mainSessionId]?.blank === true
+  const currentBlank = mainSessionId !== undefined &&  list.byId[mainSessionId]?.blank
     ? mainSessionId
     : undefined
   const ungroupedMemberIds = useMemo(() => {
@@ -1499,8 +1499,8 @@ export function WorkspaceBrowser({
                 list={list}
                 useSessionStatus={useSessionStatus}
                 shortcuts={shortcuts}
-                onRenameRequest={(workspaceId, displayTitle) => requestWorkspaceAction(workspaceId, displayTitle, 'rename')}
-                onDeleteRequest={(workspaceId, displayTitle) => requestWorkspaceAction(workspaceId, displayTitle, 'delete')}
+                onRenameRequest={(workspaceId, displayTitle) =>{  requestWorkspaceAction(workspaceId, displayTitle, 'rename') }}
+                onDeleteRequest={(workspaceId, displayTitle) =>{  requestWorkspaceAction(workspaceId, displayTitle, 'delete') }}
                 onSessionRenameRequest={requestSessionRename}
                 requestWorkspaceAction={requestWorkspaceAction}
                 onSessionArchive={onSessionArchive}

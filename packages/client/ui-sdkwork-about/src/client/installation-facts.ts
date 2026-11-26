@@ -64,14 +64,14 @@ export interface AboutInstallationFacts {
  * real destinations instead of dead buttons.
  */
 export const SHIPPED_PRODUCT_LINKS = {
-  websiteUrl: 'https://sdkwork.com/apps/sdkwork-birdcoder',
-  supportUrl: 'https://sdkwork.com/support',
-  privacyPolicyUrl: 'https://sdkwork.com/privacy',
-  termsOfServiceUrl: 'https://sdkwork.com/terms',
+  websiteUrl: 'https://www.birdcoder.com',
+  supportUrl: 'https://www.birdcoder.com/docs/support',
+  privacyPolicyUrl: 'https://www.birdcoder.com/docs/privacy',
+  termsOfServiceUrl: 'https://www.birdcoder.com/docs/terms',
 } as const
 
-/** Vendor shown in the footer before the platform answers. */
-export const SHIPPED_PRODUCT_VENDOR = 'SDKWork'
+/** Public product key the About surface displays. */
+export const SHIPPED_PRODUCT_APP_KEY = 'birdcoder'
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null

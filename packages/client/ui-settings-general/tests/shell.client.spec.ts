@@ -41,7 +41,7 @@ const withoutSettingsAccess = createClientTest({ roster: webApp }, { access: act
 const COLD_BOOT_TIMEOUT_MS = 60_000
 
 function injectedOf(c: TestClient): SettingsRootInjected {
-  const entry = c.ctx.slots.entries('sidebar.settings')[0]!
+  const entry = c.ctx.slots.entries('sidebar.settings')[0]
   return (entry.inject as () => SettingsRootInjected)()
 }
 
@@ -64,7 +64,7 @@ const CHILD_NAMES = Object.keys(CHILD_SPECS) as Array<keyof typeof CHILD_SPECS>
  * ui-settings-models, ui-plugin-manager, and ui-agent-preset. A plugin
  * adding a section changes this list.
  */
-const PRODUCT_SECTIONS: readonly string[] = ['general', 'models', 'plugins', 'agent-presets']
+const PRODUCT_SECTIONS: readonly string[] = ['general', 'models', 'plugins', 'agent-presets', 'remote-connection']
 /** Onboarding steps the web-app roster registers, in coordinator order; both come from ui-settings-models. */
 const PRODUCT_ONBOARDING: readonly { id: string; order: number }[] = [
   { id: 'welcome-notice', order: -100 },
@@ -87,7 +87,7 @@ describe.skip('ui-settings-general shell', () => {
     onTestFinished(() => { vi.unstubAllGlobals(); initial.resolve({ phase: 'idle' }) })
     const c = await start()
     const row = injectedOf(c)
-    const badge = (c.ctx.slots.entries('sidebar.toggle.badge')[0]!.inject as () => Pick<SettingsRootInjected, 'hooks'>)()
+    const badge = (c.ctx.slots.entries('sidebar.toggle.badge')[0].inject as () => Pick<SettingsRootInjected, 'hooks'>)()
     expect(badge.hooks.desktopUpdate).toBe(row.hooks.desktopUpdate)
     expect(subscribe).toHaveBeenCalledOnce()
     const status = { phase: 'available' as const, version: '1.0.1' }

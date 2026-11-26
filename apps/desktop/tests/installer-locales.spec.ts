@@ -5,11 +5,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
-import { readInstallerLocales, renderInstallerStrings } from '../scripts/installer-locales.mjs'
-import { shippedBrand } from '../scripts/brand-manifest.mjs'
-
-/** Display name the packaging run substitutes into every `{brand}` installer string. */
-const BRAND_NAME = shippedBrand().displayName
+import {
+  PRODUCT_TOKEN,
+  readInstallerLocales,
+  renderInstallerProductHeader,
+  renderInstallerStrings,
+} from '../scripts/installer-locales.mjs'
 
 function fixture(): string {
   const directory = mkdtempSync(join(tmpdir(), 'dsh-installer-locales-'))
@@ -23,19 +24,14 @@ function fixture(): string {
 it('generates Japanese NSIS strings from the same files that select packaged languages', () => {
   const locales = readInstallerLocales()
   expect(locales.map(locale => locale.id)).toEqual(['en_US', 'de_DE', 'es_ES', 'fr_FR', 'ja_JP', 'pt_BR', 'ru_RU', 'zh_CN'])
-  const source = renderInstallerStrings(locales, BRAND_NAME)
+  const source = renderInstallerStrings(locales)
   expect(source).toContain('LangString INSTALLER_INSTALL ${LANG_JAPANESE} "今すぐインストール"')
   expect(source).toContain('LangString INSTALLER_NATIVE_PROGRESS ${LANG_JAPANESE} "インストールを準備しています… %d%%"')
   expect(source).toContain('!ifdef LANG_JAPANESE\n')
-  // One line per translated key, plus the localized application name NSIS chrome reads.
-  expect(source.match(/^LangString /gmu)).toHaveLength((Object.keys(locales[0]!.strings).length + 1) * locales.length)
   expect(source.match(/^LangString INSTALLER_UPDATE_WAIT /gmu)).toHaveLength(8)
-  // Installer copy names the selected brand, never a literal product token.
-  expect(source).not.toContain('{brand}')
-  expect(source).not.toContain('BirdCoder')
-  expect(source).toContain(BRAND_NAME)
+  expect(source.match(/^LangString /gmu)).toHaveLength(locales.reduce((count, locale) => count + Object.keys(locale.strings).length, 0))
   const japanese = locales.filter(locale => locale.id === 'ja_JP')
-  expect(renderInstallerStrings(japanese, BRAND_NAME)).not.toContain('${LANG_ENGLISH}')
+  expect(renderInstallerStrings(japanese)).not.toContain('${LANG_ENGLISH}')
 })
 
 it.each(['en_US', 'zh_CN', 'ja_JP', 'es_ES', 'fr_FR', 'de_DE', 'ru_RU', 'pt_BR'])('rejects a missing %s configuration', (id) => {
@@ -56,6 +52,7 @@ it.each([
   ['invisible character', (resource: ReturnType<typeof readInstallerLocales>[number]) => { resource.strings.INSTALLER_INSTALL = 'Install\u200b' }, 'invisible'],
   ['byte-order mark', (resource: ReturnType<typeof readInstallerLocales>[number]) => { resource.strings.INSTALLER_INSTALL = 'Install\ufeff' }, 'invisible'],
   ['invalid compiler token', (resource: ReturnType<typeof readInstallerLocales>[number]) => { resource.nsisLanguage = 'JA\n!error' }, 'invalid NSIS language'],
+  ['dropped product token', (resource: ReturnType<typeof readInstallerLocales>[number]) => { resource.strings.INSTALLER_RUNNING = 'Acme is running.' }, 'format placeholders'],
 ])('rejects %s', (_name, mutate, diagnostic) => {
   const directory = fixture()
   const resource = readInstallerLocales(directory).find(locale => locale.id === 'ja_JP')!
@@ -64,33 +61,33 @@ it.each([
   expect(() => readInstallerLocales(directory)).toThrow(diagnostic)
 })
 
+it('renders the selected brand name into every product mention', () => {
+  const locales = readInstallerLocales()
+  // The resources carry a token, so no language ships a hard-coded product name.
+  expect(locales.flatMap(locale => Object.values(locale.strings)).join('\n')).not.toContain('BirdCoder')
+  expect(renderInstallerStrings(locales)).toContain('LangString INSTALLER_RUNNING ${LANG_ENGLISH} "BirdCoder is running.')
+  const oem = renderInstallerStrings(locales, 'Acme Coder')
+  expect(oem).not.toContain(PRODUCT_TOKEN)
+  expect(oem).toContain('"Acme Coder is running.')
+  expect(oem).toContain('无法启动 Acme Coder')
+  expect(oem).toContain('当前设备在多个位置安装了 Acme Coder')
+  expect(oem).toContain('{LANG_ENGLISH} "Acme Coder is installed in multiple locations"'.replace('{LANG', '${LANG'))
+  expect(() => renderInstallerStrings(locales, '   ')).toThrow(/product name must not be empty/)
+})
+
+it('renders the native helper product-name header from the selected brand', () => {
+  expect(renderInstallerProductHeader('BirdCoder')).toContain('#define DSH_INSTALLER_PRODUCT_NAME L"BirdCoder"')
+  expect(renderInstallerProductHeader('Acme Coder')).toContain('#define DSH_INSTALLER_PRODUCT_NAME L"Acme Coder"')
+  // A name carrying a quote or a backslash cannot break the C++ literal.
+  expect(renderInstallerProductHeader('A"B\\C')).toContain('L"A\\"B\\\\C"')
+  expect(() => renderInstallerProductHeader('   ')).toThrow(/must not be empty/)
+  expect(() => renderInstallerProductHeader('bad\u0000name')).toThrow(/control characters/)
+})
+
 it('escapes literal NSIS syntax without changing translated text', () => {
   const locale = readInstallerLocales()[0]!
-  expect(renderInstallerStrings([{ ...locale, strings: { INSTALLER_INSTALL: '"$name"\nnext\rline' } }], BRAND_NAME))
+  expect(renderInstallerStrings([{ ...locale, strings: { INSTALLER_INSTALL: '"$name"\nnext\rline' } }]))
     .toContain('"$\\"$$name$\\"$\\nnext$\\rline"')
-})
-
-it('resolves the installed application name once per installer language', () => {
-  const locales = readInstallerLocales()
-  const seen: string[] = []
-  const source = renderInstallerStrings(locales, (id) => {
-    seen.push(id)
-    return `Name-${id}`
-  })
-  expect(seen).toEqual(locales.map(locale => locale.id))
-  for (const locale of locales) {
-    expect(source).toContain(`LangString INSTALLER_APP_NAME \${LANG_${locale.nsisLanguage}} "Name-${locale.id}"`)
-  }
-  // The same per-language value also replaces the `{brand}` copy placeholder.
-  expect(source).toContain('Name-zh_CN 正在运行')
-  expect(source).not.toContain('{brand}')
-})
-
-it('requires a brand display name and substitutes it into every placeholder', () => {
-  const locales = readInstallerLocales()
-  expect(() => renderInstallerStrings(locales, '')).toThrow(/brand display name/u)
-  const source = renderInstallerStrings(locales, BRAND_NAME)
-  expect(source.match(new RegExp(BRAND_NAME, 'gu'))?.length ?? 0).toBeGreaterThanOrEqual(24)
 })
 
 it('uses the real electron-builder language identifiers and English fallback', () => {

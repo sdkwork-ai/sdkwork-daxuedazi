@@ -21,8 +21,9 @@
  * `scripts/generate-sdkwork-relay-models.mjs`), so a catalog bump refreshes
  * what the picker offers instead of leaving a hand-kept list behind. A seed
  * model borrows the wire facts and compatibility block of the same model in
- * the installed OpenRouter catalog when pi-ai describes it, and otherwise
- * states only what the SDKWork catalog states. The endpoint's own
+ * the installed OpenRouter catalog when pi-ai describes it — under its own id,
+ * or by composed display name when the installed catalog renamed the id — and
+ * otherwise states only what the SDKWork catalog states. The endpoint's own
  * `GET /models` (the Models page "fetch models" action) remains the authority
  * on what a deployment actually serves.
  *
@@ -35,6 +36,7 @@ import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import type { Api, ApiKeyAuth, Model, ModelCost, Provider } from '@earendil-works/pi-ai'
 import { RELAY_MODEL_PRESETS } from './relay-models.generated.ts'
 import type { SdkworkRelayModelPreset } from './relay-models.generated.ts'
+import { relayCatalogPolicy } from './relay-catalog-policy.ts'
 
 export { RELAY_MODEL_CATALOG_VERSION } from './relay-models.generated.ts'
 
@@ -216,7 +218,8 @@ function openRouterCandidates(preset: SdkworkRelayModelPreset): string[] {
  * The installed catalog entry describing one SDKWork catalog model, when
  * pi-ai knows it. That entry is the only source of the wire facts the SDKWork
  * catalog does not carry: compatibility switches, thinking dispatch, and
- * image limits.
+ * image limits. An id the installed catalog has renamed is matched by its
+ * composed display name instead.
  * @param preset - one SDKWork catalog row.
  * @returns the borrowed entry, or `undefined` when pi-ai does not describe it.
  */
@@ -226,7 +229,33 @@ function borrowedSeed(preset: SdkworkRelayModelPreset): Model<Api> | undefined {
     const model = source.get(id)
     if (model !== undefined) return model
   }
-  return undefined
+  return nameMatchedSeed(preset)
+}
+
+/**
+ * The installed catalog entry carrying one SDKWork catalog model's wire facts
+ * under a renamed id.
+ *
+ * The installed catalog sometimes spells the same model differently — the
+ * SDKWork catalog's `deepseek/deepseek-flash` is OpenRouter's
+ * `deepseek/deepseek-v4.1-flash` — so an id lookup misses and the seed would
+ * lose the model's thinking dispatch. Fall back to the composed display name
+ * (`<vendorName>: <displayName>`) inside the same vendor family, and accept it
+ * only when exactly one entry claims that name.
+ * @param preset - one SDKWork catalog row.
+ * @returns the borrowed entry, or `undefined` when no single entry matches.
+ */
+function nameMatchedSeed(preset: SdkworkRelayModelPreset): Model<Api> | undefined {
+  const wanted = `${preset.vendorName}: ${preset.displayName}`
+  const vendors = [preset.vendorCode, ...(OPENROUTER_VENDOR_ALIASES[preset.vendorCode] ?? [])]
+  let match: Model<Api> | undefined
+  for (const model of openRouterCatalog().values()) {
+    if (model.name !== wanted) continue
+    if (!vendors.some(vendor => model.id.startsWith(`${vendor}/`))) continue
+    if (match !== undefined) return undefined
+    match = model
+  }
+  return match
 }
 
 /**
@@ -289,6 +318,60 @@ function relaySeedIndex(): Map<string, Map<string, Model<Api>>> {
 let relayIndex: Map<string, Provider> | undefined
 
 /**
+ * One relay model for a catalog key the build-time seed does not describe.
+ *
+ * The operator can expose a model a vendor published after this build shipped,
+ * so the runtime document may name an unknown key. A minimal OpenAI-compatible
+ * entry keeps that model selectable and routable without pretending to know
+ * capacities nobody declared; the first request that exercises it fails with
+ * the provider's own answer if the deployment does not serve it.
+ * @param provider - harness relay route key.
+ * @param entry - the harness relay route whose catalog is being materialized.
+ * @param catalogKey - `<vendorCode>/<modelId>` key the document named.
+ * @returns a minimal relay model for that key.
+ */
+function remoteSeedModel(provider: string, entry: HarnessRelayEntry, catalogKey: string): Model<Api> {
+  return {
+    id: catalogKey,
+    name: catalogKey,
+    provider,
+    baseUrl: protocolBase(entry, entry.api),
+    api: entry.api,
+    input: ['text'],
+    cost: NO_COST,
+    reasoning: false,
+    contextWindow: FALLBACK_CONTEXT_WINDOW,
+    maxTokens: FALLBACK_MAX_TOKENS,
+  }
+}
+
+/**
+ * One route's catalog after the operator policy, if one is published.
+ *
+ * The policy is an ordered allow-list: its order is the picker order, keys the
+ * seed knows keep their seed facts, and keys it does not know become minimal
+ * relay entries. No policy leaves the seed untouched; an empty policy is an
+ * explicit "expose nothing" and returns an empty catalog.
+ * @param provider - harness relay route key.
+ * @param entry - the harness relay route.
+ * @param seed - the route's build-time seed models by id.
+ * @returns the effective catalog by id, in policy order.
+ */
+function policyModels(
+  provider: string,
+  entry: HarnessRelayEntry,
+  seed: ReadonlyMap<string, Model<Api>>,
+): Map<string, Model<Api>> {
+  const policy = relayCatalogPolicy(provider)
+  if (policy === undefined) return new Map(seed)
+  const models = new Map<string, Model<Api>>()
+  for (const catalogKey of policy.catalogKeys) {
+    models.set(catalogKey, seed.get(catalogKey) ?? remoteSeedModel(provider, entry, catalogKey))
+  }
+  return models
+}
+
+/**
  * The harness-shipped relay providers by route, constructed once. A harness
  * route is a catalog route for every downstream reader — provider construction
  * reuses this provider exactly as it reuses an installed one — so it mirrors
@@ -302,13 +385,14 @@ function relayProviders(): Map<string, Provider> {
     // route at another protocol is served by provider construction's protocol
     // table instead of this reused provider.
     const api = entry.api === MESSAGES_API ? anthropicMessagesApi() : openAICompletionsApi()
-    const models = [...(relaySeedIndex().get(provider)?.values() ?? [])]
     return [provider, {
       id: provider,
       name: entry.displayName,
       baseUrl: protocolBase(entry, entry.api),
       auth: { apiKey: harnessApiKeyAuth(entry.displayName) },
-      getModels: () => models,
+      // Read through the policy seam on every call: the operator's exposure
+      // document can change without rebuilding this provider.
+      getModels: () => [...(harnessModels(provider)?.values() ?? [])],
       stream: (model, context, options) => api.stream(model, context, options),
       streamSimple: (model, context, options) => api.streamSimple(model, context, options),
     }]
@@ -328,9 +412,18 @@ export function harnessProvider(provider: string): Provider | undefined {
 
 /**
  * The harness-shipped relay models for one route, when the harness ships one.
+ *
+ * The build-time seed stays the base catalog; a published operator policy
+ * replaces its ordering and membership. The returned map is a fresh copy, so a
+ * caller may keep it while a later publication changes the route's catalog.
  * @param provider - provider route key.
- * @returns the seed models by id in catalog order, or `undefined` for a route the harness does not ship.
+ * @returns the effective models by id in presentation order (seed order without
+ *   a policy), or `undefined` for a route the harness does not ship.
  */
 export function harnessModels(provider: string): Map<string, Model<Api>> | undefined {
-  return relaySeedIndex().get(provider)
+  const seed = relaySeedIndex().get(provider)
+  if (seed === undefined) return undefined
+  const entry = harnessRelay(provider)
+  if (entry === undefined) return new Map(seed)
+  return policyModels(provider, entry, seed)
 }

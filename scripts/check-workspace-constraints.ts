@@ -67,10 +67,12 @@ const pluginMarketGeneratorDirectory = 'apps/plugin-market-generator'
 const desktopPublisherDirectory = 'apps/desktop-publisher'
 /**
  * Ordinary directories whose packages this repository publishes: one release member each. The reference plugin
- * market generator is a private repository tool, not a published application.
+ * market generator is a private repository tool, not a published application. The BirdCoder2 application roots
+ * are private installable applications (like `apps/desktop`), delivered as platform artifacts rather than npm
+ * packages, so they are never release members either.
  */
 const standardReleaseMemberDirectory = new RegExp(
-  `^(?:packages/(?!experimental/)[^/]+/[^/]+|apps/(?!desktop(?:-host)?$|${pluginMarketGeneratorDirectory.slice('apps/'.length)}$|${desktopPublisherDirectory.slice('apps/'.length)}$)[^/]+|vendor/[^/]+)$`,
+  `^(?:packages/(?!experimental/)[^/]+/[^/]+|apps/(?!desktop(?:-host)?$|${pluginMarketGeneratorDirectory.slice('apps/'.length)}$|${desktopPublisherDirectory.slice('apps/'.length)}$|sdkwork-birdcoder2-[^/]+$)[^/]+|vendor/[^/]+)$`,
   'u',
 )
 /** Installable application assembled by electron-builder rather than published to npm. */
@@ -83,7 +85,7 @@ const appPackageFiles: Readonly<Record<string, readonly string[]>> = {
   // FORK DIVERGENCE (SDKWork BirdCoder): the desktop host loads its overlay at
   // runtime — `apps/desktop-host/src/index.ts` resolves
   // `../config/desktop.cordis.patch.yml` from its own module URL — so the packed
-  // package must carry the file; `fecd46272a` added it to that manifest's
+  // package must carry the file; an upstream change added it to that manifest's
   // `files`. Upstream keeps the file in the tree but out of the package, so this
   // row is the fork's, not upstream's.
   '@deepseek-ai/dsh-desktop-host': [
@@ -224,6 +226,14 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@deepseek-ai/dsh-client-ui-theme': ['lib/styles'],
   // The physical-key protocol is a public entry usable without the browser service.
   '@deepseek-ai/dsh-client-shortcuts': ['lib/protocol.js'],
+  // The Feishu entry skill travels with the package; the guides it indexes stay in lark-cli.
+  '@deepseek-ai/dsh-feishu': ['skills'],
+  // The WeCom plugin ships its entry skill; the upstream guides it indexes are downloaded at load.
+  '@deepseek-ai/dsh-wecom': ['skills'],
+  // The Tencent Meeting plugin ships its entry skill; the upstream guide it indexes is downloaded at load.
+  '@deepseek-ai/dsh-tencent-meeting': ['skills'],
+  // The DingTalk entry skill travels with the package; the plugin copies it beside the downloaded guides.
+  '@deepseek-ai/dsh-dingtalk': ['skills'],
   '@deepseek-ai/dsh-experimental-speech-to-text-sensevoice': ['runtime/assets.json'],
   // Node profile configuration and process bootstraps have separate bundles.
   '@deepseek-ai/dsh-ptc-runtime-node': ['lib/configuration.js', 'lib/process.js', 'lib/persistent-process.js'],
@@ -716,6 +726,16 @@ export function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]):
     || entry.dir === 'native/system' || entry.dir.startsWith('native/system/packages/')).map(entry => entry.manifest.name))
   const errors: string[] = []
   for (const { dir, manifest } of manifests) {
+    // A sibling checkout (`../sdkwork-*`) joins the pnpm workspace for dependency
+    // resolution, but its manifest is governed by its own repository. Its names
+    // still count as workspace members below, so this repository's ranges on them
+    // are checked; its own ranges are not judged here.
+    if (dir.startsWith('..')) continue
+    // `plugins/*` are git submodules: independently published repositories whose
+    // manifests must keep publishable semver ranges. They join this workspace for
+    // dependency resolution only (`pnpm-workspace.yaml` pins their `@deepseek-ai`
+    // edges through `overrides`), so the workspace protocol does not apply.
+    if (dir.startsWith('plugins/')) continue
     for (const section of dependencySections) {
       for (const [name, range] of Object.entries(manifest[section] ?? {})) {
         if (!members.has(name)) continue
@@ -733,12 +753,15 @@ export function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]):
 /** Run the repository constraint gate. */
 export function main(): void {
   const manifests = readWorkspaceManifests(root)
+  // Sibling checkouts (`../sdkwork-*`) are pnpm members for dependency resolution
+  // only; their manifests belong to their own repositories.
+  const localManifests = manifests.filter(entry => !entry.dir.startsWith('..'))
   const errors = [
     ...checkRepositoryVersion(),
     ...workspaceManifests().flatMap(checkWorkspaceManifest),
     ...checkWorkspaceProtocol(manifests),
-    ...checkExperimentalNameExceptions(manifests),
-    ...checkExperimentalDependencyIsolation(manifests),
+    ...checkExperimentalNameExceptions(localManifests),
+    ...checkExperimentalDependencyIsolation(localManifests),
     ...checkHierarchyShape(),
     ...collectProjectReferenceFaceViolations(root),
   ]

@@ -21,6 +21,8 @@ import toolResultsRemote from '@deepseek-ai/dsh-client-ui-trajectory/remote'
 import pluginRegistryProbeRemote from '@deepseek-ai/dsh-client-ui-plugin-manager/remote'
 import connectorAccountsRemote from '@deepseek-ai/dsh-client-ui-connector-account/remote'
 import pluginMarketRemote from '@deepseek-ai/dsh-plugin-market/remote'
+import actionCardsRemote from '@deepseek-ai/dsh-action-cards/remote'
+import pluginRecommendationsRemote from '@deepseek-ai/dsh-plugin-recommendations/remote'
 import pluginInventoryRemote from '@deepseek-ai/dsh-host-plugin-inventory/remote'
 import messageFeedbackRemote from '@deepseek-ai/dsh-message-feedback/remote'
 import permissionPresetsRemote from '@deepseek-ai/dsh-permission-presets/remote'
@@ -36,7 +38,7 @@ import workspaceRemote from '@deepseek-ai/dsh-api-workspace-controller/remote'
 import terminalRemote from '@deepseek-ai/dsh-api-terminal-controller/remote'
 import sdkworkAppBuildRemote from '@deepseek-ai/dsh-api-sdkwork-app-build-controller/remote'
 import sdkworkGitRemote from '@deepseek-ai/dsh-api-sdkwork-git-controller/remote'
-import sdkworkTemplateInstallRemote from '@deepseek-ai/dsh-api-sdkwork-template-install-controller/remote'
+import sdkworkScaffoldInstallRemote from '@deepseek-ai/dsh-api-sdkwork-scaffold-install-controller/remote'
 import workspaceFilesRemote from '@deepseek-ai/dsh-api-workspace-files/remote'
 import webRemote from '@deepseek-ai/dsh-web/remote'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
@@ -57,6 +59,8 @@ export type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/remote'
 export type {} from '@deepseek-ai/dsh-client-ui-connector-account/remote'
 export type {} from '@deepseek-ai/dsh-client-ui-trajectory/remote'
 export type {} from '@deepseek-ai/dsh-plugin-market/remote'
+export type {} from '@deepseek-ai/dsh-action-cards/remote'
+export type {} from '@deepseek-ai/dsh-plugin-recommendations/remote'
 export type {
   MarketCompatibility, MarketIndexSummary, MarketInstallation, MarketInstallationStatus, MarketListingEntry, MarketListingVersion,
   MarketQuery, MarketSearchResult, MarketSort, PluginDetail, PluginDetailDocumentId, PluginDetailOrigin,
@@ -90,8 +94,8 @@ export type {} from '@deepseek-ai/dsh-api-sdkwork-app-build-controller/remote'
 export type * from '@deepseek-ai/dsh-api-sdkwork-app-build-controller/types'
 export type {} from '@deepseek-ai/dsh-api-sdkwork-git-controller/remote'
 export type * from '@deepseek-ai/dsh-api-sdkwork-git-controller/types'
-export type {} from '@deepseek-ai/dsh-api-sdkwork-template-install-controller/remote'
-export type * from '@deepseek-ai/dsh-api-sdkwork-template-install-controller/types'
+export type {} from '@deepseek-ai/dsh-api-sdkwork-scaffold-install-controller/remote'
+export type * from '@deepseek-ai/dsh-api-sdkwork-scaffold-install-controller/types'
 export type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
 export type * from '@deepseek-ai/dsh-api-workspace-files/types'
 export type {} from '@deepseek-ai/dsh-api-terminal-controller/remote'
@@ -110,6 +114,8 @@ export type {} from '@deepseek-ai/dsh-llm/types'
 export type {} from '@deepseek-ai/dsh-agent-preset-registry/types'
 export type {} from '@deepseek-ai/dsh-permission-presets/types'
 export type {} from '@deepseek-ai/dsh-settings/types'
+export type {} from '@deepseek-ai/dsh-tool-sdkwork-deploy/types'
+export type {} from '@deepseek-ai/dsh-tool-sdkwork-knowledge/types'
 export type {} from '@deepseek-ai/dsh-user-approval/types'
 export type {} from '@deepseek-ai/dsh-user-questions/types'
 export type {} from '@deepseek-ai/dsh-api-session-controller/types'
@@ -219,7 +225,8 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, sessionStatusRemote, jobRemote,
       workspaceRemote, workspaceFilesRemote, terminalRemote,
-      officeKitRemote, sdkworkAppBuildRemote, sdkworkGitRemote, sdkworkTemplateInstallRemote, userQuestionsRemote, webRemote,
+      officeKitRemote, sdkworkAppBuildRemote, sdkworkGitRemote, sdkworkScaffoldInstallRemote, userQuestionsRemote,
+      webRemote, actionCardsRemote, pluginRecommendationsRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

@@ -108,6 +108,8 @@ ManifestDPIAware true
 !macroend
 
 !macro customUnInstall
+  Call un.BeginCleanup
+  Call un.CleanRegistration
   Call un.CleanData
 !macroend
 
@@ -197,6 +199,10 @@ ManifestDPIAware true
 
 !macro customCheckAppRunning
   !ifdef BUILD_UNINSTALLER
+    ; Manual uninstall reports deletion errors with retry and a saveable report.
+    ${If} ${isUpdated}
+  !endif
+  !ifdef BUILD_UNINSTALLER
     InitPluginsDir
     File "/oname=$PLUGINSDIR\window-frame.dll" "${INSTALLER_BUILD_DIR}\window-frame.dll"
   !endif
@@ -224,6 +230,9 @@ ManifestDPIAware true
     SetErrorLevel 2
     Quit
   ${EndIf}
+  !ifdef BUILD_UNINSTALLER
+    ${EndIf}
+  !endif
 !macroend
 
 !macro customInstallerDirectoryFailed

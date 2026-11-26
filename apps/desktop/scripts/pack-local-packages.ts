@@ -1,16 +1,16 @@
 /** Stage local-branded DSH packages for unsigned Desktop builds without a publication record. */
 
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import {
+  assertClientBuildEnvironmentIgnoringGitDirty,
   readClientBuildRecord,
   repositoryClientBuildEnvironment,
   resolveClientBuildEnvironment,
 } from '../../../scripts/client-build-environment.ts'
-import { assertWebBuildEnvironment, readWebBuildEnvironment, webBuildEnvironment } from '../../../scripts/web-build-environment.ts'
 import { releaseFamily } from '../../../scripts/release/families.ts'
 import { packFamilyMembers, parsePackConcurrency } from '../../../scripts/release/pack.ts'
-import { PRODUCTION_LANE_PROFILE } from './sdkwork-lane-profiles.ts'
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
@@ -21,12 +21,26 @@ async function main(): Promise<void> {
   const concurrency = parsePackConcurrency(values.concurrency)
   const root = process.cwd()
   const environment = resolveClientBuildEnvironment(repositoryClientBuildEnvironment(root), 'local')
-  readClientBuildRecord(root, environment)
-  // A release ships the cloud production deployment: the page an installed
-  // application loads must not come from a lane that last baked development.
-  assertWebBuildEnvironment(readWebBuildEnvironment(root),
-    webBuildEnvironment(PRODUCTION_LANE_PROFILE.deploymentProfile, PRODUCTION_LANE_PROFILE.environment),
-    'the Desktop release packaging lane')
+  // The record is verified against the artifacts before its values are used.
+  // Read it without a live-environment assertion first, because the Git dirty
+  // marker was captured when the build started and a build gate may have
+  // changed the worktree before this pack step sampled it again.
+  const record = readClientBuildRecord(root)
+  if ((environment.DSH_CLIENT_GIT_DIRTY === 'true')
+    !== (record.environment.DSH_CLIENT_GIT_DIRTY === 'true')) {
+    let status = '(unavailable)'
+    try {
+      status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=normal'], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() || '(none)'
+    } catch {
+      status = '(unavailable)'
+    }
+    console.log(`desktop local pack: Git dirty state changed after the client build; entries:\n${status}`)
+  }
+  assertClientBuildEnvironmentIgnoringGitDirty(record.environment, environment)
   const destination = resolve(root, values.out)
   const packed = await packFamilyMembers(root, releaseFamily('dsh'), destination, concurrency)
   console.log(`desktop local pack: ${String(packed.length)} tarball(s) in ${destination}`)

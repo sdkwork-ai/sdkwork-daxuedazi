@@ -16,7 +16,37 @@ import type { SidebarRightCloseHandler } from '../src/client/service.ts'
 import { createSidebarRightStore } from '../src/client/stores.ts'
 import { controllerHarness as harness, SESSION } from './controller-harness.client.ts'
 
+declare module '@deepseek-ai/dsh-client-ui-sidebar-right/client' {
+  interface SidebarRightTabParamsMap {
+    'test-preview': { source: string }
+  }
+}
+
 describe('SidebarRightController — opening', () => {
+  it('opens transient content directly in a float and reuses its occurrence when docking updated content', () => {
+    const h = harness()
+    h.tabs.register({ id: 'test/preview', kind: 'test-preview', title: () => 'Preview' })
+    h.publish()
+    const first = { source: 'first body' }
+    h.controller.openContent('test-preview', first, { key: 'a/b', destination: 'float' })
+    const tabId = h.tabOf('Preview')
+    const occurrence = h.controller.tabDomain.occurrence(SESSION, { id: tabId })
+    expect(findTabPane(h.layout(), tabId).host).toBe('float')
+    expect(h.layout().expanded).toBe(false)
+    expect(occurrence.navigation.getSnapshot().params).toEqual(first)
+    expect(JSON.stringify(h.layout())).not.toContain(first.source)
+
+    const updated = { source: 'updated body' }
+    h.controller.openContent('test-preview', updated, { key: 'a/b' })
+    expect(findTabPane(h.layout(), tabId).host).toBe('dock')
+    expect(h.layout().expanded).toBe(true)
+    expect(occurrence.navigation.getSnapshot().params).toEqual(updated)
+    expect(h.titles().filter(title => title === 'Preview')).toHaveLength(1)
+    h.controller.openContent('test-preview', first)
+    h.controller.openContent('test-preview', first)
+    expect(h.titles().filter(title => title === 'Preview')).toHaveLength(3)
+  })
+
   it('keeps independently opened instances distinct when they return to the same pane', () => {
     const h = harness()
     h.tabs.register({ id: 'test/terminal', kind: 'terminal', multiple: true, title: () => 'terminal' })
@@ -26,13 +56,13 @@ describe('SidebarRightController — opening', () => {
       h.controller.openTab('terminal')
       const terminals = Object.values(h.layout().tabs).filter(tab => tab.kind === 'terminal')
       expect(terminals).toHaveLength(2)
-      expect(terminals[0]!.contentId).not.toBe(terminals[1]!.contentId)
-      const pane = findTabPane(h.layout(), terminals[0]!.id).id
-      h.instance.actions.floatTab(SESSION, terminals[0]!.id)
-      const floating = findTabPane(h.layout(), terminals[0]!.id).id
+      expect(terminals[0].contentId).not.toBe(terminals[1].contentId)
+      const pane = findTabPane(h.layout(), terminals[0].id).id
+      h.instance.actions.floatTab(SESSION, terminals[0].id)
+      const floating = findTabPane(h.layout(), terminals[0].id).id
       h.instance.actions.unfloatPane(SESSION, floating)
-      expect(getPane(h.layout(), pane).tabs).toContain(terminals[0]!.id)
-      expect(getPane(h.layout(), pane).tabs).toContain(terminals[1]!.id)
+      expect(getPane(h.layout(), pane).tabs).toContain(terminals[0].id)
+      expect(getPane(h.layout(), pane).tabs).toContain(terminals[1].id)
     } finally { release() }
   })
 
@@ -420,7 +450,7 @@ describe('SidebarRightController — replacing a tab', () => {
   it('replaces a floating tab in its panel with a page, ignoring a named pane', () => {
     const h = replaced(true)
     h.tabs.register({ id: 'test/files', kind: 'files', title: () => 'files' })
-    h.controller.openTab('files', { replaceTab: h.from, paneId: dockPaneIds(h.layout())[0]! })
+    h.controller.openTab('files', { replaceTab: h.from, paneId: dockPaneIds(h.layout())[0] })
     expect(getPane(h.layout(), h.float!).tabs).toEqual([h.tabOf('files')])
     expect(h.layout().tabs[h.from]).toBeUndefined()
   })
@@ -909,7 +939,7 @@ describe('SidebarRightController — opening from a floating tab', () => {
     open(h)
     const root = getPane(h.layout(), h.layout().rootId)
     expect(root.tabs).toHaveLength(1)
-    expect(h.layout().tabs[root.tabs[0]!]?.title).toBe(title)
+    expect(h.layout().tabs[root.tabs[0]]?.title).toBe(title)
     expect(h.titles()).not.toContain('seed')
     expect(h.layout().expanded).toBe(true)
     expect(h.layout().activePaneId).toBe(root.id)

@@ -21,7 +21,7 @@ export const zh = {
   'mode.assets': '资产',
   'mode.search': '搜索',
   'mode.account': '账号',
-  'mode.tokenPlan': 'Token Plan',
+  'mode.tokenPlan': '会员套餐',
   'mode.demandHall': '需求大厅',
 } satisfies Record<string, string>
 
@@ -49,6 +49,6 @@ export const en = {
   'mode.assets': 'Assets',
   'mode.search': 'Search',
   'mode.account': 'Account',
-  'mode.tokenPlan': 'Token Plan',
+  'mode.tokenPlan': 'Membership plan',
   'mode.demandHall': 'Demand Hall',
 } satisfies Record<AppHeaderKey, string>

@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-sdkwork-apikey",
   "description": "SDKWork cloudrouter API key management plugin: an independent wide modal (settings-menu popover row 鈫?settings.apiKeys seat) over the @sdkwork/cloudrouter-pc-console-api-keys ApiKeysView, with host-constructed app/models clients bound through the service's injectable seam",
-  "version": "0.2.2-rc.7",
+  "version": "0.2.3-alpha.2",
   "publishConfig": {
     "access": "public"
   },
@@ -66,6 +66,9 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/types/**/*.d.ts.map",
+    "lib/**/*.js.map",
+    "src"
   ]
 }

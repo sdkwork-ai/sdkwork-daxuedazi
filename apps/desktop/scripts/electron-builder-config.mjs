@@ -1,9 +1,14 @@
-﻿import { readInstallerLocales, renderInstallerStrings } from './installer-locales.mjs'
+import {
+  PRODUCT_HEADER_FILENAME,
+  readInstallerLocales,
+  renderInstallerProductHeader,
+  renderInstallerStrings,
+} from './installer-locales.mjs'
 import { officePackageDirectories } from '../../../scripts/libreoffice-packages.mjs'
 import { X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, relative, sep } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
@@ -11,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
+  resolveDesktopAppId,
   resolveDesktopInsecureTls,
   resolveMacOSNotarizationEnvironment,
   resolveMacOSSigningEnvironment,
@@ -31,28 +37,28 @@ import { desktopArtifactOutput, desktopTargetBuildPaths, resolveDesktopBuildTarg
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
-import { verifyWindowsInstallPathBudget } from './windows-install-path-budget.mjs'
 import { recordPackagingEvent } from './packaging-run.mjs'
 import {
   verifyPackagedApplicationIdentity,
   writePackagedUpdaterCacheDir,
 } from './desktop-application-identity.mjs'
-import {
-  BRAND_DISPLAY_LOCALES,
-  DEFAULT_BRAND_KEY,
-  brandManifestPath,
-  brandPortCollisions,
-  readBrands,
-  resolveBrand,
-  resolveBrandDisplayName,
-} from './brand-manifest.mjs'
-import { resolveBrandApplicationId } from './brand-application-id.mjs'
+import { DEFAULT_BRAND_KEY, brandManifestPath, resolveBrand } from './brand-manifest.mjs'
 import {
   resolveMacOSAppUpdateFeed,
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
-import { resolveBrandReleaseRepository } from './brand-release-repository.mjs'
+
+/**
+ * The fork's GitHub Release repository.
+ *
+ * electron-builder writes the updater metadata (`latest.yml` and its per-platform
+ * siblings) only when a publish provider is configured, and the release contract
+ * requires those files beside the installers. Packaging always runs with
+ * `--publish never`, so the provider is never contacted during packaging.
+ */
+const GITHUB_RELEASE_OWNER = 'sdkwork-ai'
+const GITHUB_RELEASE_REPO = 'sdkwork-birdcoder2'
 
 /**
  * Write the NSIS wrapper include that binds `INSTALLER_BUILD_DIR` to this run's
@@ -141,52 +147,12 @@ export function createElectronBuilderConfig(
   // must not share — product name, scheme, command, updater cache, artifact
   // spelling, home directory — comes from the selected brand manifest, so one
   // packaging lane per brand yields a shell that cannot collide with another
-  // installed brand. `DSH_BRAND` selects it; `brands/daxuedazi.json` is the
+  // installed brand. `DSH_BRAND` selects it; `brands/birdcoder.json` is the
   // shipped brand.
   const brand = resolveBrand(env)
   const brandManifest = brandManifestPath(env)
-  // FORK DIVERGENCE (AGENTS.md, "BirdCoder brand assets"): electron-builder
-  // derives every visible application name from `productName`, but that value is
-  // also Electron's `app.name` and therefore owns userData, the single-instance
-  // lock and the logs directory. Renaming it to a localized display name would
-  // strand an existing installation's data, so the ASCII identity stays and each
-  // *visible* name is overridden from the brand manifest's `displayNames`.
-  const installedDisplayName = resolveBrandDisplayName(brand, undefined)
-  /** Resolver handed to the NSIS string renderer so each installer language spells its own name. */
-  const installedNameForLocale = locale => resolveBrandDisplayName(brand, locale)
-  // freedesktop .desktop files localize Name with `Name[<locale>]` entries while
-  // `Name` stays the untranslated default. electron-builder merges these through
-  // `linux.desktop.entry`, after its own productName-derived Name.
-  const linuxDesktopNames = Object.freeze({
-    Name: installedDisplayName,
-    ...Object.fromEntries(BRAND_DISPLAY_LOCALES.map(locale => [
-      `Name[${locale.replace('-', '_')}]`, resolveBrandDisplayName(brand, locale),
-    ])),
-  })
-  // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): each brand owns a
-  // disjoint block of loopback ports (packaged shell, two source lanes, six
-  // inspector ports). Packaging refuses a manifest set whose blocks overlap,
-  // because the runtime symptom is the second application failing to start.
-  const brandCollisions = brandPortCollisions([
-    ...readBrands(dirname(brandManifest)).filter(candidate => candidate.key !== brand.key),
-    brand,
-  ])
-  if (brandCollisions.length > 0) throw new Error(`desktop package: ${brandCollisions.join('; ')}`)
   const shippedOemProfile = brandManifest.replace(/\.json$/u, '.oem.json')
-  const linuxPackageName = brand.desktop.artifactPrefix.toLowerCase().replaceAll(/[^a-z0-9+.-]+/gu, '-')
-  // FORK DIVERGENCE (AGENTS.md, "Windows installer install mode"): electron-builder
-  // hashes this identifier into the NSIS GUID, and the GUID decides which existing
-  // installation the next installer upgrades. The brand manifest therefore owns it;
-  // a lane setting that names another shipped product (a leftover
-  // `packaging/<platform>.env`) stops packaging here instead of installing this
-  // build over that product's directory and uninstall registration.
-  const appId = resolveBrandApplicationId(env)
-  // FORK DIVERGENCE: the fallback GitHub provider is the brand's own release
-  // repository, not a product constant. A repository has one `latest` pointer, so
-  // naming another product's repository here makes the packaged updater fetch
-  // that product's release and replace this installation with it; the resolver
-  // also refuses a lane that packages a brand outside its release home.
-  const releaseRepository = resolveBrandReleaseRepository(env)
+  const appId = resolveDesktopAppId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -340,10 +306,12 @@ export function createElectronBuilderConfig(
     // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): upstream
     // registers `dsh`, the same scheme its own desktop application claims, so the
     // two installed applications overwrite each other's protocol registration.
-    // The registered protocol's name is the macOS URL-type identifier
-    // (`CFBundleURLName`), not a user-facing label: keep the brand's ASCII
-    // identity so two installs never register the same URL type.
-    protocols: [{ name: brand.desktop.productName, schemes: [brand.desktop.protocol] }],
+    // Both schemes the brand owns are declared with the operating system: the
+    // short product scheme for product links, and the reverse-domain application
+    // id that RFC 8252 sections 7.1 and 8.4 recommend for the private-use login
+    // redirect. The shell registers the callback the OEM profile names from this
+    // pair, and macOS can only route a scheme its bundle declares.
+    protocols: [{ name: brand.desktop.productName, schemes: [brand.desktop.protocol, appId] }],
     extraMetadata: {
       // Electron names the application after the packaged manifest, and
       // electron-builder merges only `extraMetadata` into it, so an OEM brand's
@@ -385,15 +353,9 @@ export function createElectronBuilderConfig(
     // their output directory (`unsigned-artifacts/` and `artifacts/`); only the
     // internal `--skip-notarization` mode carries upstream's `-unnotarized` marker,
     // with its own `unnotarized-artifacts/` directory.
-    // Intentionally NOT the localized display name: `extraMetadata.productName`
-    // and this field become Electron's `app.name`, which owns userData, the
-    // single-instance lock, logs and the updater cache. Every user-visible name
-    // is overridden below (nsis.shortcutName, CFBundleDisplayName, .desktop
-    // Name, dmg.title) so the installed application shows `installedDisplayName`
-    // without moving an existing installation's data.
     productName: brand.desktop.productName,
     // The default copyright uses author.name; this line names the product instead (upstream).
-    copyright: `Copyright © ${new Date().getFullYear()} ${installedDisplayName}`,
+    copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     executableName: brand.desktop.executableName,
     artifactName: `${brand.desktop.artifactPrefix}-\${version}-\${os}-\${arch}${skipNotarization ? '-unnotarized' : ''}.\${ext}`,
     directories: {
@@ -410,8 +372,15 @@ export function createElectronBuilderConfig(
         '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'),
-        renderInstallerStrings(readInstallerLocales(), installedNameForLocale), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales(), brand.desktop.productName), 'utf8')
+      // The native helper draws the restart banner title and the report headers,
+      // so its product name is generation-time copy as well; the checked-in
+      // `installer-product-name.h` includes this file and falls back when absent.
+      await writeFile(
+        join(buildPaths.root, 'installer-ui', PRODUCT_HEADER_FILENAME),
+        renderInstallerProductHeader(brand.desktop.productName),
+        'utf8',
+      )
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -460,15 +429,8 @@ export function createElectronBuilderConfig(
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
-        CFBundleLocalizations: BRAND_DISPLAY_LOCALES.map(locale => locale.replace('-', '_')),
-        // electron-builder writes both keys from `productName`; extendInfo is
-        // merged afterwards, so Finder, the Dock and the application menu show
-        // the localized display name while the bundle and userData stay put.
-        CFBundleName: installedDisplayName,
-        CFBundleDisplayName: installedDisplayName,
-        // The TCC prompt is the only microphone copy the user sees before the app
-        // can ask, so it names the selected brand instead of a build-time literal.
-        NSMicrophoneUsageDescription: `${installedDisplayName} uses your microphone to transcribe speech into message drafts.`,
+        CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
+        NSMicrophoneUsageDescription: 'BirdCoder uses your microphone to transcribe speech into message drafts.',
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -490,9 +452,6 @@ export function createElectronBuilderConfig(
     dmg: {
       format: 'ULMO',
       sign: !unsigned,
-      // The mounted volume's name is visible before the app launches; without
-      // this electron-builder spells `${productName} ${version}` (the ASCII identity).
-      title: installedDisplayName,
       // FORK DIVERGENCE (upstream suppresses it): `writeUpdateInfo: false` makes
       // dmg-builder skip `createBlockmap` entirely, so the release loses both the
       // `.dmg.blockmap` asset and the DMG's entry in `latest-mac.yml` — and
@@ -534,7 +493,6 @@ export function createElectronBuilderConfig(
       verifyPackagedApplicationIdentity(resourcesDir, {
         productName: context.packager.appInfo.productName,
         updaterCacheDirName: brand.desktop.updaterCacheDirName,
-        releaseRepository: releaseRepository.fullName,
       })
       // The bundled runtime declares whichever version prepared it: the product version for an ordinary
       // release, and a rewritten one for installed-update qualification.
@@ -542,13 +500,6 @@ export function createElectronBuilderConfig(
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
       // Unsigned Windows builds skip electron-builder's afterSign hook.
       if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
-      // FORK DIVERGENCE: the installer unzips with Win32 path calls, so the released
-      // `0.2.2-rc.6` aborted with `Failed to decompress files ... Error opening output
-      // file(s)` once a duplicate nested Office engine pushed its deepest resource past
-      // `MAX_PATH` below the `$INSTDIR.new-{GUID}` staging root. The build directory is
-      // always shorter than an installed one, so the depth is measured against the
-      // installation prefix here rather than on the packaging lane.
-      if (packagesWindows) verifyWindowsInstallPathBudget(context.appOutDir)
     },
     afterSign: async context => {
       if (windowsSigner !== undefined) {
@@ -598,11 +549,7 @@ export function createElectronBuilderConfig(
     linux: {
       icon: icons.linux,
       category: 'Development',
-      // The application-menu name and its per-locale variants. electron-builder
-      // defaults `Name` to `productName`; `desktop.entry` overwrites it after
-      // that, so the installed launcher reads 学伴AI without renaming the binary.
-      desktop: { entry: linuxDesktopNames },
-      synopsis: `${installedDisplayName} desktop application`,
+      synopsis: 'Desktop agent harness',
       maintainer: 'SDKWork AI <support@sdkwork.com>',
       vendor: 'SDKWork AI',
       // FORK DIVERGENCE (upstream ships the AppImage alone): the release contract
@@ -610,24 +557,10 @@ export function createElectronBuilderConfig(
       // the three that also carry updater metadata.
       target: ['AppImage', 'deb', 'rpm', 'tar.gz'],
     },
-    // The installed Debian/RPM package carries the same name as the file it ships
-    // in. Package names admit no spaces and no upper case, so the artifact stem is
-    // folded into that alphabet instead of spelling a second brand constant here.
-    deb: { packageName: linuxPackageName },
-    rpm: { packageName: linuxPackageName },
+    deb: { packageName: 'birdcoder' },
+    rpm: { packageName: 'birdcoder' },
     nsis: {
-      // Both are user-visible: the Start-menu/desktop shortcut label and the
-      // Control Panel "Programs and Features" row. Left unset they inherit the
-      // ASCII `productName`; the brand's localized name wins here instead.
-      shortcutName: installedDisplayName,
-      uninstallDisplayName: installedDisplayName,
-      // FORK DIVERGENCE (AGENTS.md, "Windows installer localized caption"):
-      // `installer.nsh`'s customHeader spells `Name "$(INSTALLER_APP_NAME)"`
-      // beside common.nsh's own ASCII `Name "${PRODUCT_NAME}"`. NSIS keeps the
-      // last directive — the localized one — and reports the duplicate only as
-      // warning 6029, so the gate must not treat that intentional override as
-      // an error. Real makensis failures still abort the process itself.
-      warningsAsErrors: false,
+      uninstallDisplayName: '${productName}',
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: nsisInclude ?? fileURLToPath(new URL('./installer.nsh', import.meta.url)),
@@ -653,14 +586,12 @@ export function createElectronBuilderConfig(
     },
     // A publish provider is what makes electron-builder write the updater
     // metadata at all, and the release contract requires all four channel files
-    // beside the installers. The fallback names the brand's own release
-    // repository (`desktop.releaseRepository`) so the metadata — and the
-    // `app-update.yml` electron-builder derives from it — never points a brand at
-    // another product's `latest`; packaging always runs with `--publish never`,
-    // so the provider is never contacted.
+    // beside the installers. Naming the fork's own repository keeps the metadata
+    // honest about where the desktop shell resolves updates from; packaging
+    // always runs with `--publish never`, so the provider is never contacted.
     // Leaving `channel` unset keeps the `latest` names the contract asserts.
     publish: update === undefined
-      ? [{ provider: 'github', owner: releaseRepository.owner, repo: releaseRepository.repo }]
+      ? [{ provider: 'github', owner: GITHUB_RELEASE_OWNER, repo: GITHUB_RELEASE_REPO }]
       : [{ provider: 'generic', url: update.publicUrl }],
     // The static AppImage toolset carries native runtimes for every
     // architecture; the legacy 0.0.0 toolset falls back to its x64 runtime when

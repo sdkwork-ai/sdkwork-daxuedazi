@@ -21,6 +21,7 @@ import { UserText, PlainUserText, SessionReference } from './user-text/UserText.
 import { sessionReferenceRule } from './user-text/session-reference-rule.ts'
 import { collapseWhitespaceRule, trimWhitespaceRule } from './user-text/whitespace-rules.ts'
 import type { ViewTab } from './contract/views.ts'
+import { inputBarChildren } from './contract/slots.ts'
 import type {
   ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected, ConversationShellInjected,
   ConversationSessionInjected, DraftFileUploads, UserTextInjected,
@@ -29,7 +30,7 @@ import type { InputNotice } from './contract/input.ts'
 import type { ReferenceInsert } from './contract/draft-editor.ts'
 import { createConversationStore, readConversationViewPreference } from './stores.ts'
 import { formatFileMention } from '@deepseek-ai/dsh-file-reference/grammar'
-import { relativizeToCwd, workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
+import { workspaceTitleOf } from '@deepseek-ai/dsh-util-workspace-path'
 import { ConversationController, UnsupportedImageMediaTypeError, isImageMediaType } from './service.ts'
 import type { IConversation } from './service.ts'
 import { ComposerBlockRegistry } from './input/blocks.ts'
@@ -204,14 +205,20 @@ export function apply(ctx: Context, config: SyncedConfig<ConversationConfig>): v
 
   const viewTabs = (): ViewTab[] => {
     const tabs: ViewTab[] = []
-    for (const entry of slots.entries('conversation.view')) {
+    // Project the row from the slot's shadowing winners: a lower-priority
+    // registration of an already occupied View cell owns no cell of its own
+    // and is not a second tab. Two Views may also resolve to one visible
+    // label; a user cannot tell such tabs apart, so only the first one in row
+    // order becomes a tab.
+    const labels = new Set<string>()
+    for (const entry of slots.entriesOfSlot('conversation.view')) {
       /* v8 ignore next -- list registration validates id at load. */
       if (entry.options.id === undefined) continue
       if (!ctx.configForms.developerTools.enabled.getSnapshot() && entry.options.id === TRAJECTORY_VIEW_ID) continue
-      tabs.push({
-        id: entry.options.id,
-        label: resolveSlotLabel(entry.options.label) ?? entry.options.id,
-      })
+      const label = resolveSlotLabel(entry.options.label) ?? entry.options.id
+      if (labels.has(label)) continue
+      labels.add(label)
+      tabs.push({ id: entry.options.id, label })
     }
     return tabs
   }
@@ -473,17 +480,7 @@ export function apply(ctx: Context, config: SyncedConfig<ConversationConfig>): v
   const registerComposerBar = () => slots.register({
     name: 'conversation.composer.bar',
     locale: NS,
-    children: {
-      'conversation.input.attachments': { kind: 'single', scope: 'session-maybe' },
-      'conversation.input.overlay': { kind: 'list', scope: 'session' },
-      'conversation.input.permission': { kind: 'single', scope: 'session' },
-      'conversation.input.left': { kind: 'list', scope: 'session' },
-      'conversation.input.plan': { kind: 'single', scope: 'session' },
-      'conversation.input.right': { kind: 'list', scope: 'session' },
-      'conversation.input.model': { kind: 'single', scope: 'session' },
-      'conversation.input.activity': { kind: 'single', scope: 'session' },
-      'conversation.composer.dock': { kind: 'list', scope: 'session' },
-    },
+    children: inputBarChildren,
     inject: (sessionId: SessionId | undefined): ComposerBarInjected => {
       if (sessionId === undefined) {
         return {
@@ -521,7 +518,6 @@ export function apply(ctx: Context, config: SyncedConfig<ConversationConfig>): v
           }
           const uploads: File[] = []
           const references: ReferenceInsert[] = []
-          const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd
           for (const file of files) {
             const directory = directories.has(file)
             if (bridge === undefined && directory) return t('attachment.directoryDesktopOnly')
@@ -531,9 +527,9 @@ export function apply(ctx: Context, config: SyncedConfig<ConversationConfig>): v
               uploads.push(file)
               continue
             }
-            const relative = relativizeToCwd(path, cwd)
+            // The dropped path stays absolute, so the sent text names the same file after the Session's directory moves.
             // A completed directory chip needs closed quotes; the directory grammar keeps them open for drill.
-            const mention = formatFileMention({ path: directory ? `${relative}/` : relative, kind: 'file' }, false)
+            const mention = formatFileMention({ path: directory ? `${path}/` : path, kind: 'file' }, false)
             if (mention === undefined) return t('attachment.pathUnsupported')
             const label = workspaceTitleOf(path) || file.name
             references.push({

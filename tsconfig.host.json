@@ -8,11 +8,17 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/web/tests/device-pairing.e2e.ts",
+    "apps/web/tests/pairing-completion.e2e.ts",
+    "apps/web/tests/pairing-recovery.e2e.ts",
     "snapshots/session/headless.snapshot.ts",
+    "apps/web/tests/remote-connection.e2e.ts",
+    "apps/web/tests/remote-connection-fixture.ts",
     "apps/web/tests/home-whale.e2e.ts",
     "apps/web/tests/sidebar-drawer.e2e.ts",
     "apps/web/tests/session-panel-layout.e2e.ts",
     "apps/web/tests/creation-recommendations.e2e.ts",
+    "apps/web/tests/cordis-inspect-subagent.e2e.ts",
     "apps/web/tests/plugin-recommendations.e2e.ts",
     "apps/web/tests/deepseek-chat-import.e2e.ts",
     "apps/web/tests/japanese-plugin-metadata.e2e.ts",
@@ -66,6 +72,7 @@
     "apps/web/tests/minimal-preset.snapshot.ts",
     "apps/web/tests/message-feedback-protocol.snapshot.ts",
     "apps/web/tests/preset-migration.snapshot.ts",
+    "apps/web/tests/session-send-message.snapshot.ts",
     "apps/web/tests/subagent-fork-schedule.snapshot.ts",
     "apps/web/tests/live-interactions.e2e.ts",
     "apps/web/tests/question-composer.e2e.ts",
@@ -97,6 +104,7 @@
     "apps/web/tests/input-plugin-extensions.e2e.ts",
     "apps/web/tests/plugin-manager.e2e.ts",
     "apps/web/tests/plugin-market-toolbar.e2e.ts",
+    "apps/web/tests/expert-market-gallery.e2e.ts",
     "apps/web/tests/plugin-sticky-motion.e2e.ts",
     "apps/web/tests/entry-customization.e2e.ts",
     "apps/web/tests/cua-optin.e2e.ts",
@@ -126,6 +134,7 @@
     "apps/web/tests/draft-initialization.e2e.ts",
     "apps/web/tests/settings-chrome.e2e.ts",
     "apps/web/tests/session-log-upload.e2e.ts",
+    "apps/web/tests/action-cards-setting.e2e.ts",
     "apps/web/tests/caption-overlays.e2e.ts",
     "apps/web/tests/settings-appearance.e2e.ts",
     "apps/web/tests/menu-material.e2e.ts",
@@ -255,18 +264,25 @@
     "apps/web/tests/chat-scroll-contract.e2e.ts",
     "apps/web/tests/chat-long-interactions.e2e.ts",
     "apps/web/tests/chat-continuous-conversation.e2e.ts",
+    "apps/web/tests/composer-history.e2e.ts",
     "apps/web/tests/composer-tab-geometry.e2e.ts",
     "apps/web/tests/conversation-view-tabs.e2e.ts",
     "apps/web/tests/composer-shortcuts.e2e.ts",
     "apps/web/tests/window-drag-coverage.e2e.ts",
     "apps/web/tests/window-drag-inheritance.e2e.ts",
     "apps/web/tests/complex-history.perf.ts",
+    "apps/web/tests/dingtalk-connection.e2e.ts",
     "apps/web/tests/pwsh-terminal.e2e.ts",
+    "apps/web/tests/wecom-connection.e2e.ts",
+    "apps/web/tests/tencent-meeting-connection.e2e.ts",
     "apps/web/tests/workflow-run.e2e.ts",
     "apps/web/tests/linear-connection.e2e.ts",
     "apps/web/tests/linear-oauth-fixture.ts",
     "apps/web/tests/notion-connection.e2e.ts",
     "apps/web/tests/notion-oauth-fixture.ts",
+    "apps/web/tests/tencent-docs-connection.e2e.ts",
+    "apps/web/tests/tencent-docs-oauth-fixture.ts",
+    "apps/web/tests/feishu-connection.e2e.ts",
     "apps/web/stress-tests/reasoning-chunks.stress.ts",
     "apps/cli/tests/**/*.ts",
     "apps/plugin-market-generator/tests/**/*.ts",
@@ -311,10 +327,9 @@
     "scripts/tmp-*.ts",
   ],
   "references": [
-    { "path": "./packages/experimental/action-cards" },
-    { "path": "./packages/experimental/creation-recommendations" },
-    { "path": "./packages/experimental/plugin-recommendations" },
-    { "path": "./packages/experimental/personalized-recommendations" },
+    { "path": "./packages/interaction/action-cards" },
+    { "path": "./packages/extensions/creation-recommendations" },
+    { "path": "./packages/extensions/plugin-recommendations" },
 
     { "path": "./packages/experimental/client-ui-cot-translation/tsconfig.host.json" },
     { "path": "./packages/experimental/cot-translation-bundle" },
@@ -344,7 +359,11 @@
     { "path": "./packages/boot/config-editor" },
     { "path": "./packages/client/connection/tsconfig.host.json" },
     { "path": "./packages/skill/skill-office" },
+    { "path": "./packages/connector/feishu" },
     { "path": "./packages/skill/tool-workspace-dependencies" },
+    { "path": "./packages/connector/wecom" },
+    { "path": "./packages/connector/tencent-meeting" },
+    { "path": "./packages/connector/dingtalk" },
     { "path": "./packages/browser-use/browser-use" },
     { "path": "./packages/experimental/browser-use-runtime" },
     { "path": "./packages/experimental/browser-use-playwright-mcp" },
@@ -374,6 +393,7 @@
     // row in the two client aggregates; the two faces are separate programs by
     // design, so both references are required.
     { "path": "./packages/client/ui-sdkwork-skills/tsconfig.host.json" },
+  { "path": "./packages/client/ui-sdkwork-experts/tsconfig.host.json" },
     // ui-sdkwork-env's host half declares its durable section and publishes the
     // launch-environment projection through the web server's injection table, so
     // it needs the host plane; its browser face is a tsconfig.client.json row in
@@ -389,6 +409,11 @@
     { "path": "./packages/client/ui-sdkwork-im-conversations/tsconfig.host.json" },
     { "path": "./packages/client/ui-sdkwork-im-chat/tsconfig.host.json" },
     { "path": "./packages/client/ui-sdkwork-im-contacts/tsconfig.host.json" },
+    // Browser-only SDKWork message-center surface: it ships a host loader entry
+    // (src/index.ts, apply() with no host-side behavior), so it is a split
+    // client package like ui-sdkwork-im: the host aggregate references the host
+    // face here, the client aggregate references the sibling client program.
+    { "path": "./packages/client/ui-sdkwork-message-center/tsconfig.host.json" },
     // The four SDKWork model-settings packages are split client packages like
     // ui-sdkwork-env: their browser face is the tsconfig.client.json row in the
     // two client aggregates, and their host loader entry (src/index.ts, the
@@ -396,7 +421,7 @@
     // row's host face. The host face is what emits lib/types/index.js for the
     // clientBundle node half; without this row neither solution compiles
     // src/index.ts and the tsdown Client pass dies on UNRESOLVED_ENTRY
-    // lib/types/index.js (94dbea5d48 named the client face to fix TS6306 and
+    // lib/types/index.js (an upstream change named the client face to fix TS6306 and
     // dropped the directory reference that used to pull the host face in
     // transitively).
     { "path": "./packages/client/ui-sdkwork-image-models/tsconfig.host.json" },
@@ -446,6 +471,7 @@
     { "path": "./packages/attachment/attachment" },
     { "path": "./packages/attachment/attachment-local" },
     { "path": "./packages/client/file-upload/tsconfig.host.json" },
+    { "path": "./packages/client/remote-connection/tsconfig.host.json" },
     { "path": "./packages/llm/llm" },
     { "path": "./packages/llm/deepseek-llm-api-extensions" },
     { "path": "./packages/llm/token-meter" },
@@ -463,7 +489,7 @@
     { "path": "./packages/api/workspace-controller/tsconfig.host.json" },
     { "path": "./packages/api/sdkwork-app-build-controller" },
     { "path": "./packages/api/sdkwork-git-controller" },
-    { "path": "./packages/api/sdkwork-template-install-controller" },
+    { "path": "./packages/api/sdkwork-scaffold-install-controller" },
     { "path": "./packages/typert/loader" },
     { "path": "./packages/session/session-persistence" },
     { "path": "./packages/session/session-format" },
@@ -495,6 +521,7 @@
     { "path": "./packages/storage/storage-domain" },
     { "path": "./packages/feedback/message-feedback" },
     { "path": "./packages/workspace/workspace" },
+    { "path": "./packages/session/tool-session-control" },
     { "path": "./packages/session/session-title" },
     { "path": "./packages/session/working-directory" },
     { "path": "./packages/experimental/worktree" },
@@ -531,6 +558,8 @@
     { "path": "./packages/context/session-reference" },
     { "path": "./packages/context/harness-dev-context" },
     { "path": "./packages/interaction/user-questions" },
+    { "path": "./packages/interaction/tool-sdkwork-deploy" },
+    { "path": "./packages/interaction/tool-sdkwork-knowledge" },
     { "path": "./packages/interaction/user-approval" },
     { "path": "./packages/interaction/permission-presets" },
     { "path": "./packages/experimental/auto-review" },
@@ -670,6 +699,7 @@
     { "path": "./packages/mcp/mcp-resources" },
     { "path": "./packages/connector/linear" },
     { "path": "./packages/connector/notion" },
+    { "path": "./packages/connector/tencent-docs" },
     { "path": "./packages/host/directory-picker" },
     { "path": "./packages/host/directory-picker-auto" },
     { "path": "./packages/host/directory-picker-browse" },
@@ -682,7 +712,7 @@
     { "path": "./packages/host/sdkwork-app-build" },
     { "path": "./packages/host/sdkwork-git" },
     { "path": "./packages/host/sdkwork-oem" },
-    { "path": "./packages/host/sdkwork-template-install" },
+    { "path": "./packages/host/sdkwork-scaffold-install" },
     { "path": "./packages/host/sdkwork-directory-picker-auto" },
     { "path": "./packages/host/sdkwork-directory-picker-composed" },
     { "path": "./packages/boot/plugin-manager" },

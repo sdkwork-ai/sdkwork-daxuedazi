@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PRIMARY_NODE_VERSION: '24'
+  PRIMARY_NODE_VERSION: '^24.22.3'
   DSH_TELEMETRY_DISABLED: '1'
   # The Web build bakes the installation's deploy application id into the page
   # (`apps/web/vite.config.ts` refuses the committed placeholder). The id is a

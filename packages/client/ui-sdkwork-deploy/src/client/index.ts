@@ -14,17 +14,17 @@
  *
  * The settings menu's "我的应用" row opens {@link DeployedAppsDialog}
  * through the `settings.myDeployments` seat: the caller's own `deploy_app`
- * rows and app-template listings, each narrowed by its own facet. Both tabs
+ * rows and app-scaffold listings, each narrowed by its own facet. Both tabs
  * read the same clients and are read-only; publishing stays on the header and
  * row-menu flows.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import type { ClientRemote } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-env/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sdkwork-iam/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 // Type-only: pulls the settings slot declarations (settings.myDeployments).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
@@ -37,24 +37,27 @@ import { DeployedAppsDialog, type DeployedAppsDialogInjected } from './DeployedA
 import './deployDialogHost.css'
 import type { DeployLocaleFace, DeployPublishThemePort } from './deployPorts.ts'
 import { DeployPublishEntry, type DeployPublishEntryProps } from './DeployPublishEntry.tsx'
-import { PublishTemplateFlow, type PublishTemplateFlowProps } from './PublishTemplateFlow.tsx'
-import { InstallTemplateFlow, type InstallTemplateFlowProps } from './InstallTemplateFlow.tsx'
+import { DeploySiteCard, type DeploySiteCardInjected } from './DeploySiteCard.tsx'
+import { DeploySitePanel, type DeploySiteInjected } from './DeploySitePanel.tsx'
+import { publishFromConversation } from './deployConversation.ts'
+import { DEPLOY_SITE_ID, DEPLOY_SITE_KIND, deploySiteDefinition, loadDeploySiteDashboard } from './deploySite.ts'
+import { PublishScaffoldFlow, type PublishScaffoldFlowProps } from './PublishScaffoldFlow.tsx'
+import { InstallScaffoldFlow, type InstallScaffoldFlowProps } from './InstallScaffoldFlow.tsx'
 import { createElement, type ReactElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import {
   DeployHost,
   type DeployHostBuild,
-  type DeployHostBuildFrame,
   type DeployHostEnvironment,
   type DeployHostIam,
   type DeployHostWorkspace,
   type DeployWorkspaceListing,
 } from './deployHost.ts'
 import {
-  installTemplateVersion,
-  type TemplateInstallOutcome,
-  type TemplateInstallProgress,
-} from './installTemplate.ts'
+  installScaffoldVersion,
+  type ScaffoldInstallOutcome,
+  type ScaffoldInstallProgress,
+} from './installScaffold.ts'
 import { en, NS, zh, type DeployKey } from './locales.ts'
 
 export type { DeployPublishActionProps } from './DeployPublishAction.tsx'
@@ -67,13 +70,13 @@ export { discoverAppLibrary } from './appLibrary.ts'
 export type { DeployAppSourceDialogProps } from './DeployAppSourceDialog.tsx'
 export { DeployAppSourceDialog } from './DeployAppSourceDialog.tsx'
 export type { DeployLocaleFace, DeployPublishThemePort } from './deployPorts.ts'
-export type { PublishTemplateFlowProps } from './PublishTemplateFlow.tsx'
-export type { InstallTemplateFlowProps } from './InstallTemplateFlow.tsx'
+export type { PublishScaffoldFlowProps } from './PublishScaffoldFlow.tsx'
+export type { InstallScaffoldFlowProps } from './InstallScaffoldFlow.tsx'
 export type {
-  InstallTemplateVersionDeps,
-  TemplateInstallOutcome,
-  TemplateInstallProgress,
-} from './installTemplate.ts'
+  InstallScaffoldVersionDeps,
+  ScaffoldInstallOutcome,
+  ScaffoldInstallProgress,
+} from './installScaffold.ts'
 export type {
   DeployDirectoryInspection,
   DeployHost,
@@ -98,9 +101,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /**
  * The publish-project service this plugin provides for sibling surfaces (the
  * workspace/session row menus) to run the shared project publish flow and the
- * shared publish-as-template flow with a default source directory. Exposes the
+ * shared publish-as-scaffold flow with a default source directory. Exposes the
  * host adapter plus the reactive theme/locale ports the dialogs consume;
- * `open`/`openPublishTemplate`/`openInstallTemplate` mount into the body so
+ * `open`/`openPublishScaffold`/`openInstallScaffold` mount into the body so
  * callers stay decoupled from the @sdkwork component tree. Publish and install
  * are separate surfaces with separate state.
  */
@@ -120,32 +123,32 @@ export interface DeployPublishService {
    */
   open(options?: { defaultDirectory?: string | undefined }): void
   /**
-   * Open the publish-as-template dialog for one project directory.
+   * Open the publish-as-scaffold dialog for one project directory.
    * @param options - `{ defaultDirectory }` names the project whose `apps/`
    *   tree is read; omit for the session cwd.
    */
-  openPublishTemplate(options?: { defaultDirectory?: string | undefined }): void
+  openPublishScaffold(options?: { defaultDirectory?: string | undefined }): void
   /**
-   * Open the install-from-template dialog for one project directory.
+   * Open the install-from-scaffold dialog for one project directory.
    * @param options - `{ defaultDirectory }` names the project whose `apps/`
    *   tree receives the default install; omit for the session cwd.
    */
-  openInstallTemplate(options?: { defaultDirectory?: string | undefined }): void
+  openInstallScaffold(options?: { defaultDirectory?: string | undefined }): void
   /**
-   * Install one published template's latest artifact version into a picked
+   * Install one published scaffold's latest artifact version into a picked
    * directory: download through the Drive content API, screen, and write the
    * planned files through the host install bridge.
-   * @param options - the template id, the picked target directory, and an
+   * @param options - the scaffold id, the picked target directory, and an
    *   optional progress reporter (download percent, then per-file writes).
    * @returns the install facts for the caller's acknowledgement copy.
-   * @throws when the host lacks the install bridge, the template has no
+   * @throws when the host lacks the install bridge, the scaffold has no
    *   artifact version, or a download/write step fails.
    */
-  installTemplate(options: {
+  installScaffold(options: {
     templateId: string
     targetDirectory: string
-    reportProgress?: ((progress: TemplateInstallProgress) => void) | undefined
-  }): Promise<TemplateInstallOutcome>
+    reportProgress?: ((progress: ScaffoldInstallProgress) => void) | undefined
+  }): Promise<ScaffoldInstallOutcome>
   /** Close the publish-project dialog if it is open. */
   close(): void
 }
@@ -233,7 +236,7 @@ interface DeployHostUiWorkspace {
 }
 
 /** Required services for locale registration, the workspace port, and the header-slot contribution. */
-export const inject = ['slots', 'locale', 'env', 'iam', 'theme', 'sessions', 'uiWorkspace', 'remote', 'remote.sdkworkAppBuild', 'remote.sdkworkTemplateInstall']
+export const inject = ['slots', 'locale', 'env', 'iam', 'theme', 'sessions', 'uiWorkspace', 'remote', 'remote.sdkworkAppBuild', 'remote.sdkworkScaffoldInstall', 'sidebarRightTabs', 'sidebarRight']
 
 /**
  * Client plugin body: register the dictionaries, the host adapter, and the
@@ -249,16 +252,16 @@ export function apply(ctx: ClientContext): void {
   const uiWorkspace = ctx.get('uiWorkspace') as DeployHostUiWorkspace | undefined
   const sessions = ctx.get('sessions') as DeployHostSessions | undefined
   // The install namespace is optional at runtime: a composition whose bundle
-  // predates the template-install rows mounts these menus without it, and the
+  // predates the scaffold-install rows mounts these menus without it, and the
   // install port then stays absent while publish keeps working.
-  const templateInstallRemote = (ctx.remote as ClientRemote).sdkworkTemplateInstall
+  const scaffoldInstallRemote = (ctx.remote).sdkworkScaffoldInstall
   const workspace: DeployHostWorkspace | undefined =
     uiWorkspace === undefined
       ? undefined
       : {
         pickDirectory: () => uiWorkspace.pickDirectory(),
         listDirectory: path => uiWorkspace.listDirectory(path),
-        currentDirectory: () => sessionCwdOf(sessions?.list.getSnapshot() as DeploySessionsSnapshot | undefined),
+        currentDirectory: () => sessionCwdOf(sessions?.list.getSnapshot()),
         ...(typeof uiWorkspace.createDirectory === 'function'
           ? {
             createDirectory: async (parent: string, name: string): Promise<string> => {
@@ -271,34 +274,34 @@ export function apply(ctx: ClientContext): void {
           : {}),
         readTextFile: (path, signal) => uiWorkspace.readTextFile(path, signal),
         writeTextFile: (path, content) => uiWorkspace.writeTextFile(path, content),
-        ...(templateInstallRemote === undefined
+        ...(scaffoldInstallRemote === undefined
           ? {}
           : {
-            writeTemplateFile: async (request) => {
-              const result = await templateInstallRemote.writeFile(request)
+            writeScaffoldFile: async (request) => {
+              const result = await scaffoldInstallRemote.writeFile(request)
               if (!result.ok) {
-                throw new Error(`sdkworkTemplateInstall.writeFile failed: ${result.error.code}: ${result.error.message}`)
+                throw new Error(`sdkworkScaffoldInstall.writeFile failed: ${result.error.code}: ${result.error.message}`)
               }
               return result.value
             },
-            listTemplateFiles: async (directory) => {
-              const result = await templateInstallRemote.listFiles({ directory })
+            listScaffoldFiles: async (directory) => {
+              const result = await scaffoldInstallRemote.listFiles({ directory })
               if (!result.ok) {
-                throw new Error(`sdkworkTemplateInstall.listFiles failed: ${result.error.code}: ${result.error.message}`)
+                throw new Error(`sdkworkScaffoldInstall.listFiles failed: ${result.error.code}: ${result.error.message}`)
               }
               return result.value
             },
-            readTemplateFiles: async (directory, paths) => {
-              const result = await templateInstallRemote.readFiles({ directory, paths: [...paths] })
+            readScaffoldFiles: async (directory, paths) => {
+              const result = await scaffoldInstallRemote.readFiles({ directory, paths: [...paths] })
               if (!result.ok) {
-                throw new Error(`sdkworkTemplateInstall.readFiles failed: ${result.error.code}: ${result.error.message}`)
+                throw new Error(`sdkworkScaffoldInstall.readFiles failed: ${result.error.code}: ${result.error.message}`)
               }
               return result.value.files
             },
           }),
       }
   const build: DeployHostBuild | undefined = (() => {
-    const namespace = (ctx.remote as ClientRemote).sdkworkAppBuild
+    const namespace = (ctx.remote).sdkworkAppBuild
     if (namespace === undefined) return undefined
     return {
       async start(request) {
@@ -310,7 +313,7 @@ export function apply(ctx: ClientContext): void {
       },
       async follow(buildId, onFrame, signal) {
         for await (const frame of namespace.follow(buildId, signal)) {
-          onFrame(frame as DeployHostBuildFrame)
+          onFrame(frame)
         }
       },
       async cancel(buildId) {
@@ -357,10 +360,10 @@ export function apply(ctx: ClientContext): void {
   const theme = deployPublishThemePort(ctx, themeRuntime)
   const locale = deployPublishLocalePort(ctx)
   // Expose the publish service so sibling surfaces (workspace/session row
-  // menus) can run the shared project publish flow and the two template
+  // menus) can run the shared project publish flow and the two scaffold
   // surfaces with a default cwd. The project flow resolves or creates the
   // project's app from its manifest, then mounts the publish dialog;
-  // `openPublishTemplate` and `openInstallTemplate` mount independent dialogs.
+  // `openPublishScaffold` and `openInstallScaffold` mount independent dialogs.
   // Each mounts into the body through an isolated React root so callers stay
   // decoupled from the @sdkwork component tree and the slot renderer; `close`
   // tears it down. A single root is reused across opens (the surfaces are
@@ -398,50 +401,53 @@ export function apply(ctx: ClientContext): void {
       onClose: closePublish,
     } satisfies DeployPublishEntryProps))
   }
-  const renderPublishTemplate = (defaultDirectory: string | undefined): void => {
-    renderPublishSurface(createElement(PublishTemplateFlow, {
+  const renderPublishScaffold = (defaultDirectory: string | undefined): void => {
+    renderPublishSurface(createElement(PublishScaffoldFlow, {
       host,
       theme,
       t: ctx.locale.bind(NS),
       directory: defaultDirectory,
       startSignIn: () => { iam.startSignIn?.() },
       onClose: closePublish,
-    } satisfies PublishTemplateFlowProps))
+    } satisfies PublishScaffoldFlowProps))
   }
-  const renderInstallTemplate = (defaultDirectory: string | undefined): void => {
-    renderPublishSurface(createElement(InstallTemplateFlow, {
+  const renderInstallScaffold = (defaultDirectory: string | undefined): void => {
+    renderPublishSurface(createElement(InstallScaffoldFlow, {
       host,
       theme,
       t: ctx.locale.bind(NS),
       directory: defaultDirectory,
       startSignIn: () => { iam.startSignIn?.() },
       onClose: closePublish,
-    } satisfies InstallTemplateFlowProps))
+    } satisfies InstallScaffoldFlowProps))
   }
   ctx.provide('deployPublish', {
     host, theme, locale,
     open: (options) => { renderPublish(options?.defaultDirectory) },
-    openPublishTemplate: (options) => { renderPublishTemplate(options?.defaultDirectory) },
-    openInstallTemplate: (options) => { renderInstallTemplate(options?.defaultDirectory) },
-    installTemplate: async (options) => {
+    openPublishScaffold: (options) => { renderPublishScaffold(options?.defaultDirectory) },
+    openInstallScaffold: (options) => { renderInstallScaffold(options?.defaultDirectory) },
+    installScaffold: async (options) => {
       // Login gate: the API answers a tokenless call with a raw 401; saying so
       // up front names the fix instead.
       if (host.readCurrentUser() === undefined) {
         throw new Error(ctx.locale.bind(NS)('install.loginRequired'))
       }
       const clients = host.readClients()
-      const writeTemplateFile = workspace?.writeTemplateFile
-      if (writeTemplateFile === undefined) {
-        throw new Error('template install is unavailable: the host composition has no template-install bridge')
+      const writeScaffoldFile = workspace?.writeScaffoldFile
+      if (writeScaffoldFile === undefined) {
+        throw new Error('scaffold install is unavailable: the host composition has no scaffold-install bridge')
       }
-      const outcome = await installTemplateVersion({
-        templates: clients.deployClient.template,
+      const outcome = await installScaffoldVersion({
+        scaffolds: {
+          appScaffolds: clients.deployClient.app.scaffolds,
+          appScaffoldVersions: clients.deployClient.app.scaffolds.versions,
+        },
         artifacts: clients.deployClient,
         drive: clients.driveClient,
-        writeFile: request => writeTemplateFile(request),
+        writeFile: request => writeScaffoldFile(request),
         reportProgress: options.reportProgress,
       }, { templateId: options.templateId, targetDirectory: options.targetDirectory })
-      // Record the template identity in the installed project's manifest (best
+      // Record the scaffold identity in the installed project's manifest (best
       // effort), so a repeat install or a later update relates by ID.
       await host.writeDeployLink({
         templateId: options.templateId,
@@ -505,4 +511,42 @@ export function apply(ctx: ClientContext): void {
       },
     }),
   }, DeployedAppsDialog))
+
+  // Deploy from the conversation: the Host's `sdkwork_deploy_app` tool relays
+  // each publish request over the forwarded `sdkwork-deploy/request` waterfall.
+  // Publishing runs here because the signed-in IAM session and the generated
+  // deploy clients live in this browser client; the tool only formats the
+  // answer. The listener lives exactly as long as this plugin.
+  const boundT = ctx.locale.bind(NS)
+  ctx.effect(() => ctx.remote.$on('sdkwork-deploy/request', request => publishFromConversation({
+    host,
+    isSignedIn: () => {
+      const session = iam.controller.getState().session
+      return session !== null && session !== undefined
+    },
+  }, request)), 'ui-sdkwork-deploy: conversation publish bridge')
+
+  // The `sdkwork-deploy-site` right-Sidebar type and its body. The card opens
+  // it with the published site facts; the body re-reads the live dashboard
+  // through the same host adapter.
+  ctx.effect(() => ctx.sidebarRightTabs.register(deploySiteDefinition(boundT)), 'ui-sdkwork-deploy: site tab type')
+  ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: DEPLOY_SITE_ID,
+    locale: NS,
+    inject: (): DeploySiteInjected => ({
+      loadDashboard: (appId, signal) => loadDeploySiteDashboard(host.readClients(), appId, signal),
+    }),
+  }, DeploySitePanel))
+
+  // The published-site card: the tool result renders as the site row, and
+  // selecting it opens the tab above in the right Sidebar.
+  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+    name: 'tool.call.toolview',
+    key: 'sdkwork_deploy_app',
+    locale: NS,
+    inject: (): DeploySiteCardInjected => ({
+      openSite: (site) => { ctx.sidebarRight.openContent(DEPLOY_SITE_KIND, { site }, { key: site.appId }) },
+    }),
+  }, DeploySiteCard))
 }

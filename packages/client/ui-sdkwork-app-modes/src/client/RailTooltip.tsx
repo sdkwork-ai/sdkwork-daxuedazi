@@ -30,7 +30,7 @@
  * labels are short, so requested placement is always usable there.
  */
 import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FocusEventHandler, MouseEventHandler, MutableRefObject, ReactElement, Ref } from 'react'
+import type { FocusEventHandler, MouseEventHandler, ReactElement, Ref } from 'react'
 import css from './RailTooltip.module.css'
 
 /** Bubble placement relative to the anchor (matches upstream's vocabulary). */
@@ -52,7 +52,7 @@ type TooltipLabel = string | (() => string)
  * instance's id; every other instance force-dismisses. Fired on `document`
  * so inlined bundle copies share the bus.
  */
-const RAIL_TOOLTIP_SHOW_EVENT = 'sdkwork:rail-tooltip:show'
+const RAIL_HINT_SHOW = 'sdkwork:rail-tooltip:show'
 
 /** Pointer distance beyond the anchor box that still counts as "on the anchor". */
 const ANCHOR_GRACE_PX = 6
@@ -82,11 +82,11 @@ export function RailTooltip({ label, side = 'right', delayMs = 0, disabled = fal
   // React 18 keeps the element's ref outside props, React 19 moved it into
   // props; read both so wrapping an anchor never severs the owner's ref.
   const childRef = (children as ReactElement<AnchorProps> & { ref?: Ref<HTMLElement> }).ref
-    ?? (children.props as AnchorProps).ref
+    ?? (children.props).ref
   const mergedRef = useCallback((el: HTMLElement | null) => {
     anchor.current = el
     if (typeof childRef === 'function') childRef(el)
-    else if (childRef != null) (childRef as MutableRefObject<HTMLElement | null>).current = el
+    else if (childRef != null) (childRef).current = el
   }, [childRef])
   const [pos, setPos] = useState<{ x: number; top: number; bottom: number } | null>(null)
   const bubble = useRef<HTMLSpanElement | null>(null)
@@ -129,7 +129,7 @@ export function RailTooltip({ label, side = 'right', delayMs = 0, disabled = fal
     setPos({ x: side === 'right' ? r.right + 10 : r.left + r.width / 2, top: r.top, bottom: r.bottom })
     // Defense 3: tell every other instance (in this document, whatever bundle
     // it was inlined into) to stand down — one rail bubble at a time.
-    document.dispatchEvent(new CustomEvent(RAIL_TOOLTIP_SHOW_EVENT, { detail: instanceId }))
+    document.dispatchEvent(new CustomEvent(RAIL_HINT_SHOW, { detail: instanceId }))
   }, [disabled, instanceId, side])
   const showAfterHoverDelay = useCallback(() => {
     cancelShow()
@@ -156,7 +156,7 @@ export function RailTooltip({ label, side = 'right', delayMs = 0, disabled = fal
       // whatever the (possibly swallowed) mouseleave said.
       if (!onAnchor) forceDismiss()
     }
-    const onDown = (): void => forceDismiss()
+    const onDown = (): void =>{  forceDismiss() }
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerdown', onDown)
     return () => {
@@ -171,8 +171,8 @@ export function RailTooltip({ label, side = 'right', delayMs = 0, disabled = fal
     const onShow = (event: Event): void => {
       if ((event as CustomEvent<unknown>).detail !== instanceId) forceDismiss()
     }
-    document.addEventListener(RAIL_TOOLTIP_SHOW_EVENT, onShow)
-    return () => { document.removeEventListener(RAIL_TOOLTIP_SHOW_EVENT, onShow) }
+    document.addEventListener(RAIL_HINT_SHOW, onShow)
+    return () => { document.removeEventListener(RAIL_HINT_SHOW, onShow) }
   }, [forceDismiss, instanceId])
 
   // Keep the bubble clear of the viewport edges (long labels near the right

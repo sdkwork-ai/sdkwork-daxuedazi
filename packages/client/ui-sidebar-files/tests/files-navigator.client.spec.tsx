@@ -28,8 +28,8 @@ const ROOT_LEVEL: DirLevel = {
   truncated: false,
 }
 const SRC_LEVEL: DirLevel = { entries: [{ name: 'a.ts', type: 'file', size: 1 }, { name: 'b.ts', type: 'file', size: 1 }], truncated: false }
-const A = sessionFileAddress(SESSION, 'src/a.ts')
-const B = sessionFileAddress(SESSION, 'src/b.ts')
+const A = sessionFileAddress(SESSION, `${ROOT}/src/a.ts`)
+const B = sessionFileAddress(SESSION, `${ROOT}/src/b.ts`)
 
 // jsdom lays nothing out and has no scrolling into view; the spec records the request.
 beforeEach(() => { Element.prototype.scrollIntoView = vi.fn() })
@@ -182,7 +182,7 @@ describe('FileNavigator beside a preview', () => {
     sidebar.show(SESSION)
     sidebar.controller.openResource(sessionFileAddress(SESSION, 'other.ts'))
     sidebar.controller.openResource(A)
-    const layout = () => store.getSnapshot().bySession[SESSION]!.layout
+    const layout = () => store.getSnapshot().bySession[SESSION].layout
     const from = Object.values(layout().tabs).find(tab => tab.contentId === A)!
     if (floating) sidebar.controller.float(from.id)
     const paneOf = (tabId: string) => Object.values(layout().nodes).find(node => node.kind === 'pane' && node.tabs.includes(tabId as never))

@@ -199,6 +199,14 @@ export function Welcome({ api }: { api: WelcomeApi }) {
         onClick: () => { void api.analytics?.('auth_page_click', { button_name: 'api-key' }); navigate('key') },
       }]
       : [],
+    // A workspace a stored API key keeps usable reaches itself again without
+    // another login; the quiet action sits after the column's buttons.
+    ...api.canContinue
+      ? [{
+        id: 'continue-without-account', label: m.welcomeContinueWithout, kind: 'text' as const, disabled: busy || starting,
+        onClick: () => { void skip() },
+      }]
+      : [],
   ]
   const keyActions: LoginAction[] = [
     { id: 'save-key', label: m.welcomeKeySave, kind: 'primary', form: 'key-form', disabled: busy || draft.trim() === '' },
@@ -230,17 +238,26 @@ export function Welcome({ api }: { api: WelcomeApi }) {
   return <>
     {expiryNotice && <Toast text={m.welcomeSessionExpired} onDone={() => { setExpiryNotice(false) }} />}
     <div className="titlebar" aria-hidden="true" />
-    <main className="welcome" aria-labelledby={heading}>
-      {/* The shipped display name is 学伴AI; an OEM build replaces
-          brand.name and the welcome raster together. */}
+    <main className="welcome" aria-labelledby={heading} aria-describedby={page === 'entry' ? 'welcome-description' : undefined}>
+      {/* The shipped name and mark are BirdCoder; an OEM build replaces
+          brand.name and the welcome raster together. The signed-out entry is
+          the landing (mark, welcome line, one action, product links); the
+          method pages keep the window layout with its brand row. */}
       <LoginPanel
-        variant="window"
+        variant={page === 'entry' ? 'landing' : 'window'}
         brand={m.welcomeBrand}
         logoSrc="assets/welcome-bird.png"
-        welcome={{
-          before: m.welcomeTaglineBefore, brand: m.welcomeTaglineBrand,
-          after: m.welcomeTaglineAfter, description: m.welcomeDescription,
-        }}
+        heroSrc="assets/welcome-bird-2x.png"
+        welcome={page === 'entry'
+          ? { before: '', brand: m.welcomeBrand, after: '', description: m.welcomeDescription }
+          : {
+            before: m.welcomeTaglineBefore, brand: m.welcomeTaglineBrand,
+            after: m.welcomeTaglineAfter, description: m.welcomeDescription,
+          }}
+        footerLinks={page === 'entry' ? api.footerLinks : undefined}
+        onOpenLink={(href) => { void api.openExternal(href).catch((_closedChannel: unknown) => {
+          // A closed Welcome IPC channel must not interrupt the sign-in page.
+        }) }}
         welcomeHidden={page !== 'entry'}
         headingId="welcome-heading"
         descriptionId="welcome-description"

@@ -285,7 +285,7 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
                 </Tooltip>}
               />}
             </div>
-            <div className={css.list}>
+            <div className={clsx(css.list, showRecommendations && css.listWithRecommendations)}>
               {selected === undefined && <CatalogFeedback status={status} populated={rows.length > 0} onRetry={onRetry} t={t} />}
               {status === 'ready' && rows.length === 0 && <div className={css.empty} role="status">
                 <ScheduleEmptyIllustration className={css.emptyIllustration} />
@@ -352,8 +352,8 @@ export function TaskManagerPage(props: TaskManagerPageProps) {
         onClose={closeDetails}
       />}
       <Modal
-        className={css.confirmDialog as string}
-        contentClassName={css.confirmContent as string}
+        className={css.confirmDialog}
+        contentClassName={css.confirmContent}
         open={clearConfirm}
         title={t('clear.title', { count: endedCount })}
         description={t('clear.description')}

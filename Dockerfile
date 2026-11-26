@@ -9,8 +9,16 @@ ENV CI=true
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 WORKDIR /src
 
+# The packed vendor closure carries @larksuite/cli, whose postinstall
+# (`node scripts/install.js`) downloads and extracts its platform binary with
+# curl + tar. None of those are build-time tools of this repository, so the
+# slim base image has no curl, and Node talks TLS through its own bundled CA
+# store, which means npm alone never needed /etc/ssl/certs — curl does:
+#   spawnSync curl ENOENT            (no curl)
+#   curl: (77) error setting certificate file: /etc/ssl/certs/ca-certificates.crt
 RUN apt-get update \
-  && apt-get install --no-install-recommends --yes g++ make python3 git \
+  && apt-get install --no-install-recommends --yes \
+    g++ make python3 git curl ca-certificates tar gzip \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@11.7.0 --activate
 # node:22 ships npm 10, whose arborist crashes resolving this peer-heavy

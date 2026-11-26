@@ -30,18 +30,37 @@ export function exposeSdkworkDesktopBridge(contextBridge: IamPreloadContextBridg
   const listeners = new Set<(url: string) => void>()
   const forward = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
     if (typeof payload !== 'string') return
-    for (const listener of [...listeners]) listener(payload)
+    for (const listener of [...listeners]) {
+      try {
+        listener(payload)
+      } catch {
+        // One failed subscriber must not starve the others: the login runtime
+        // and any page diagnostics both observe the same hand-off.
+      }
+    }
   }
   ipcRenderer.on(SDKWORK_DESKTOP_BRIDGE.deepLinksOpenEvent, forward)
   const loopbackListeners = new Set<(url: string) => void>()
   const forwardLoopback = (_event: Electron.IpcRendererEvent, payload: unknown): void => {
     if (typeof payload !== 'string') return
-    for (const listener of [...loopbackListeners]) listener(payload)
+    for (const listener of [...loopbackListeners]) {
+      try {
+        listener(payload)
+      } catch {
+        // Same isolation as the deep-link event above.
+      }
+    }
   }
   ipcRenderer.on(IAM_LOOPBACK_BRIDGE.callback, forwardLoopback)
   const aboutListeners = new Set<() => void>()
   const forwardAbout = (): void => {
-    for (const listener of [...aboutListeners]) listener()
+    for (const listener of [...aboutListeners]) {
+      try {
+        listener()
+      } catch {
+        // The shell's About request must reach every other subscriber.
+      }
+    }
   }
   ipcRenderer.on(ABOUT_BRIDGE.openEvent, forwardAbout)
 
@@ -66,6 +85,16 @@ export function exposeSdkworkDesktopBridge(contextBridge: IamPreloadContextBridg
         }
         return { redirectUri }
       },
+      pending: async (): Promise<{ redirectUri: string } | null> => {
+        const value: unknown = await ipcRenderer.invoke(IAM_LOOPBACK_BRIDGE.pending)
+        if (typeof value !== 'object' || value === null) return null
+        const redirectUri = (value as { redirectUri?: unknown }).redirectUri
+        return typeof redirectUri === 'string' && redirectUri !== '' ? { redirectUri } : null
+      },
+      takeCallback: async (): Promise<string | null> => {
+        const value: unknown = await ipcRenderer.invoke(IAM_LOOPBACK_BRIDGE.takeCallback)
+        return typeof value === 'string' && value !== '' ? value : null
+      },
       cancel: async (): Promise<void> => {
         await ipcRenderer.invoke(IAM_LOOPBACK_BRIDGE.cancel)
       },
@@ -87,6 +116,11 @@ export function exposeSdkworkDesktopBridge(contextBridge: IamPreloadContextBridg
       takePending: async (): Promise<boolean> => {
         const value: unknown = await ipcRenderer.invoke(ABOUT_BRIDGE.takePending)
         return value === true
+      },
+      facts: async (): Promise<{ appVersion: string }> => {
+        const value: unknown = await ipcRenderer.invoke(ABOUT_BRIDGE.facts)
+        const record = typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+        return { appVersion: typeof record.appVersion === 'string' ? record.appVersion : '' }
       },
     },
     iamSession: {

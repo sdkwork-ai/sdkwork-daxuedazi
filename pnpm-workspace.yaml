@@ -8,8 +8,7 @@ packages:
   # `plugins/*` stays outside tsdown's build globs (`vendor/*`, `packages/*/*`):
   # each plugin ships its own build, and its artifacts are committed upstream
   # rather than produced by this repository's build — except the entries whose
-  # upstreams gitignore them (`sdkwork-deepseekbot`, `dsh-better-sidebar`, and
-  # the host half of `dsh-market`), which this repository builds on install and
+  # upstreams gitignore them (`sdkwork-deepseekbot` and `dsh-better-sidebar`), which this repository builds on install and
   # in the artifacts gate (see plugins/README.md).
   - "plugins/*"
   # The assistant surface (助理 / Assistant): SDKWork's BotHarness mirror is a
@@ -51,11 +50,6 @@ packages:
   - "../sdkwork-payment/sdks/sdkwork-payment-backend-sdk/sdkwork-payment-backend-sdk-typescript"
   - "../sdkwork-catalog/sdks/sdkwork-catalog-app-sdk/sdkwork-catalog-app-sdk-typescript"
   - "../sdkwork-documents/sdks/sdkwork-documents-app-sdk/sdkwork-documents-app-sdk-typescript"
-  # `sdkwork-cloudrouter-pc`'s admin products import these two backend SDKs, so
-  # the release closure carries them as source members like every other sibling
-  # SDK it inlines.
-  - "../sdkwork-inventory/sdks/sdkwork-inventory-backend-sdk/sdkwork-inventory-backend-sdk-typescript"
-  - "../sdkwork-shop/sdks/sdkwork-shop-backend-sdk/sdkwork-shop-backend-sdk-typescript"
   - "../sdkwork-documents/apps/sdkwork-documents-pc/packages/sdkwork-documents-pc-commons"
   # `sdkwork-appstore-pc-developer-market` (the appstore family glob below)
   # declares these three documents PC packages as `workspace:*` dependencies;
@@ -109,12 +103,18 @@ packages:
   # reaches its type surface through the @sdkwork/* source aliases below.
   - "../sdkwork-aiot/sdks/sdkwork-aiot-app-sdk/sdkwork-aiot-app-sdk-typescript"
   - "../sdkwork-cloudrouter/sdks/cloudrouter-app-sdk/cloudrouter-app-sdk-typescript"
+  # The public open-api SDK: the model price-group picker reads
+  # `/v1/models/{model}/groups` through it (API-key or IAM dual-token channel),
+  # while the user-scoped write still goes through the app SDK above.
+  - "../sdkwork-cloudrouter/sdks/cloudrouter-open-sdk/cloudrouter-open-sdk-typescript"
   - "../sdkwork-mcp/sdks/sdkwork-mcp-app-sdk/sdkwork-mcp-app-sdk-typescript"
   # `sdkwork-cloudroutes-pc-commons` (joined above through the cloudrouter
   # sibling) imports these three backend SDKs; the packages join for resolution
   # so client bundles inline their sibling source on the release runner.
   - "../sdkwork-mcp/sdks/sdkwork-mcp-backend-sdk/sdkwork-mcp-backend-sdk-typescript"
   - "../sdkwork-plugins/sdks/sdkwork-plugins-backend-sdk/sdkwork-plugins-backend-sdk-typescript"
+  - "../sdkwork-plugins/sdks/sdkwork-plugins-app-sdk/sdkwork-plugins-app-sdk-typescript"
+  - "../sdkwork-plugins/apps/sdkwork-plugins-pc/packages/sdkwork-plugins-pc-marketplace"
   - "../sdkwork-skills/sdks/sdkwork-skills-backend-sdk/sdkwork-skills-backend-sdk-typescript"
   - "../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript"
   - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react"
@@ -268,100 +268,7 @@ packages:
   # builds must resolve those matching names to this workspace's pinned sources.
 linkWorkspacePackages: true
 
-# `pnpm run`/`pnpm exec` 默认会先做一次依赖校验安装。本仓库单次安装要 4-6 分钟，
-# 且该安装的根 postinstall 会重新获取 hook 安装锁（scripts/install-lefthook.mjs）；
-# 依赖未变时的自动安装收益很低，改为依赖变更后显式执行 pnpm install。
-verifyDepsBeforeRun: false
-
 overrides:
-  # The expert-market plugin (`plugins/sdkwork-dsh-agents`) declares
-  # `@deepseek-ai/dsh` as an OPTIONAL peer, but `auto-install-peers` still
-  # resolves that edge. Left alone the range fetches the published line
-  # (0.2.0-rc.2) and pulls a second, complete harness closure into this
-  # workspace's lockfile. The plugin is mounted by THIS build, so the host it
-  # names is this checkout: point the edge at the workspace CLI, which
-  # `linkWorkspacePackages` then links instead of resolving a registry copy.
-  # The pin must name the version this workspace carries: the link only happens
-  # when the override equals the member's version, and a stale pin silently
-  # resolves the published tarball instead (which drags in a second closure —
-  # and a `dsh-subprocess-local` build script the install allowlist refuses).
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh': '0.2.2-rc.7'
-  # The expert-market plugin's Typert edges resolve the published 0.2.2-rc.1
-  # pair, whose protocol entry re-exports `TypertRegistryContract` from
-  # `./types.ts` — a type alias the registry's `declare module` augmentation
-  # cannot reach, so `ctx.typert.register` misses its `register` member and the
-  # plugin's own typecheck gate fails. The workspace carries 0.2.2-rc.7, whose
-  # sources declare the contract in place; the scoped pins point the plugin's
-  # edges there (linkWorkspacePackages links them instead of fetching), which
-  # also drops the second Typert instance the plugin's runtime otherwise
-  # carries beside the workspace sources.
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-typert-protocol': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-typert-registry': '0.2.2-rc.7'
-  # The plugin is mounted by THIS build, so every remaining @deepseek-ai edge
-  # typechecks against the types it actually runs against: this checkout's
-  # sources, not the 0.2.2-rc.1 tarballs its manifest pins. The plugin was
-  # authored against the published line and its own CI installs those, so the
-  # rows stay scoped to this plugin — the workspace's own workspace:*
-  # declarations are untouched. Bump each pin together with the workspace
-  # release version; a stale pin resolves the published tarball again and the
-  # plugin's typecheck gate fails loudly (rc.1's TypertRegistryContract
-  # re-export already proved that).
-  '@michengai/dsh-agency-agents>@deepseek-ai/cordis': 'link:vendor/cordis'
-  '@michengai/dsh-agency-agents>@deepseek-ai/schemastery': 'link:vendor/schemastery'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-api-remotes': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-connection': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-locale': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-ui-conversation': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-ui-input-trigger': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-ui-primitives': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-ui-settings': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-client-ui-slots': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-host-webserver': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-llm': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-settings': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-subagent': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-system-prompt': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-tools': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-session': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-agent': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-attachment': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-brand': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-ptc-runtime': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-sandbox': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-sandbox-policy': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-scope': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-session-projection': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-user-approval': '0.2.2-rc.7'
-  '@michengai/dsh-agency-agents>@deepseek-ai/dsh-util-time': '0.2.2-rc.7'
-  # The plugin market (`plugins/dsh-market`) joins the workspace as the fork's
-  # own submodule, so its `@deepseek-ai/*` edges resolve to the sources this
-  # build actually runs instead of the published line its manifest pins. Two
-  # of them matter at runtime: `schemastery` is the host half's only framework
-  # import (the market's Config schema), and a registry copy would be a second
-  # schema builder beside the host's; `cordis` supplies the `Context` type the
-  # host half compiles against. The rest are dev-time edges for the client
-  # typecheck this repository does not run, but pointing them at the workspace
-  # keeps a second harness closure (and its peer graph) out of the lockfile.
-  'dshmarket>@deepseek-ai/cordis': 'link:vendor/cordis'
-  'dshmarket>@deepseek-ai/schemastery': 'link:vendor/schemastery'
-  # These three must name the version THIS workspace carries, exactly like the
-  # agency-agents rows above: an override replaces the plugin's own range with
-  # the literal specifier recorded in the lockfile, and pnpm then resolves it
-  # inside the workspace. A pin left behind by a version bump matches no member
-  # and the install dies with `ERR_PNPM_NO_MATCHING_VERSION_INSIDE_WORKSPACE`
-  # before any build step runs (this file carried `0.2.2-rc.5` while the
-  # workspace had already moved to `0.2.2-rc.7`).
-  'dshmarket>@deepseek-ai/dsh-settings': '0.2.2-rc.7'
-  'dshmarket>@deepseek-ai/dsh-client-runtime': '0.2.2-rc.7'
-  'dshmarket>@deepseek-ai/dsh-client-ui-primitives': '0.2.2-rc.7'
-  # Two upstream devDependencies of the fork name packages this checkout no
-  # longer carries (`@deepseek-ai/dsh-invariants`,
-  # `@deepseek-ai/dsh-client-ui-settings-plugins`). Nothing in the plugin's
-  # `src/` imports either — only its own test fixtures spell them — so they are
-  # removed here instead of resolving the published 0.1.0 line, which would pull
-  # a second, complete harness closure (test kits included) into this lockfile.
-  'dshmarket>@deepseek-ai/dsh-invariants': '-'
-  'dshmarket>@deepseek-ai/dsh-client-ui-settings-plugins': '-'
   # Converge rolldown on 1.2.7 (the version this repository built with before
   # the upstream sync): 1.1.x panics with "SymbolRef ... is not in any chunk"
   # on the knowledge bundle's sibling-sourced graph.
@@ -372,6 +279,11 @@ overrides:
   # the workspace-wide convergence above stays for the tsdown build.
   'vite@8.0.16>rolldown': 1.0.3
   'extract-zip>yauzl': '3.4.0'
+  # Keep every installed undici major on its newest security release: 8.12.4 and 7.30.2 match
+  # the undici bundled in Node 26.13.1 and 24.22.3; 6.29.1 is the newest 6.x release.
+  'undici@^6': '6.29.1'
+  'undici@^7': '7.30.2'
+  'undici@^8': '8.12.4'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
   # FORK DIVERGENCE (upstream stays on the react 18 line): the fork upgrades
@@ -395,44 +307,6 @@ overrides:
   '@types/react-dom@~18.3.0': '19.2.5'
   '@types/react-dom@19.2.3': '19.2.5'
   '@types/react-dom@^19.3.0': '19.2.5'
-
-# FORK DIVERGENCE (fork releases between upstream tags): the host dsh family
-  # moves to 0.2.2-rc.2 while plugins/dsh-better-sidebar v0.30.1 still pins its
-  # devDependencies at exact `0.2.2-rc.1`. pnpm's frozen-lockfile gate rejects a
-  # linked workspace package (0.2.2-rc.2) that does not satisfy the declared
-  # exact range, so these version-scoped overrides re-point ONLY the plugin's
-  # exact pins onto the workspace sources (workspace members already declare
-  # `workspace:*` and are untouched). Drop these rows when the plugin itself
-  # releases devDependencies aligned with the host version.
-  '@deepseek-ai/dsh-agent@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-agent-loop@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-attachment@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-locale@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-store@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-conversation@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-input-trigger@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-primitives@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-settings@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-sidebar-right@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-client-ui-slots@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-host-webserver@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-llm@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-ptc-runtime@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-sandbox@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-sandbox-policy@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-scope@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-session@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-session-persistence@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-session-projection@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-settings@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-subagent@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-system-prompt@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-tools@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-user-approval@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-util-code-language@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-util-time@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-util-workspace-path@0.2.2-rc.1': 'workspace:*'
-  '@deepseek-ai/dsh-working-directory@0.2.2-rc.1': 'workspace:*'
 
 peerDependencyRules:
   allowedVersions:
@@ -481,6 +355,13 @@ allowBuilds:
   # needed only when that plugin is rebuilt from source (see plugins/README.md),
   # never by this repository's install.
   '@whiskeysockets/baileys': false
+  # The Feishu plugin's CLI downloads its native binary from GitHub Releases or npmmirror.
+  # Repository installs skip it; profiles that install the plugin approve it separately.
+  # Update the version here together with packages/connector/feishu/package.json.
+  '@larksuite/cli@1.0.97': false
+  # The Tencent Meeting plugin's CLI ships executable binaries; its install script only
+  # restores their mode and runs `tmeet auth logout`, so repository installs skip it.
+  '@tencentcloud/tmeet@1.0.18': false
 
 minimumReleaseAgeExclude:
   # Native Codex and Claude tests qualify this exact release with its local patches.
@@ -496,18 +377,19 @@ minimumReleaseAgeExclude:
   # point of bumping it; waiting out the release age would defeat that.
   - '@earendil-works/pi-ai@1.3.0'
   - '@earendil-works/pi-telemetry@1.3.0'
-  # This addon release recognizes the Electron 44.7.0 Node/V8 fingerprint used by Desktop.
-  - node-addon-native-custom-loader@0.1.9
-  - node-addon-require-builtin-darwin-arm64@0.1.9
-  - node-addon-require-builtin-darwin-x64@0.1.9
-  - node-addon-require-builtin-linux-arm64-gnu@0.1.9
-  - node-addon-require-builtin-linux-x64-gnu@0.1.9
-  - node-addon-require-builtin-linux-arm64-musl@0.1.9
-  - node-addon-require-builtin-linux-x64-musl@0.1.9
-  - node-addon-require-builtin-win32-arm64-msvc@0.1.9
-  - node-addon-require-builtin-win32-ia32-msvc@0.1.9
-  - node-addon-require-builtin-win32-x64-msvc@0.1.9
-  - node-addon-require-builtin@0.1.9
+  # This addon release recognizes the Electron 44.11.5 Node/V8 fingerprint used by Desktop.
+  - node-addon-native-custom-loader@0.1.10
+  - node-addon-require-builtin-darwin-arm64@0.1.10
+  - node-addon-require-builtin-darwin-x64@0.1.10
+  - node-addon-require-builtin-linux-arm64-gnu@0.1.10
+  - node-addon-require-builtin-linux-x64-gnu@0.1.10
+  - node-addon-require-builtin-linux-arm64-musl@0.1.10
+  - node-addon-require-builtin-linux-x64-musl@0.1.10
+  - node-addon-require-builtin-win32-arm64-msvc@0.1.10
+  - node-addon-require-builtin-win32-ia32-msvc@0.1.10
+  - node-addon-require-builtin-win32-x64-msvc@0.1.10
+  - node-addon-require-builtin@0.1.10
+  # SDKWork sibling packages released ahead of the release-age window.
   - '@sdkwork/appstore-app-sdk@0.1.1'
   - '@sdkwork/drive-app-sdk@0.1.1'
   - '@sdkwork/knowledgebase-app-sdk@0.1.1'
@@ -539,8 +421,8 @@ minimumReleaseAgeExclude:
   # The package manager is a workspace devDependency, so its own exact pin
   # must be exempt from the release-age window that guards other packages.
   - pnpm@11.28.5
-  # Desktop packaging requires this Electron fingerprint with node-addon-require-builtin 0.1.9.
-  - electron@44.7.0
+  # Desktop packaging requires this Electron fingerprint with node-addon-require-builtin 0.1.10.
+  - electron@44.11.5
   # Stagehand 4.4.0 carries the reviewed zod 4.6.6 pin; install it without the release-age wait.
   - '@browserbasehq/stagehand@4.4.0'
 patchedDependencies:
