@@ -272,3 +272,13 @@ build/
 # is first-party now (`packages/client/ui-sdkwork-experts`); the submodule must
 # not come back, and this checkout must never be committed.
 /plugins/sdkwork-dsh-agents/
+
+# Local sandbox ACL backup and report artifacts written by permission repair
+# runs. They describe one machine's filesystem state and are never committed.
+/.sandbox-acl-recovery/
+
+# Standalone checkout of the dsh-market plugin repository
+# (https://github.com/sdkwork-ai/sdkwork-dsh-market.git). It carries its own
+# .git and is not a registered submodule here, so committing it would record a
+# bare gitlink with no URL to clone from.
+/plugins/dsh-market/
