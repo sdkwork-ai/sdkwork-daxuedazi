@@ -31,6 +31,19 @@ on:
         description: Comma-separated run ids matching repair-artifacts one by one
         required: false
         type: string
+      # A repair can also rebuild whole job families in the repair run instead
+      # of only swapping finished artifacts. Only families named here repeat;
+      # everything else comes from the base run.
+      repair-rebuild-desktop:
+        description: Rebuild all Desktop targets in this repair run
+        required: false
+        type: boolean
+        default: false
+      repair-rebuild-container-image:
+        description: Rebuild both container image lanes in this repair run
+        required: false
+        type: boolean
+        default: false
       # Legacy single-lane input kept for compatibility with earlier repair runs.
       repair-mac-x64-run:
         description: Run id providing a replacement dsh-desktop-macos-x64 artifact
@@ -64,6 +77,8 @@ jobs:
       repair: ${{ steps.version.outputs.repair }}
       repair-artifacts: ${{ steps.version.outputs.repair-artifacts }}
       repair-runs: ${{ steps.version.outputs.repair-runs }}
+      rebuild-desktop: ${{ steps.version.outputs.rebuild-desktop }}
+      rebuild-container-image: ${{ steps.version.outputs.rebuild-container-image }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -79,6 +94,8 @@ jobs:
           REPAIR_ARTIFACTS: ${{ inputs.repair-artifacts }}
           REPAIR_RUNS: ${{ inputs.repair-runs }}
           REPAIR_MAC_X64_RUN: ${{ inputs.repair-mac-x64-run }}
+          REPAIR_REBUILD_DESKTOP: ${{ inputs.repair-rebuild-desktop }}
+          REPAIR_REBUILD_CONTAINER_IMAGE: ${{ inputs.repair-rebuild-container-image }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == push ]]; then
@@ -106,10 +123,23 @@ jobs:
           fi
           if [[ -n "$REPAIR_BASE_RUN" || -n "$REPAIR_ARTIFACTS" || -n "$REPAIR_RUNS" || -n "$REPAIR_MAC_X64_RUN" ]]; then
             test "$GITHUB_EVENT_NAME" = workflow_dispatch
-            test -n "$REPAIR_BASE_RUN" && test -n "$REPAIR_ARTIFACTS" && test -n "$REPAIR_RUNS" || {
-              echo "repair needs repair-base-run plus matching repair-artifacts and repair-runs" >&2
+            test -n "$REPAIR_BASE_RUN" || {
+              echo "repair needs repair-base-run" >&2
               exit 1
             }
+            # A family rebuild needs no replacement artifact pairs; a swap-only
+            # repair still needs both lists.
+            if [[ -z "$REPAIR_ARTIFACTS" && -z "$REPAIR_RUNS" ]]; then
+              if [[ "$REPAIR_REBUILD_DESKTOP" != true && "$REPAIR_REBUILD_CONTAINER_IMAGE" != true ]]; then
+                echo "repair needs either artifact replacements or a family rebuild" >&2
+                exit 1
+              fi
+            else
+              test -n "$REPAIR_ARTIFACTS" && test -n "$REPAIR_RUNS" || {
+                echo "repair needs matching repair-artifacts and repair-runs" >&2
+                exit 1
+              }
+            fi
             [[ "$REPAIR_BASE_RUN" =~ ^[0-9]+$ ]] || {
               echo "repair base run id must be numeric" >&2
               exit 1
@@ -144,6 +174,16 @@ jobs:
             echo 'repair-artifacts=' >> "$GITHUB_OUTPUT"
             echo 'repair-runs=' >> "$GITHUB_OUTPUT"
           fi
+          if [[ "$REPAIR_REBUILD_DESKTOP" == true ]]; then
+            echo 'rebuild-desktop=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'rebuild-desktop=false' >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$REPAIR_REBUILD_CONTAINER_IMAGE" == true ]]; then
+            echo 'rebuild-container-image=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'rebuild-container-image=false' >> "$GITHUB_OUTPUT"
+          fi
 
       # Both the container bundle and every published container file start with
       # the selected brand's artifact stem, so an OEM build never publishes an
@@ -160,7 +200,7 @@ jobs:
   desktop:
     name: Package Desktop targets
     needs: resolve
-    if: needs.resolve.outputs.repair != 'true'
+    if: needs.resolve.outputs.repair != 'true' || needs.resolve.outputs.rebuild-desktop == 'true'
     uses: ./.github/workflows/desktop-release.yml
     with:
       version: ${{ needs.resolve.outputs.version }}
@@ -282,7 +322,7 @@ jobs:
   container-image:
     name: Package container ${{ matrix.platform }}
     needs: [resolve, container-bundle, container-native]
-    if: needs.resolve.outputs.repair != 'true'
+    if: needs.resolve.outputs.repair != 'true' || needs.resolve.outputs.rebuild-container-image == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -396,6 +436,10 @@ jobs:
         with:
           pattern: landlock-native-*
           path: landlock-artifacts
+          # A repair rebuilds only the image lanes, so the native artifacts
+          # stay pinned to the green lanes of the base run.
+          run-id: ${{ needs.resolve.outputs.repair == 'true' && inputs.repair-base-run || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Assemble native Landlock artifacts
         shell: bash
@@ -415,6 +459,8 @@ jobs:
         with:
           name: ${{ needs.resolve.outputs.prefix }}-container-deployment-${{ needs.resolve.outputs.version }}
           path: dist/container
+          run-id: ${{ needs.resolve.outputs.repair == 'true' && inputs.repair-base-run || github.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify and extract deployment archive
         shell: bash
@@ -538,6 +584,8 @@ jobs:
       (needs.resolve.outputs.repair == 'true' ||
        (needs.desktop.result == 'success' && needs.container-bundle.result == 'success' &&
         needs.container-image.result == 'success')) &&
+      (needs.resolve.outputs.rebuild-desktop != 'true' || needs.desktop.result == 'success') &&
+      (needs.resolve.outputs.rebuild-container-image != 'true' || needs.container-image.result == 'success') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       (startsWith(github.ref, 'refs/tags/sdkwork-daxuedazi-v') ||
        startsWith(github.ref, 'refs/tags/birdcoder-v'))
@@ -577,7 +625,7 @@ jobs:
         with:
           pattern: dsh-desktop-*
           path: artifacts
-          run-id: ${{ needs.resolve.outputs.repair == 'true' && inputs.repair-base-run || github.run_id }}
+          run-id: ${{ needs.resolve.outputs.repair == 'true' && needs.resolve.outputs.rebuild-desktop != 'true' && inputs.repair-base-run || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Replace only the repaired artifacts
@@ -604,7 +652,7 @@ jobs:
         with:
           pattern: ${{ needs.resolve.outputs.prefix }}-container-*
           path: artifacts
-          run-id: ${{ needs.resolve.outputs.repair == 'true' && inputs.repair-base-run || github.run_id }}
+          run-id: ${{ needs.resolve.outputs.repair == 'true' && needs.resolve.outputs.rebuild-container-image != 'true' && inputs.repair-base-run || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Assemble and verify exact release assets
