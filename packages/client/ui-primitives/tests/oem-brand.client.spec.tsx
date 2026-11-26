@@ -92,7 +92,7 @@ describe('readOemIamClientId', () => {
     }
     expect(readOemIamClientId({ brand: { name: 'Acme' } })).toBeUndefined()
     expect(readOemIamClientId()).toBeUndefined()
-    expect(DEFAULT_IAM_CLIENT_ID).toBe('birdcoder')
+    expect(DEFAULT_IAM_CLIENT_ID).toBe('daxuedazi')
   })
 })
 
@@ -114,7 +114,7 @@ describe('readOemIamRedirectUri', () => {
     }
     expect(readOemIamRedirectUri({ sdkwork: {} })).toBeUndefined()
     expect(readOemIamRedirectUri()).toBeUndefined()
-    expect(DEFAULT_IAM_REDIRECT_URI).toBe('birdcoder://auth/callback')
+    expect(DEFAULT_IAM_REDIRECT_URI).toBe('daxuedazi://auth/callback')
   })
 })
 

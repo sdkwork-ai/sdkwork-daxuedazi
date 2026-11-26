@@ -139,7 +139,7 @@ it('ships the product name Electron reads in the application manifest and the bu
     DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }),
   }, 'win32', 'x64')
   expect(config.productName).toBe(DESKTOP_PRODUCT_NAME)
-  expect(config.protocols).toEqual([{ name: DESKTOP_PRODUCT_NAME, schemes: [DESKTOP_PROTOCOL_SCHEME, 'com.sdkwork.birdcoder'] }])
+  expect(config.protocols).toEqual([{ name: DESKTOP_PRODUCT_NAME, schemes: [DESKTOP_PROTOCOL_SCHEME, 'com.sdkwork.daxuedazi'] }])
 })
 
 it('registers its own URL scheme in the shell and in the development bundle', () => {

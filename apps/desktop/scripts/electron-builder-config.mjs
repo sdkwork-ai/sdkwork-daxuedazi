@@ -48,6 +48,8 @@ import {
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
+import { resolveBrandApplicationId } from './brand-application-id.mjs'
+import { resolveBrandReleaseRepository } from './brand-release-repository.mjs'
 
 /**
  * The fork's GitHub Release repository.
@@ -152,7 +154,16 @@ export function createElectronBuilderConfig(
   const brand = resolveBrand(env)
   const brandManifest = brandManifestPath(env)
   const shippedOemProfile = brandManifest.replace(/\.json$/u, '.oem.json')
-  const appId = resolveDesktopAppId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })
+  // FORK DIVERGENCE (AGENTS.md, "Desktop application identity"): the brand
+  // manifest owns the installed identity. The resolver refuses a lane that
+  // names another shipped brand or the upstream application, which would make
+  // this installer upgrade that product instead of installing side by side.
+  const appId = resolveBrandApplicationId({ ...env, DSH_DESKTOP_APP_ID: env.DSH_DESKTOP_APP_ID ?? brand.desktop.appId })
+  // FORK DIVERGENCE: the fallback GitHub provider is the brand's own release
+  // repository, not a product constant. A repository has one `latest` pointer,
+  // so naming another product's repository here makes the packaged updater
+  // fetch that product's release and replace this installation with it.
+  const releaseRepository = resolveBrandReleaseRepository(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -591,7 +602,7 @@ export function createElectronBuilderConfig(
     // always runs with `--publish never`, so the provider is never contacted.
     // Leaving `channel` unset keeps the `latest` names the contract asserts.
     publish: update === undefined
-      ? [{ provider: 'github', owner: GITHUB_RELEASE_OWNER, repo: GITHUB_RELEASE_REPO }]
+      ? [{ provider: 'github', owner: releaseRepository.owner, repo: releaseRepository.repo }]
       : [{ provider: 'generic', url: update.publicUrl }],
     // The static AppImage toolset carries native runtimes for every
     // architecture; the legacy 0.0.0 toolset falls back to its x64 runtime when

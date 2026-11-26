@@ -97,8 +97,8 @@ describe('LocaleRuntime', () => {
       identifiers: 'Read $DSH_HOME/.env, then run dsh plugin add dsh-plugin-x.',
     })
     const t = svc.bind('oem')
-    // The shipped build renders the upstream wording it ships.
-    expect(t('upstream')).toBe('Restart DeepSeek Harness to apply.')
+    // The shipped build substitutes its display brand for every shipped spelling.
+    expect(t('upstream')).toBe('Restart 学伴AI to apply.')
     svc.setBrand('Acme')
     expect(t('upstream')).toBe('Restart Acme to apply.')
     expect(t('acronym')).toBe('Acme is still starting.')
