@@ -594,6 +594,14 @@ export function createElectronBuilderConfig(
       installerIcon: icons.win,
       uninstallerIcon: icons.win,
       installerHeaderIcon: icons.win,
+      // FORK DIVERGENCE: customHeader intentionally calls `Name` a second time
+      // with the localized brand string, replacing the ASCII productName the
+      // template already emitted. NSIS 3 reports warning 6029 for that override;
+      // electron-builder passes `-WX` by default, which turns the harmless
+      // warning into `Error: warning treated as error` and blocks both Windows
+      // lanes. Keep the warning visible in the build log but stop treating
+      // warnings as fatal so the branded installer can be produced.
+      warningsAsErrors: false,
     },
     // A publish provider is what makes electron-builder write the updater
     // metadata at all, and the release contract requires all four channel files

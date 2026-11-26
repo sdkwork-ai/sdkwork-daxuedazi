@@ -167,6 +167,7 @@
 * **子模块推进到跟踪分支 HEAD**：`plugins/dsh-im` → `6d49cfe6`、`plugins/dsh-better-sidebar`（`dev`）→ `d00f0211`、`plugins/dsh-mcp-connector` → `ea10bba6`；其余三个子模块原本已在远端 HEAD，指针不变。
 * **打包修复路径泛化**：`container-release.yml` 的 repair dispatch 新增 `repair-artifacts` / `repair-runs` 成对输入，可按产物名只替换失败 lane；`repair-rebuild-desktop` / `repair-rebuild-container-image` 允许只重建失败的任务族，成功的桌面、容器 bundle 与原生 lane 从 base run 原样复用；旧的单 lane `repair-mac-x64-run` 保持兼容。
 * **打包门禁修复**：上游在 `0.2.3-alpha.2` 已删除 `packages/experimental/personalized-recommendations`，但 fork 的合并保留了它的 `package.json`，使根 tsdown 在 Host pass 按 `lib/types/{index,startup}.js` 找不到入口；删除该陈旧清单并同步重算 lockfile。fork 自有的 `ui-sdkwork-message-center/tests/host.spec.ts` 改名为 `host.host.spec.ts`，满足 client 包测试必须带 `.client.` / `.host.` face 标记的门禁；`ui-sdkwork-template-library` 的版本从 `0.2.2-rc.7` 补到 `0.2.3-alpha.2`，恢复 `DshFamily.verifyVersions` 同族同版本校验。
+* **Windows 安装器与修复运行**：品牌化 `customHeader` 会二次调用 NSIS `Name` 覆盖 ASCII `productName`，NSIS 3 的 6029 警告在 electron-builder 默认 `-WX` 下变成 `warning treated as error`；nsis 配置改为 `warningsAsErrors: false`，告警仍留在日志里但不再阻断安装器。repair 只重建容器镜像时，其上游 bundle/native 任务被跳过会让 GitHub 连带跳过镜像任务，条件补上 `always()`。
 * **发布命名与配置**：本次 tag 为 `sdkwork-daxuedazi-v0.2.3-alpha.2`，Release 名沿用「项目名-版本」；安装期端口 `DSH_PUBLISH_HOST` / `DSH_PUBLISH_PORT` / `DSH_WEB_PORT` 与数据卷路径均可由环境变量覆盖，数据库/Redis 由依赖的 SDKWork sibling 服务按各自 main 配置提供，本容器无状态、不暴露无效开关。
 
 本文件只保留当前版本一节；往期条目随各自版本的提交留在 git 历史里（`git log -p CHANGELOG.md`）。Release notes 就是本节内容。

@@ -322,7 +322,10 @@ jobs:
   container-image:
     name: Package container ${{ matrix.platform }}
     needs: [resolve, container-bundle, container-native]
-    if: needs.resolve.outputs.repair != 'true' || needs.resolve.outputs.rebuild-container-image == 'true'
+    # A repair that rebuilds only the images intentionally skips the bundle and
+    # native lanes and reuses their artifacts from the base run. `always()` is
+    # required or GitHub skips this job as soon as any `needs` job is skipped.
+    if: always() && (needs.resolve.outputs.repair != 'true' || needs.resolve.outputs.rebuild-container-image == 'true')
     strategy:
       fail-fast: false
       matrix:
